@@ -52,22 +52,32 @@ impl ZlgDevice for ZCanDriver<'_> {
     fn open(&mut self, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<(), ZCanError> {
         let dev_name = Self::device_name(dev_type, dev_idx);
         let dev_hdl: u32;
-        let dev_info: ZDeviceInfo = Default::default();
+        let dev_info: ZDeviceInfo;
         match dev_type {
             ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 => {
                 dev_hdl = self.usbcan_api.open(dev_type, dev_idx).unwrap();
+                match derive {
+                    Some(v) => {
+                        dev_info = ZDeviceInfo::from(v);
+                    },
+                    None => dev_info = self.usbcan_api.read_device_info(dev_type, dev_idx).unwrap(),
+                }
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                 dev_hdl = self.usbcan_4e_api.open(dev_type, dev_idx).unwrap();
+                dev_info = self.usbcan_4e_api.read_device_info(dev_hdl).unwrap();
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
                 dev_hdl = self.usbcan_8e_api.open(dev_type, dev_idx).unwrap();
+                dev_info = self.usbcan_8e_api.read_device_info(dev_hdl).unwrap();
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 dev_hdl = self.usbcanfd_api.open(dev_type, dev_idx).unwrap();
+                dev_info = self.usbcanfd_api.read_device_info(dev_type, dev_idx).unwrap();
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
                 dev_hdl = self.usbcanfd_800u_api.open(dev_type, dev_idx).unwrap();
+                dev_info = self.usbcanfd_800u_api.read_device_info(dev_hdl).unwrap();
             },
             _ => return Err(ZCanError::new(0xFF, format!("ZLGCAN - {} not supported!", dev_name))),
         }
