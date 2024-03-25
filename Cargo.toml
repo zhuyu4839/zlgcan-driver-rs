@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "common",
+    "driver",
+#    "linux",
+#    "windows",
+]
+resolver = "2"
