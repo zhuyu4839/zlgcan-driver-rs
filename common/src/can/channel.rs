@@ -2,13 +2,7 @@ use std::collections::HashMap;
 use std::ffi::{c_uchar, c_uint, c_ushort};
 use std::mem::ManuallyDrop;
 use crate::can::frame::ZCanHeaderV1;
-use super::constant::{CANERR_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFilterType};
-
-pub(self) const TSEG1: &str = "tseg1";    // Time Segment 1
-pub(self) const TSEG2: &str = "tseg2";    // Time Segment 2
-pub(self) const SJW: &str = "sjw";        // Synchronization Jump Width
-pub(self) const SMP: &str = "smp";        // Sampling specifies
-pub(self) const BRP: &str = "brp";        // BaudRate Pre-scale
+use super::constant::{BRP, CANERR_FRAME_LENGTH, SJW, SMP, TSEG1, TSEG2, ZCanChlMode, ZCanChlType, ZCanFilterType};
 
 /// Linux USBCAN USBCAN_4E(8_E) USBCANFD_800U and windows
 #[repr(C)]

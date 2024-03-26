@@ -3,6 +3,12 @@ use std::fmt::{Display, Formatter};
 pub(crate) const BITRATE_CFG_FILENAME: &str = "bitrate.cfg.yaml";
 pub(crate) const TIMING0: &str = "timing0";
 pub(crate) const TIMING1: &str = "timing1";
+pub(crate) const TSEG1: &str = "tseg1";     // Time Segment 1
+pub(crate) const TSEG2: &str = "tseg2";     // Time Segment 2
+pub(crate) const SJW: &str = "sjw";         // Synchronization Jump Width
+pub(crate) const SMP: &str = "smp";         // Sampling specifies
+pub(crate) const BRP: &str = "brp";         // BaudRate Pre-scale
+
 pub(crate) const CAN_EFF_FLAG: u32 = 0x80000000; /* EFF/SFF is set in the MSB */
 pub(crate) const CAN_RTR_FLAG: u32 = 0x40000000; /* remote transmission request */
 pub(crate) const CAN_ERR_FLAG: u32 = 0x20000000; /* error message frame */
