@@ -58,13 +58,21 @@ impl From<ZCanFrameV1> for CanMessage {
 
 impl FromIterator<CanMessage> for Vec<ZCanFrameV1> {
     fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for msg in iter {
+            results.push(ZCanFrameV1::from(msg));
+        }
+        results
     }
 }
 
 impl FromIterator<ZCanFrameV1> for Vec<CanMessage> {
     fn from_iter<T: IntoIterator<Item=ZCanFrameV1>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for frame in iter {
+            results.push(CanMessage::from(frame));
+        }
+        results
     }
 }
 
@@ -91,13 +99,21 @@ impl From<ZCanFrameV2> for CanMessage {
 
 impl FromIterator<CanMessage> for Vec<ZCanFrameV2> {
     fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for msg in iter {
+            results.push(ZCanFrameV2::from(msg));
+        }
+        results
     }
 }
 
 impl FromIterator<ZCanFrameV2> for Vec<CanMessage> {
     fn from_iter<T: IntoIterator<Item=ZCanFrameV2>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for frame in iter {
+            results.push(CanMessage::from(frame));
+        }
+        results
     }
 }
 
@@ -124,13 +140,21 @@ impl From<ZCanFrameV3> for CanMessage {
 
 impl FromIterator<CanMessage> for Vec<ZCanFrameV3> {
     fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for msg in iter {
+            results.push(ZCanFrameV3::from(msg));
+        }
+        results
     }
 }
 
 impl FromIterator<ZCanFrameV3> for Vec<CanMessage> {
     fn from_iter<T: IntoIterator<Item=ZCanFrameV3>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for frame in iter {
+            results.push(CanMessage::from(frame));
+        }
+        results
     }
 }
 
@@ -161,13 +185,21 @@ impl From<ZCanFdFrameV1> for CanMessage {
 
 impl FromIterator<CanMessage> for Vec<ZCanFdFrameV1> {
     fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for msg in iter {
+            results.push(ZCanFdFrameV1::from(msg));
+        }
+        results
     }
 }
 
 impl FromIterator<ZCanFdFrameV1> for Vec<CanMessage> {
     fn from_iter<T: IntoIterator<Item=ZCanFdFrameV1>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for frame in iter {
+            results.push(CanMessage::from(frame));
+        }
+        results
     }
 }
 
@@ -197,13 +229,21 @@ impl From<ZCanFdFrameV2> for CanMessage {
 
 impl FromIterator<CanMessage> for Vec<ZCanFdFrameV2> {
     fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for msg in iter {
+            results.push(ZCanFdFrameV2::from(msg));
+        }
+        results
     }
 }
 
 impl FromIterator<ZCanFdFrameV2> for Vec<CanMessage> {
     fn from_iter<T: IntoIterator<Item=ZCanFdFrameV2>>(iter: T) -> Self {
-        todo!()
+        let mut results = Vec::new();
+        for frame in iter {
+            results.push(CanMessage::from(frame));
+        }
+        results
     }
 }
 
