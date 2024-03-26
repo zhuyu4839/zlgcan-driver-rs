@@ -82,7 +82,7 @@ impl CanMessage {
         }
     }
     #[inline(always)]
-    pub fn timestamp(&self) -> u64 { self.timestamp }
+    pub const fn timestamp(&self) -> u64 { self.timestamp }
     #[inline(always)]
     pub fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self {
         self.timestamp = value.unwrap_or_else(|| -> u64 {
@@ -94,14 +94,14 @@ impl CanMessage {
         self
     }
     #[inline(always)]
-    pub fn arbitration_id(&self) -> u32 { self.arbitration_id  }
+    pub const fn arbitration_id(&self) -> u32 { self.arbitration_id  }
     #[inline(always)]
     pub fn set_arbitration_id(&mut self, value: u32) -> &mut Self {
         self.arbitration_id = value;
         self
     }
     #[inline(always)]
-    pub fn is_extended_id(&self) -> bool { self.is_extended_id  }
+    pub const fn is_extended_id(&self) -> bool { self.is_extended_id  }
     #[inline(always)]
     pub fn set_is_extended_id(&mut self, value: bool) -> &mut Self {
         match self.arbitration_id & 0xFFFF800 {
@@ -111,60 +111,60 @@ impl CanMessage {
         self
     }
     #[inline(always)]
-    pub fn is_remote_frame(&self) -> bool { self.is_remote_frame  }
+    pub const fn is_remote_frame(&self) -> bool { self.is_remote_frame  }
     #[inline(always)]
     pub fn set_is_remote_frame(&mut self, value: bool) -> &mut Self {
         self.is_remote_frame = value;
         self
     }
     #[inline(always)]
-    pub fn is_error_frame(&self) -> bool { self.is_error_frame  }
+    pub const fn is_error_frame(&self) -> bool { self.is_error_frame  }
     #[inline(always)]
     pub fn set_is_error_frame(&mut self, value: bool) -> &mut Self {
         self.is_remote_frame = value;
         self
     }
     #[inline(always)]
-    pub fn channel(&self) -> Option<u8> { self.channel  }
+    pub const fn channel(&self) -> Option<u8> { self.channel  }
     #[inline(always)]
     pub fn set_channel(&mut self, value: u8) -> &mut Self {
         self.channel = Some(value);
         self
     }
     #[inline(always)]
-    pub fn length(&self) -> u8 { self.len  }
+    pub const fn length(&self) -> u8 { self.len  }
     #[inline(always)]
     pub fn data(&self) -> &[u8] { self.data.as_slice()  }
     #[inline(always)]
-    pub fn is_fd(&self) -> bool { self.is_fd  }
+    pub const fn is_fd(&self) -> bool { self.is_fd  }
     #[inline(always)]
     pub fn set_is_fd(&mut self, value: bool) -> &mut Self {
         self.is_fd = value;
         self
     }
     #[inline(always)]
-    pub fn is_rx(&self) -> bool { self.is_rx  }
+    pub const fn is_rx(&self) -> bool { self.is_rx  }
     #[inline(always)]
     pub fn set_is_rx(&mut self, value: bool) -> &mut Self {
         self.is_rx = value;
         self
     }
     #[inline(always)]
-    pub fn bitrate_switch(&self) -> bool { self.bitrate_switch  }
+    pub const fn bitrate_switch(&self) -> bool { self.bitrate_switch  }
     #[inline(always)]
     pub fn set_bitrate_switch(&mut self, value: bool) -> &mut Self {
         self.bitrate_switch = value;
         self
     }
     #[inline(always)]
-    pub fn error_state_indicator(&self) -> bool { self.error_state_indicator  }
+    pub const fn error_state_indicator(&self) -> bool { self.error_state_indicator  }
     #[inline(always)]
     pub fn set_error_state_indicator(&mut self, value: bool) -> &mut Self {
         self.error_state_indicator = value;
         self
     }
 
-    pub fn dlc(&self) -> Option<u8> {
+    pub const fn dlc(&self) -> Option<u8> {
         if self.is_fd {
             match self.len as usize {
                 0..=CAN_FRAME_LENGTH => Some(self.len),
