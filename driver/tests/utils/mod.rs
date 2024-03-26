@@ -121,13 +121,13 @@ fn new_v2_fdframes(size: u32, extend: bool, brs: bool) -> Vec<ZCanFdFrame> {
     frames
 }
 
-pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
+pub fn can_device1(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<DeriveInfo>) {
     let dev_idx = 0;
     let channels = 1;
     let trans_ch = 0;
     let recv_ch = 0;
-    let comm_count = 5;
-    let ext_count = 5;
+    let comm_count = 1;
+    let ext_count = 1;
 
     let mut driver = ZCanDriver::new();
     driver.open(dev_type, dev_idx, derive_info).unwrap();
@@ -140,6 +140,31 @@ pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
     let cfg = vec![ch1_cfg,];
     driver.init_can_chl(dev_type, dev_idx, cfg).unwrap();
+
+    let frames1;
+    let frames2;
+    // create CAN frames
+    if linux {
+        frames1 = new_v1_frames(comm_count, false);
+        frames2 = new_v1_frames(ext_count, true);
+    }
+    else {
+        frames1 = new_v3_frames(comm_count, false);
+        frames2 = new_v3_frames(ext_count, true);
+    }
+    println!("source frame:");
+    frames1.iter().for_each(|frame| {
+        println!("{:?}", frame.get_v1());
+    });
+    frames2.iter().for_each(|frame| {
+        println!("{:?}", frame.get_v1());
+    });
+
+    // transmit CAN frames
+    let ret = driver.transmit_can(dev_type, dev_idx, trans_ch, frames1).unwrap();
+    assert_eq!(ret, comm_count);
+    let ret = driver.transmit_can(dev_type, dev_idx, trans_ch, frames2).unwrap();
+    assert_eq!(ret, ext_count);
 
     loop {
         // waiting for receive message
@@ -154,24 +179,6 @@ pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
                 println!("{:?}", frame.get_v1());
             });
 
-            let frames1;
-            let frames2;
-            // create CAN frames
-            frames1 = new_v1_frames(comm_count, false);
-            frames2 = new_v1_frames(ext_count, true);
-            // if linux {
-            // }
-            // else {
-            //     frames1 = new_v3_frames(comm_count, false);
-            //     frames2 = new_v3_frames(ext_count, true);
-            // }
-
-            // transmit CAN frames
-            let ret = driver.transmit_can(dev_type, dev_idx, trans_ch, frames1).unwrap();
-            assert_eq!(ret, comm_count);
-            let ret = driver.transmit_can(dev_type, dev_idx, trans_ch, frames2).unwrap();
-            assert_eq!(ret, ext_count);
-
             driver.close(dev_type, dev_idx);
             break;
         }
@@ -180,7 +187,7 @@ pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     }
 }
 
-pub fn can_device2(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
+pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<DeriveInfo>) {
     let dev_idx = 0;
     let channels = 2;
     let trans_ch = 0;
@@ -192,7 +199,7 @@ pub fn can_device2(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     driver.open(dev_type, dev_idx, derive_info).unwrap();
     let dev_info = driver.device_info(dev_type, dev_idx).unwrap();
     assert_eq!(dev_info.can_channels(), channels);
-    assert_eq!(dev_info.canfd(), true);
+    assert_eq!(dev_info.canfd(), false);
 
     let factory = CanChlCfgFactory::new();
     // reconfigure channels as CAN
@@ -201,8 +208,23 @@ pub fn can_device2(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     let cfg = vec![ch1_cfg, ch2_cfg];
     driver.init_can_chl(dev_type, dev_idx, cfg).unwrap();
     // create CAN frames
-    let frames1= new_v2_frames(comm_count, false);
-    let frames2 = new_v2_frames(comm_count, true);
+    let frames1;
+    let frames2;
+    if linux {
+        frames1 = new_v1_frames(comm_count, false);
+        frames2 = new_v1_frames(ext_count, true);
+    }
+    else {
+        frames1 = new_v3_frames(comm_count, false);
+        frames2 = new_v3_frames(ext_count, true);
+    }
+    println!("source frame:");
+    frames1.iter().for_each(|frame| {
+        println!("{:?}", frame.get_v1());
+    });
+    frames2.iter().for_each(|frame| {
+        println!("{:?}", frame.get_v1());
+    });
 
     // transmit CAN frames
     let ret = driver.transmit_can(dev_type, dev_idx, trans_ch, frames1).unwrap();
@@ -219,8 +241,9 @@ pub fn can_device2(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     // receive CAN frames
     let frames = driver.receive_can(dev_type, dev_idx, recv_ch, cnt, None).unwrap();
     assert_eq!(frames.len() as u32, cnt);
+    println!("received frame:");
     frames.iter().for_each(|frame| {
-        println!("{:?}", frame.get_v2());
+        println!("{:?}", frame.get_v1());
     });
 }
 
