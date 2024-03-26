@@ -3,13 +3,13 @@ use common::can::CanChlCfg;
 use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
 use common::can::constant::{ZCanChlType, ZCanFrameType};
 use common::can::frame::{ZCanFdFrame, ZCanFrame};
-use common::device::CmdPath;
 use common::error::ZCanError;
 
-use crate::constant::{STATUS_OK, BAUD_RATE, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, INVALID_CHANNEL_HANDLE, INTERNAL_RESISTANCE, PROTOCOL};
+use crate::constant::{STATUS_OK, INVALID_CHANNEL_HANDLE};
 use super::USBCANFD800UApi;
 
 impl USBCANFD800UApi<'_> {
+    #[allow(unused_variables)]
     pub(crate) fn init_can_chl(&self, dev_hdl: u32, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         let dev_type = cfg.device_type();
         unsafe {

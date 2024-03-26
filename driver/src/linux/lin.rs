@@ -56,7 +56,7 @@ impl ZLinDevice for ZCanDriver<'_> {
         match self.handlers.get_mut(&dev_name) {
             Some(dev_hdl) => {
                 match dev_hdl.find_lin(channel) {
-                    Some(v) => {
+                    Some(_v) => {
                         match dev_type {
                             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                                 self.usbcanfd_api.reset_lin_chl(dev_type, dev_idx, channel)

@@ -15,6 +15,7 @@ pub use windows::driver::ZCanDriver;
 //     static ref STATIC_DRIVER: driver::ZCanDriver<'static> = driver::ZCanDriver::new();
 // );
 
+#[allow(dead_code)]
 impl ZCanDriver<'_> {
     #[inline(always)]
     pub(crate) fn device_handler<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, callback: C) -> Result<T, ZCanError>
