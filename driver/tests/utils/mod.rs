@@ -284,6 +284,18 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, linux: bool) {
     assert_eq!(ret, comm_count);
     let ret = driver.transmit_can(dev_type, dev_idx, trans_ch, frames2).unwrap();
     assert_eq!(ret, ext_count);
+    println!("source frame:");
+    frames1.iter().for_each(|frame| {
+        if linux {
+            println!("{:?}", frame.get_v2());
+        }
+        else {
+            println!("{:?}", frame.get_v3());
+        }
+    });
+    frames2.iter().for_each(|frame| {
+        println!("{:?}", frame.get_v1());
+    });
 
     thread::sleep(Duration::from_millis(100));
 
@@ -362,6 +374,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, linux: bool) {
             // receive CANFD frames
             let frames = driver.receive_canfd(dev_type, dev_idx, trans_ch, cnt_fd, None).unwrap();
             assert_eq!(frames.len() as u32, cnt_fd);
+            println!("received frame:");
             frames.iter().for_each(|frame| {
                 if linux {
                     println!("{:?}", frame.get_v1());
@@ -370,7 +383,6 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, linux: bool) {
                     println!("{:?}", frame.get_v2());
                 }
             });
-
             break;
         }
 
