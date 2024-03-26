@@ -1,30 +1,21 @@
-use std::collections::HashMap;
-use std::fs::read_to_string;
-use common::can::BitrateCfg;
 use common::device::{Handler, ZCanDeviceType, ZlgDevice};
 use common::error::ZCanError;
-use self::constant::BITRATE_CFG_FILENAME;
 
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
-pub use linux::driver;
+pub use linux::driver::ZCanDriver;
 
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]
-pub use windows::driver;
+pub use windows::driver::ZCanDriver;
 
 // lazy_static!(
 //     static ref STATIC_DRIVER: driver::ZCanDriver<'static> = driver::ZCanDriver::new();
 // );
 
-impl driver::ZCanDriver<'_> {
-    pub(crate) fn load_bitrate_cfg() -> HashMap<String, BitrateCfg> {
-        let contents = read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
-        let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
-        config
-    }
+impl ZCanDriver<'_> {
     #[inline(always)]
     pub(crate) fn device_handler<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, callback: C) -> Result<T, ZCanError>
         where
@@ -106,7 +97,6 @@ pub(crate) mod constant {
     pub(crate) const STATUS_OK: u32 = 1;
     pub(crate) const STATUS_ONLINE: u32 = 2;
     pub(crate) const STATUS_OFFLINE: u32 = 3;
-    pub(crate) const BITRATE_CFG_FILENAME: &str = "bitrate.cfg.yaml";
     pub(crate) const INTERNAL_RESISTANCE: &str = "initenal_resistance";
     pub(crate) const PROTOCOL: &str = "protocol";
     pub(crate) const BAUD_RATE: &str = "baud_rate";

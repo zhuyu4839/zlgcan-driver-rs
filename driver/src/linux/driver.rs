@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use dlopen2::symbor::{Library, SymBorApi};
 use lazy_static::lazy_static;
 use log::{info, warn};
-use common::can::BitrateCfg;
 use common::device::{DeriveInfo, Handler, ZCanDeviceType, ZDeviceInfo, ZlgDevice};
 use common::error::ZCanError;
 
@@ -11,11 +10,11 @@ use super::api::{usbcan::*, usbcan_e::*, usbcanfd_800u::*, usbcanfd::*};
 
 #[cfg(target_arch = "x86_64")]
 lazy_static!(
-    static ref USBCAN_LIB: Library = Library::open("library/x86_64/libusbcan.so").expect(LOAD_LIB_FAILED);
-    static ref USBCAN4E_LIB: Library = Library::open("library/x86_64/libusbcan-4e.so").expect(LOAD_LIB_FAILED);
-    static ref USBCAN8E_LIB: Library = Library::open("library/x86_64/libusbcan-8e.so").expect(LOAD_LIB_FAILED);
-    static ref USBCANFD_LIB: Library = Library::open("library/x86_64/libusbcanfd.so").expect(LOAD_LIB_FAILED);
-    static ref USBCANFD800U_LIB: Library = Library::open("library/x86_64/libusbcanfd800u.so").expect(LOAD_LIB_FAILED);
+    static ref USBCAN_LIB: Library = Library::open("library/linux/x86_64/libusbcan.so").expect(LOAD_LIB_FAILED);
+    static ref USBCAN4E_LIB: Library = Library::open("library/linux/x86_64/libusbcan-4e.so").expect(LOAD_LIB_FAILED);
+    static ref USBCAN8E_LIB: Library = Library::open("library/linux/x86_64/libusbcan-8e.so").expect(LOAD_LIB_FAILED);
+    static ref USBCANFD_LIB: Library = Library::open("library/linux/x86_64/libusbcanfd.so").expect(LOAD_LIB_FAILED);
+    static ref USBCANFD800U_LIB: Library = Library::open("library/linux/x86_64/libusbcanfd800u.so").expect(LOAD_LIB_FAILED);
 );
 
 pub struct ZCanDriver<'a> {
@@ -25,7 +24,6 @@ pub struct ZCanDriver<'a> {
     pub(crate) usbcan_8e_api: USBCANEApi<'a>,
     pub(crate) usbcanfd_api: USBCANFDApi<'a>,
     pub(crate) usbcanfd_800u_api: USBCANFD800UApi<'a>,
-    pub(crate) bitrate_cfg: HashMap<String, BitrateCfg>,
 }
 
 impl ZlgDevice for ZCanDriver<'_> {
@@ -35,7 +33,7 @@ impl ZlgDevice for ZCanDriver<'_> {
             let usbcan_4e_api = USBCANEApi::load(&USBCAN4E_LIB).expect(LOAD_SYMBOLS_FAILED);
             let usbcan_8e_api = USBCANEApi::load(&USBCAN4E_LIB).expect(LOAD_SYMBOLS_FAILED);
             let usbcanfd_api = USBCANFDApi::load(&USBCANFD_LIB).expect(LOAD_SYMBOLS_FAILED);
-            let usbcanfd_800u_api = USBCANFD800UApi::load(&USBCANFD_LIB).expect(LOAD_SYMBOLS_FAILED);
+            let usbcanfd_800u_api = USBCANFD800UApi::load(&USBCANFD800U_LIB).expect(LOAD_SYMBOLS_FAILED);
             let handlers = Default::default();
             Self {
                 handlers,
@@ -44,7 +42,6 @@ impl ZlgDevice for ZCanDriver<'_> {
                 usbcan_8e_api,
                 usbcanfd_api,
                 usbcanfd_800u_api,
-                bitrate_cfg: Self::load_bitrate_cfg(),
             }
         }
     }
@@ -79,7 +76,7 @@ impl ZlgDevice for ZCanDriver<'_> {
                 dev_hdl = self.usbcanfd_800u_api.open(dev_type, dev_idx).unwrap();
                 dev_info = self.usbcanfd_800u_api.read_device_info(dev_hdl).unwrap();
             },
-            _ => return Err(ZCanError::new(0xFF, format!("ZLGCAN - {} not supported!", dev_name))),
+            _ => return Err(ZCanError::new(0xFF, format!("ZLGCAN - {} not supported", dev_name))),
         }
         self.handlers.insert(dev_name, Handler::new(dev_hdl, dev_info));
         Ok(())
@@ -134,10 +131,10 @@ impl ZlgDevice for ZCanDriver<'_> {
                         self.usbcanfd_800u_api.reset_can_chl(*hdl).unwrap_or_else(|e| warn!("{}", e));
                     }
 
-                    for (idx, hdl) in lins {
-                        info!("ZLGCAN - closing LIN channel: {}", *idx);
-                        self.usbcanfd_800u_api.reset_lin_chl(*hdl).unwrap_or_else(|e| warn!("{}", e));
-                    }
+                    // for (idx, hdl) in lins {
+                    //     info!("ZLGCAN - closing LIN channel: {}", *idx);
+                    //     self.usbcanfd_800u_api.reset_lin_chl(*hdl).unwrap_or_else(|e| warn!("{}", e));
+                    // }
 
                     self.usbcanfd_800u_api.close(dev_hdl.device_handler()).unwrap_or_else(|e| warn!("{}", e));
                 },
@@ -156,13 +153,13 @@ impl ZlgDevice for ZCanDriver<'_> {
         }
     }
 
-    fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
-        self.device_handler(dev_type, dev_idx, |dev_hdl| -> Result<bool, ZCanError> {
-            match dev_type {
-                ZCanDeviceType::ZCAN_USBCANFD_800U => self.usbcanfd_800u_api.is_online(dev_hdl.device_handler()),
-                _ => Err(ZCanError::new(0xFF, format!("ZLGCAN - {} is not supported!", "`is_online`"))),
-            }
-        }).unwrap()
-    }
+    // fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
+    //     self.device_handler(dev_type, dev_idx, |dev_hdl| -> Result<bool, ZCanError> {
+    //         match dev_type {
+    //             ZCanDeviceType::ZCAN_USBCANFD_800U => self.usbcanfd_800u_api.is_online(dev_hdl.device_handler()),
+    //             _ => Err(ZCanError::new(0xFF, format!("ZLGCAN - {} is not supported", "`is_online`"))),
+    //         }
+    //     }).unwrap()
+    // }
 }
 

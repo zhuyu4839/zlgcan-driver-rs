@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter};
 
+pub(crate) const BITRATE_CFG_FILENAME: &str = "bitrate.cfg.yaml";
 pub(crate) const TIMING0: &str = "timing0";
 pub(crate) const TIMING1: &str = "timing1";
 pub(crate) const CAN_EFF_FLAG: u32 = 0x80000000; /* EFF/SFF is set in the MSB */

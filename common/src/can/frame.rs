@@ -344,7 +344,7 @@ pub(self) fn zcanfd_frame_new<T, R>(can_id: u32, channel: u8, data: T, mut info:
         if (can_id & CAN_EFF_MASK) > 0 {
             info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
         }
-        if let 0..=CAN_FRAME_LENGTH = len {
+        if let 0..=CANFD_FRAME_LENGTH = len {
             Some(callback(can_id, channel, data, len as u8, info))
         }
         else {

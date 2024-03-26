@@ -6,8 +6,9 @@ use common::error::ZCanError;
 use super::driver::ZCanDriver;
 
 impl ZCanDevice for ZCanDriver<'_> {
-    fn can_bitrate_cfg(&self) -> &HashMap<String, BitrateCfg> {
-        &self.bitrate_cfg
+    fn can_bitrate_cfg(&self) -> &BitrateCfg {
+        // &self.bitrate_cfg
+        todo!()
     }
     
     fn init_can_chl(&mut self, dev_type: ZCanDeviceType, dev_idx: u32, cfg: Vec<CanChlCfg>) -> Result<(), ZCanError> {
@@ -121,10 +122,10 @@ impl ZCanDevice for ZCanDriver<'_> {
 
 #[cfg(test)]
 mod test_can {
-    use common::can::CanChlCfg;
+    use common::can::{CanChlCfg, CanChlCfgFactory};
     use common::can::constant::{ZCanChlMode, ZCanChlType};
     use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
-    use crate::driver::ZCanDriver;
+    use crate::ZCanDriver;
 
     #[test]
     fn usbcanfd_200u() {
@@ -134,8 +135,10 @@ mod test_can {
         let mut driver = ZCanDriver::new();
         driver.open(dev_type, dev_idx, None).unwrap();
 
-        let cfg1 = driver.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default());
-        let cfg2 = driver.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default());
+        let factory = CanChlCfgFactory::new();
+
+        let cfg1 = factory.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
+        let cfg2 = factory.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
         let cfg = vec![cfg1, cfg2];
 
         driver.init_can_chl(dev_type, dev_idx, cfg).unwrap();

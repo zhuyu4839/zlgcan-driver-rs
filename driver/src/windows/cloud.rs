@@ -57,6 +57,3 @@ impl ZCloudDevice for ZCanDriver<'_> {
         }
     }
 }
-
-
-

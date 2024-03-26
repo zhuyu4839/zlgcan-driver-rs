@@ -13,9 +13,10 @@ use std::ffi::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, CString};
 use log::{debug, info, warn};
 use dlopen2::symbor::{Symbol, SymBorApi};
 use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
+use common::can::constant::ZCanTxMode::Once;
 use common::can::frame::{ZCanFdFrame, ZCanFrame};
 use common::cloud::{ZCloudGpsFrame, ZCloudUserData};
-use common::device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo};
+use common::device::{CmdPath, IProperty, set_value, ZCanDeviceType, ZDeviceInfo};
 use common::error::ZCanError;
 use common::lin::channel::ZLinChlCfg;
 use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
@@ -101,6 +102,8 @@ pub(crate) struct Api<'a> {
     ZCAN_GetLINReceiveNum: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ReceiveLIN(CHANNEL_HANDLE channel_handle, PZCAN_LIN_MSG pReceive, UINT Len,int WaitTime);
     ZCAN_ReceiveLIN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZLinFrame, len: c_uint, timeout: c_uint) -> c_uint>,
+    /// UINT FUNC_CALL ZCAN_ClearLINBuffer(CHANNEL_HANDLE channel_handle);
+    ZCAN_ClearLINBuffer: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_SetLINSlaveMsg(CHANNEL_HANDLE channel_handle, PZCAN_LIN_MSG pSend, UINT nMsgCount);
     ZCAN_SetLINSlaveMsg: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZLinFrame, size: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ClearLINSlaveMsg(CHANNEL_HANDLE channel_handle, BYTE* pLINID, UINT nIDCount);
@@ -161,13 +164,19 @@ impl Api<'_> {
             code => Err(ZCanError::new(code, "ZLGCAN - unknown code device online check".to_string())),
         }
     }
+}
+
+#[allow(dead_code)]
+impl Api<'_> {
 
     #[inline(always)]
-    pub(self) unsafe fn get_property(&self, dev_hdl: u32) -> Result<IProperty, ZCanError> {
+    pub(self) unsafe fn get_property(&self, dev_hdl: u32) -> Option<IProperty> {
         let ret = (self.GetIProperty)(dev_hdl);
-        match ret.is_null() {
-            true => Err(ZCanError::new(1, "ZLGCAN - get property failed".to_string())),
-            false => Ok(*ret),
+        if ret.is_null() {
+            None
+        }
+        else {
+            Some(*ret)
         }
     }
 
@@ -210,7 +219,6 @@ impl Api<'_> {
         }
     }
 
-    #[allow(dead_code)]
     #[inline(always)]
     pub(self) unsafe fn set_value(&self, dev_hdl: u32, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
         let path = cmd_path.get_path();
@@ -224,7 +232,6 @@ impl Api<'_> {
         }
     }
 
-    #[allow(dead_code)]
     #[inline(always)]
     pub(self) unsafe fn get_value(&self, dev_hdl: u32, cmd_path: &CmdPath) -> Result<*const c_void, ZCanError> {
         let path =  cmd_path.get_path();
@@ -262,11 +269,10 @@ impl Api<'_> {
                         });
                         Ok(())
                     },
-                    None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not supported!", "set_value"))),
+                    None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not supported", "set_value"))),
                 }
             })
     }
-    #[allow(dead_code)]
     pub(self) unsafe fn get_values(&self, dev_hdl: u32, channel: u8, paths: Vec<CmdPath>) -> Result<Vec<String>, ZCanError> {
         self.get_property(dev_hdl)
             .and_then(|p| -> Result<Vec<String>, ZCanError> {
@@ -290,9 +296,11 @@ impl Api<'_> {
 
                         Ok(result)
                     },
-                    None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not supported!", "get_value"))),
+                    None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not supported", "get_value"))),
                 }
             })
     }
+
 }
+
 

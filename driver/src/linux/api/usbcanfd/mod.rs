@@ -115,10 +115,10 @@ impl USBCANFDApi<'_> {
             code => Err(ZCanError::new(code, "ZLGCAN - read device info failed".to_string())),
         }
     }
-    #[inline(always)]
-    pub(crate) fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
-        Err(ZCanError::new(0, format!("ZLGCAN - method not supported by device: {}_{}", dev_type, dev_idx)))
-    }
+    // #[inline(always)]
+    // pub(crate) fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
+    //     Err(ZCanError::new(0, format!("ZLGCAN - method not supported by device: {}_{}", dev_type, dev_idx)))
+    // }
     #[inline(always)]
     pub(self) fn set_reference(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
         let cmd = cmd_path.get_reference();
@@ -181,7 +181,7 @@ mod test {
     use common::can::frame::{ZCanFrame, ZCanFrameV1};
     use common::can::message::CanMessage;
     use common::device::ZCanDeviceType;
-    use crate::driver::ZCanDriver;
+    use crate::ZCanDriver;
     use super::USBCANFDApi;
 
     #[test]
@@ -191,7 +191,7 @@ mod test {
         let channel = 0;
         let channels = 2;
 
-        let so_path = "library/x86_64/libusbcanfd.so";
+        let so_path = "library/linux/x86_64/libusbcanfd.so";
         let lib = Library::open(so_path).expect("ZLGCAN - could not open library");
 
         let api = unsafe { USBCANFDApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");

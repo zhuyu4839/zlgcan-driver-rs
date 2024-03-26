@@ -56,6 +56,18 @@ impl From<ZCanFrameV1> for CanMessage {
     }
 }
 
+impl FromIterator<CanMessage> for Vec<ZCanFrameV1> {
+    fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
+impl FromIterator<ZCanFrameV1> for Vec<CanMessage> {
+    fn from_iter<T: IntoIterator<Item=ZCanFrameV1>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
 impl From<CanMessage> for ZCanFrameV2 {
     fn from(value: CanMessage) -> Self {
         frame_new::<Self>(value, false)
@@ -74,6 +86,18 @@ impl From<ZCanFrameV2> for CanMessage {
             .set_is_error_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0);
 
         msg
+    }
+}
+
+impl FromIterator<CanMessage> for Vec<ZCanFrameV2> {
+    fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
+impl FromIterator<ZCanFrameV2> for Vec<CanMessage> {
+    fn from_iter<T: IntoIterator<Item=ZCanFrameV2>>(iter: T) -> Self {
+        todo!()
     }
 }
 
@@ -97,6 +121,19 @@ impl From<ZCanFrameV3> for CanMessage {
         msg
     }
 }
+
+impl FromIterator<CanMessage> for Vec<ZCanFrameV3> {
+    fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
+impl FromIterator<ZCanFrameV3> for Vec<CanMessage> {
+    fn from_iter<T: IntoIterator<Item=ZCanFrameV3>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
 
 impl From<CanMessage> for ZCanFdFrameV1 {
     fn from(value: CanMessage) -> Self {
@@ -122,6 +159,18 @@ impl From<ZCanFdFrameV1> for CanMessage {
     }
 }
 
+impl FromIterator<CanMessage> for Vec<ZCanFdFrameV1> {
+    fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
+impl FromIterator<ZCanFdFrameV1> for Vec<CanMessage> {
+    fn from_iter<T: IntoIterator<Item=ZCanFdFrameV1>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
 impl From<CanMessage> for ZCanFdFrameV2 {
     fn from(value: CanMessage) -> Self {
         frame_new::<Self>(value, true)
@@ -143,6 +192,18 @@ impl From<ZCanFdFrameV2> for CanMessage {
             .set_bitrate_switch(flag & CANFD_BRS > 0)
             .set_error_state_indicator(flag & CANFD_ESI > 0);
         msg
+    }
+}
+
+impl FromIterator<CanMessage> for Vec<ZCanFdFrameV2> {
+    fn from_iter<T: IntoIterator<Item=CanMessage>>(iter: T) -> Self {
+        todo!()
+    }
+}
+
+impl FromIterator<ZCanFdFrameV2> for Vec<CanMessage> {
+    fn from_iter<T: IntoIterator<Item=ZCanFdFrameV2>>(iter: T) -> Self {
+        todo!()
     }
 }
 

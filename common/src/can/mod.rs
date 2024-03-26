@@ -5,10 +5,11 @@ pub mod message;
 mod utils;
 
 use std::collections::HashMap;
+use std::fs::read_to_string;
 use serde::Deserialize;
 use crate::device::ZCanDeviceType;
 use self::{
-    constant::{ZCanChlMode, ZCanChlType, ZCanFilterType, TIMING0, TIMING1},
+    constant::{ZCanChlMode, ZCanChlType, ZCanFilterType, TIMING0, TIMING1, BITRATE_CFG_FILENAME},
     channel::{ZCanChlCfg, ZCanChlCfgDetail, ZCanChlCfgV1, ZCanChlCfgV1Union, ZCanChlCfgV2, ZCanFdChlCfgSet, ZCanFdChlCfgV1, ZCanFdChlCfgV2}
 };
 
@@ -76,12 +77,12 @@ pub struct CanChlCfg<'a> {
     mode: ZCanChlMode,
     bitrate: u32,
     extra: CanChlCfgExt,
-    cfg_ctx: &'a HashMap<String, BitrateCfg>,
+    cfg_ctx: &'a BitrateCfg,
     // cfg_ctx: HashMap<String, BitrateCfg>,
 }
 
 impl<'a> CanChlCfg<'a> {
-    pub fn new(dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt, cfg_ctx: &'a HashMap<String, BitrateCfg>) -> Self {
+    pub fn new(dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt, cfg_ctx: &'a BitrateCfg) -> Self {
         // let contents = fs::read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
         // let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
         // println!("{:?}", config);
@@ -104,10 +105,7 @@ impl<'a> CanChlCfg<'a> {
     }
     #[inline(always)]
     pub fn clock(&self) -> Option<u32> {
-        match self.cfg_ctx.get(&(self.dev_type as u32).to_string()) {
-            Some(v) => v.clock,
-            None => None,
-        }
+        self.cfg_ctx.clock
     }
     #[inline(always)]
     pub fn bitrate(&self) -> u32 {
@@ -119,21 +117,16 @@ impl<'a> CanChlCfg<'a> {
     }
 }
 
-pub(self) fn to_chl_cfg(dev_type: ZCanDeviceType, mode: ZCanChlMode, bitrate: u32, cfg_ctx: &HashMap<String, BitrateCfg>, ext: &CanChlCfgExt) -> ZCanChlCfg {
-    match cfg_ctx.get(&(dev_type as u32).to_string()) {
+pub(self) fn to_chl_cfg(mode: ZCanChlMode, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) -> ZCanChlCfg {
+    match cfg_ctx.bitrate.get(&bitrate.to_string()) {
         Some(v) => {
-            match v.bitrate.get(&bitrate.to_string()) {
-                Some(v) => {
-                    let timing0 = v.get(TIMING0).expect(format!("ZLGCAN - `{}` is not configured in file!", TIMING0).as_str());
-                    let timing1 = v.get(TIMING1).expect(format!("ZLGCAN - `{}` is not configured in file!", TIMING1).as_str());
-                    ZCanChlCfg::new(
-                        mode, *timing0, *timing1, ext.filter, ext.acc_code, ext.acc_mask
-                    )
-                },
-                None => panic!("ZLGCAN - the bitrate: `{}` is not configured in file!", bitrate),
-            }
+            let timing0 = v.get(TIMING0).expect(format!("ZLGCAN - `{}` is not configured in file!", TIMING0).as_str());
+            let timing1 = v.get(TIMING1).expect(format!("ZLGCAN - `{}` is not configured in file!", TIMING1).as_str());
+            ZCanChlCfg::new(
+                mode, *timing0, *timing1, ext.filter, ext.acc_code, ext.acc_mask
+            )
         },
-        None => panic!("ZLGCAN - the device: `{}` is not configured in file!", dev_type),
+        None => panic!("ZLGCAN - the bitrate: `{}` is not configured in file!", bitrate),
     }
 }
 
@@ -159,7 +152,7 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgV1 {
             ZCanChlCfgV1::new(
                 ZCanChlType::CAN,
                 ZCanChlCfgV1Union::from_can(
-                    to_chl_cfg(dev_type, value.mode, value.bitrate, &value.cfg_ctx, &value.extra)
+                    to_chl_cfg(value.mode, value.bitrate, &value.cfg_ctx, &value.extra)
                 )
             )
         }
@@ -170,37 +163,33 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgV2 {
     fn from(value: &CanChlCfg) -> Self {
         let dev_type = value.dev_type;
         if dev_type.canfd_support() {
-            match value.cfg_ctx.get(&(dev_type as u32).to_string()) {
+            let cfg = value.cfg_ctx;
+            let clock = cfg.clock.expect(format!("ZLGCAN - {} `clock` is not configured in file!", dev_type).as_str());
+            let ext = &value.extra;
+            let bitrate = value.bitrate;
+            let dbitrate = ext.dbitrate.unwrap_or(bitrate);
+            let bitrate_ctx = &cfg.bitrate;
+            let dbitrate_ctx = &cfg.data_bitrate;
+            let aset = bitrate_ctx
+                .get(&bitrate.to_string())
+                .expect(format!("ZLGCAN - the bitrate `{}` is not configured in file!", bitrate).as_str());
+            let dset;
+            match dbitrate_ctx {
                 Some(v) => {
-                    let clock = v.clock.expect(format!("ZLGCAN - {} `clock` is not configured in file!", dev_type).as_str());
-                    let ext = &value.extra;
-                    let bitrate = value.bitrate;
-                    let dbitrate = ext.dbitrate.unwrap_or(bitrate);
-                    let bitrate_ctx = &v.bitrate;
-                    let dbitrate_ctx = &v.data_bitrate;
-                    let aset = bitrate_ctx
-                        .get(&bitrate.to_string())
-                        .expect(format!("ZLGCAN - the bitrate `{}` is not configured in file!", bitrate).as_str());
-                    let dset;
-                    match dbitrate_ctx {
-                        Some(v) => {
-                            match v.get(&dbitrate.to_string()) {
-                                Some(v) => dset = v,
-                                None => dset = aset,
-                            }
-                        },
+                    match v.get(&dbitrate.to_string()) {
+                        Some(v) => dset = v,
                         None => dset = aset,
                     }
-                    Self::from_canfd(
-                        ZCanFdChlCfgV2::new(value.can_type, value.mode, clock, ZCanFdChlCfgSet::from(aset), ZCanFdChlCfgSet::from(dset))
-                    )
                 },
-                None => panic!("ZLGCAN - the device: `{}` is not configured in file!", dev_type),
+                None => dset = aset,
             }
+            Self::from_canfd(
+                ZCanFdChlCfgV2::new(value.can_type, value.mode, clock, ZCanFdChlCfgSet::from(aset), ZCanFdChlCfgSet::from(dset))
+            )
         }
         else {
             Self::from_can(
-                to_chl_cfg(dev_type, value.mode, value.bitrate, &value.cfg_ctx, &value.extra)
+                to_chl_cfg(value.mode, value.bitrate, &value.cfg_ctx, &value.extra)
             )
         }
     }
@@ -220,4 +209,23 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgDetail {
         }
     }
 }
+
+pub struct CanChlCfgFactory(HashMap<String, BitrateCfg>);
+
+
+impl CanChlCfgFactory {
+    pub fn new() -> Self {
+        let contents = read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
+        let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
+        Self(config)
+    }
+
+    pub fn new_can_chl_cfg(&self, dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt) -> Option<CanChlCfg> {
+        match self.0.get(&(dev_type as u32).to_string()) {
+            Some(cfg) => Some(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, cfg)),
+            None => None,
+        }
+    }
+}
+
 

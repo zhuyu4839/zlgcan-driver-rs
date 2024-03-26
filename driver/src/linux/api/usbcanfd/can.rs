@@ -127,10 +127,3 @@ impl USBCANFDApi<'_> {
         ret
     }
 }
-
-
-
-
-
-
-

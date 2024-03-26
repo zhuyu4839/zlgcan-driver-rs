@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use dlopen2::symbor::{Library, SymBorApi};
 use lazy_static::lazy_static;
 use log::{info, warn};
@@ -6,21 +5,19 @@ use common::{
     error::*,
     device::*,
 };
-use common::can::BitrateCfg;
 
 use crate::constant::{LOAD_LIB_FAILED, LOAD_SYMBOLS_FAILED};
 use super::api::Api;
 
 pub struct ZCanDriver<'a> {
-    pub(crate) bitrate_cfg: HashMap<String, BitrateCfg>,
     pub(crate) handlers: HashMap<String, Handler>,
     pub(crate) api: Api<'a>,
 }
 
 #[cfg(target_arch = "x86")]
-const LIB_PATH: &str = "library/x86/zlgcan.dll";
+const LIB_PATH: &str = "library/windows/x86/zlgcan.dll";
 #[cfg(target_arch = "x86_64")]
-const LIB_PATH: &str = "library/x86_64/zlgcan.dll";
+const LIB_PATH: &str = "library/windows/x86_64/zlgcan.dll";
 
 lazy_static!(
     static ref LIB: Library = Library::open(LIB_PATH).expect(LOAD_LIB_FAILED);
@@ -31,7 +28,7 @@ impl ZlgDevice for ZCanDriver<'_> {
         let api = unsafe { Api::load(&LIB) }.expect(LOAD_SYMBOLS_FAILED);
         let handlers = Default::default();
 
-        Self { handlers, api, bitrate_cfg: Self::load_bitrate_cfg() }
+        Self { handlers, api }
     }
     /// Open a device.
     /// Specify the derive information when device is derivative.

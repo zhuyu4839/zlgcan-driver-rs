@@ -18,14 +18,10 @@ USBCANFD: &USBCANFD
   clock: 60000000
   bitrate:
     500000: { tseg1: 2, tseg2: 0, sjw: 0, smp: 80, brp: 23 }
-    1000000: { tseg1: 7, tseg2: 0, sjw: 0, smp: 90, brp: 5 }
+    1000000: { tseg1: 2, tseg2: 0, sjw: 0, smp: 80, brp: 11 }
   data_bitrate:
-    # 500000:
-    #   tseg1: 2
-    #   tseg2: 0
-    #   sjw: 80
-    #   smp: 0
-    #   brp: 23
+    500000: { tseg1: 2, tseg2: 0, sjw: 0, smp: 80, brp: 23 }
+    1000000: { tseg1: 2, tseg2: 0, sjw: 0, smp: 80, brp: 11 }
 
 3: *USBCAN  # USBCAN1
 4: *USBCAN  # USBCAN2

@@ -135,6 +135,14 @@ impl ZCanDeviceType {
     }
 
     /// Check the device is used frame v1
+    #[cfg(target_os = "linux")]
+    pub const fn is_frame_v1(&self) -> bool {
+        matches!(
+            self,
+            ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2
+        )
+    }
+    /// Check the device is used frame v1
     #[cfg(target_os = "windows")]
     pub const fn is_frame_v1(&self) -> bool {
         false
@@ -171,7 +179,6 @@ impl ZCanDeviceType {
     pub const fn is_fdframe_v1(&self) -> bool {
         matches!(
             self,
-
             ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U |
             ZCanDeviceType::ZCAN_USBCANFD_MINI
         )
@@ -210,14 +217,6 @@ impl ZCanDeviceType {
     #[cfg(target_os = "windows")]
     pub const fn is_can_err_v2(&self) -> bool {
         true
-    }
-    /// Check the device is used frame v1
-    #[cfg(target_os = "linux")]
-    pub const fn is_frame_v1(&self) -> bool {
-        matches!(
-            self,
-            ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2
-        )
     }
     /// Check the device is supported LIN
     pub const fn lin_support(&self) -> bool{

@@ -51,6 +51,13 @@ impl ZLinDevice for ZCanDriver<'_> {
             None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not opened", dev_name))),
         }
     }
+
+    fn clear_lin_buffer(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<(), ZCanError> {
+        self.lin_handler(dev_type, dev_idx, channel, |hdl| -> Result<(), ZCanError> {
+            self.api.clear_lin_buffer(hdl)
+        })
+    }
+    
     fn get_lin_num(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<u32, ZCanError> {
         self.lin_handler(dev_type, dev_idx, channel, |hdl| -> u32 {
             self.api.get_lin_num(hdl)

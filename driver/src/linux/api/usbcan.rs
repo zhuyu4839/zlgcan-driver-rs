@@ -77,27 +77,10 @@ impl USBCANApi<'_> {
             code => Err(ZCanError::new(code, "ZLGCAN - read device info failed".to_string())),
         }
     }
-    #[inline(always)]
-    pub(crate) fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
-        Err(ZCanError::new(0, format!("ZLGCAN - method not supported by device: {}_{}", dev_type, dev_idx)))
-    }
-    #[inline(always)]
-    pub(self) fn set_reference(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cmd_path: CmdPath, value: &str) -> Result<(), ZCanError> {
-        let cmd = cmd_path.get_reference();
-        let _value = CString::new(value).expect("ZLGCAN - couldn't convert to CString!");
-        match unsafe { (self.VCI_SetReference)(dev_type as u32, dev_idx, channel as u32, cmd, _value.as_ptr() as *const c_void) } {
-            STATUS_OK => Ok(()),
-            code => Err(ZCanError::new(code, format!("ZLGCAN - set reference for channel: {} failed", channel))),
-        }
-    }
-    #[inline(always)]
-    pub(self) fn get_reference<T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cmd_path: CmdPath, value: *mut c_void) -> Result<(), ZCanError> {
-        let cmd = cmd_path.get_reference();
-        match unsafe { (self.VCI_GetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
-            STATUS_OK => Ok(()),
-            code => Err(ZCanError::new(code, format!("ZLGCAN - get reference for channel: {} failed", channel))),
-        }
-    }
+    // #[inline(always)]
+    // pub(crate) fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
+    //     Err(ZCanError::new(0, format!("ZLGCAN - method not supported by device: {}_{}", dev_type, dev_idx)))
+    // }
     #[inline(always)]
     pub(crate) fn init_can_chl(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         unsafe {
@@ -179,6 +162,27 @@ impl USBCANApi<'_> {
     }
 }
 
+#[allow(dead_code)]
+impl USBCANApi<'_> {
+    #[inline(always)]
+    pub(self) fn set_reference(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cmd_path: CmdPath, value: &str) -> Result<(), ZCanError> {
+        let cmd = cmd_path.get_reference();
+        let _value = CString::new(value).expect("ZLGCAN - couldn't convert to CString!");
+        match unsafe { (self.VCI_SetReference)(dev_type as u32, dev_idx, channel as u32, cmd, _value.as_ptr() as *const c_void) } {
+            STATUS_OK => Ok(()),
+            code => Err(ZCanError::new(code, format!("ZLGCAN - set reference for channel: {} failed", channel))),
+        }
+    }
+    #[inline(always)]
+    pub(self) fn get_reference<T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cmd_path: CmdPath, value: *mut c_void) -> Result<(), ZCanError> {
+        let cmd = cmd_path.get_reference();
+        match unsafe { (self.VCI_GetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
+            STATUS_OK => Ok(()),
+            code => Err(ZCanError::new(code, format!("ZLGCAN - get reference for channel: {} failed", channel))),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use dlopen2::symbor::{Library, SymBorApi};
@@ -187,7 +191,7 @@ mod test {
     use common::can::frame::{ZCanFrame, ZCanFrameV1};
     use common::can::message::CanMessage;
     use common::device::ZCanDeviceType;
-    use crate::driver::ZCanDriver;
+    use crate::ZCanDriver;
     use super::USBCANApi;
 
     #[test]
@@ -196,7 +200,7 @@ mod test {
         let dev_idx = 0;
         let channel = 0;
 
-        let so_path = "library/x86_64/libusbcan.so";
+        let so_path = "library/linux/x86_64/libusbcan.so";
         let lib = Library::open(so_path).expect("ZLGCAN - could not open library");
 
         let api = unsafe { USBCANApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");

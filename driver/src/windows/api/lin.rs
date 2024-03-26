@@ -1,4 +1,5 @@
 use log::{debug, warn};
+use common::device::ZCanDeviceType;
 use common::error::ZCanError;
 use common::lin::channel::ZLinChlCfg;
 use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
@@ -25,6 +26,13 @@ impl Api<'_> {
         match unsafe { (self.ZCAN_ResetLIN)(chl_hdl) } {
             STATUS_OK => Ok(()),
             code => Err(ZCanError::new(code, "ZLGCAN - LIN channel reset failed".to_string())),
+        }
+    }
+
+    pub(crate) fn clear_lin_buffer(&self, chl_hdl: u32) -> Result<(), ZCanError> {
+        match unsafe { (self.ZCAN_ClearLINBuffer)(chl_hdl) } {
+            STATUS_OK => Ok(()),
+            code => Err(ZCanError::new(code, "ZLGCAN - LIN channel clear buffer failed".to_string())),
         }
     }
 
@@ -110,6 +118,3 @@ impl Api<'_> {
         }
     }
 }
-
-
-

@@ -2,7 +2,7 @@ use log::{debug, warn};
 use common::device::ZCanDeviceType;
 use common::error::ZCanError;
 use common::lin::channel::ZLinChlCfg;
-use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
+use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinSubscribe};
 use crate::constant::{STATUS_OK, INVALID_CHANNEL_HANDLE};
 
 use super::USBCANFDApi;
@@ -27,6 +27,14 @@ impl USBCANFDApi<'_> {
         match unsafe { (self.VCI_ResetLIN)(dev_type as u32, dev_idx, channel as u32) } {
             STATUS_OK => Ok(()),
             code => Err(ZCanError::new(code, "ZLGCAN - LIN channel reset failed".to_string())),
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn clear_lin_buffer(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<(), ZCanError> {
+        match unsafe { (self.VCI_ClearLINBuffer)(dev_type as u32, dev_idx, channel as u32) } {
+            STATUS_OK => Ok(()),
+            code => Err(ZCanError::new(code, "ZLGCAN - LIN channel clear buffer failed".to_string())),
         }
     }
 
@@ -81,10 +89,10 @@ impl USBCANFDApi<'_> {
         Err(ZCanError::new(0xFF, format!("ZLGCAN - {} failed", "`wakeup_lin`")))
     }
 
-    #[inline(always)]
-    pub(crate) fn set_lin_publish_ex(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cfg: Vec<ZLinPublishEx>) -> Result<(), ZCanError> {
-        Err(ZCanError::new(0xFF, format!("ZLGCAN - {} failed", "`set_lin_publish_ex`")))
-    }
+    // #[inline(always)]
+    // pub(crate) fn set_lin_publish_ex(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cfg: Vec<ZLinPublishEx>) -> Result<(), ZCanError> {
+    //     Err(ZCanError::new(0xFF, format!("ZLGCAN - {} failed", "`set_lin_publish_ex`")))
+    // }
     #[inline(always)]
     #[deprecated(since="0.1.0", note="This method is deprecated!")]
     pub(crate) fn set_lin_slave_msg(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
