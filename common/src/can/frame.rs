@@ -149,7 +149,7 @@ pub struct ZCanHeaderV2 {
 pub struct ZCanFrameV3 {
     pub(crate) hdr: ZCanHeaderV2,
     pub(crate) data: [c_uchar; CAN_FRAME_LENGTH],
-    pub(crate) mode: c_uint,       // TODO struct { frame: ZCanFrame, mode: c_uint }
+    pub(crate) ts_or_mode: c_uint,       // timestamp when received
 }
 
 impl NewZCanFrame for ZCanFrameV3 {
@@ -167,7 +167,7 @@ impl NewZCanFrame for ZCanFrameV3 {
                     __res1: Default::default(),
                 },
                 data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!"),
-                mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
+                ts_or_mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
             }
         })
     }
@@ -253,7 +253,7 @@ impl NewZCanFrame for ZCanFdFrameV1 {
 pub struct ZCanFdFrameV2 {
     pub(crate) hdr: ZCanHeaderV2,
     pub(crate) data: CanFdData,
-    pub(crate) mode: c_uint,       // TODO struct { frame: ZCanFdFrame, mode: c_uint }
+    pub(crate) ts_or_mode: c_uint,       // timestamp when received
 }
 
 impl NewZCanFrame for ZCanFdFrameV2 {
@@ -279,7 +279,7 @@ impl NewZCanFrame for ZCanFdFrameV2 {
                     __res1: Default::default(),
                 },
                 data: CanFdData { data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!") },
-                mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
+                ts_or_mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
             }
         })
     }
