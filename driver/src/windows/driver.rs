@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use dlopen2::symbor::{Library, SymBorApi};
 use lazy_static::lazy_static;
 use log::{info, warn};

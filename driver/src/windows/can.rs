@@ -1,16 +1,10 @@
-use std::collections::HashMap;
 use log::warn;
-use common::can::{CanChlCfg, constant::ZCanFrameType, channel::{ZCanChlError, ZCanChlStatus}, frame::{ZCanFdFrame, ZCanFdFrameV1, ZCanFrame}, BitrateCfg};
+use common::can::{CanChlCfg, constant::ZCanFrameType, channel::{ZCanChlError, ZCanChlStatus}, frame::{ZCanFdFrame, ZCanFdFrameV1, ZCanFrame}};
 use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 use common::error::ZCanError;
 use super::driver::ZCanDriver;
 
 impl ZCanDevice for ZCanDriver<'_> {
-    fn can_bitrate_cfg(&self) -> &BitrateCfg {
-        // &self.bitrate_cfg
-        todo!()
-    }
-    
     fn init_can_chl(&mut self, dev_type: ZCanDeviceType, dev_idx: u32, cfg: Vec<CanChlCfg>) -> Result<(), ZCanError> {
         let dev_name = Self::device_name(dev_type, dev_idx);
         match self.handlers.get_mut(&dev_name) {

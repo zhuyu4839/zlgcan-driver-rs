@@ -3,7 +3,7 @@ use common::can::CanChlCfg;
 use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
 use common::can::constant::{ZCanChlType, ZCanFrameType};
 use common::can::frame::{ZCanFdFrame, ZCanFrame};
-use common::device::CmdPath;
+use common::device::{CmdPath, ZCanDeviceType};
 use common::error::ZCanError;
 
 use crate::constant::{BAUD_RATE, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, INTERNAL_RESISTANCE, INVALID_CHANNEL_HANDLE, PROTOCOL, STATUS_OK};
@@ -13,45 +13,47 @@ impl Api<'_> {
     pub(crate) fn init_can_chl(&self, dev_hdl: u32, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         let dev_type = cfg.device_type();
         unsafe {
-            // configure the clock
-            if let Some(clock) = cfg.clock() {
-                let clock_path = CmdPath::new_path("clock");
-                self.set_check_value(dev_hdl, &clock_path, clock.to_string().as_str(), dev_type).unwrap();
-            }
-            // set channel resistance status
-            if dev_type.has_resistance() {
-                let state = (cfg.extra().resistance() as u32).to_string();
-                let resistance_path = format!("{}/{}", channel, INTERNAL_RESISTANCE);
-                let resistance_path = CmdPath::new_path(resistance_path.as_str());
-                self.set_check_value(dev_hdl, &resistance_path, state.as_str(), dev_type).unwrap();
-            }
-            // set channel protocol
-            let can_type = cfg.can_type();
-            let protocol = (can_type as u32).to_string();
-            let protocol_path = format!("{}/{}", channel, PROTOCOL);
-            let protocol_path = CmdPath::new_path(protocol_path.as_str());
-            self.set_check_value(dev_hdl, &protocol_path, protocol.as_str(), dev_type).unwrap();
-
-            // set channel bitrate
-            let bitrate = cfg.bitrate();
-            if dev_type.canfd_support() {
-                let abitrate_path = format!("{}/{}", channel, CANFD_ABIT_BAUD_RATE);
-                let abitrate_path = CmdPath::new_path(abitrate_path.as_str());
-                self.set_check_value(dev_hdl, &abitrate_path, bitrate.to_string().as_str(), dev_type).unwrap();
-                match can_type {
-                    ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
-                        let dbitrate = cfg.extra().dbitrate().unwrap_or(bitrate).to_string();
-                        let dbitrate_path = format!("{}/{}", channel, CANFD_DBIT_BAUD_RATE);
-                        let dbitrate_path = CmdPath::new_path(dbitrate_path.as_str());
-                        self.set_check_value(dev_hdl, &dbitrate_path, dbitrate.as_str(), dev_type).unwrap();
-                    },
-                    _ => {},
+            if !matches!(cfg.device_type(), ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2) {
+                // configure the clock
+                if let Some(clock) = cfg.clock() {
+                    let clock_path = CmdPath::new_path("clock");
+                    self.set_check_value(dev_hdl, &clock_path, clock.to_string().as_str(), dev_type).unwrap();
                 }
-            }
-            else {
-                let bitrate_path = format!("{}/{}", channel, BAUD_RATE);
-                let bitrate_path = CmdPath::new_path(bitrate_path.as_str());
-                self.set_check_value(dev_hdl, &bitrate_path, bitrate.to_string().as_str(), dev_type).unwrap();
+                // set channel resistance status
+                if dev_type.has_resistance() {
+                    let state = (cfg.extra().resistance() as u32).to_string();
+                    let resistance_path = format!("{}/{}", channel, INTERNAL_RESISTANCE);
+                    let resistance_path = CmdPath::new_path(resistance_path.as_str());
+                    self.set_check_value(dev_hdl, &resistance_path, state.as_str(), dev_type).unwrap();
+                }
+                // set channel protocol
+                let can_type = cfg.can_type();
+                let protocol = (can_type as u32).to_string();
+                let protocol_path = format!("{}/{}", channel, PROTOCOL);
+                let protocol_path = CmdPath::new_path(protocol_path.as_str());
+                self.set_check_value(dev_hdl, &protocol_path, protocol.as_str(), dev_type).unwrap();
+
+                // set channel bitrate
+                let bitrate = cfg.bitrate();
+                if dev_type.canfd_support() {
+                    let abitrate_path = format!("{}/{}", channel, CANFD_ABIT_BAUD_RATE);
+                    let abitrate_path = CmdPath::new_path(abitrate_path.as_str());
+                    self.set_check_value(dev_hdl, &abitrate_path, bitrate.to_string().as_str(), dev_type).unwrap();
+                    match can_type {
+                        ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
+                            let dbitrate = cfg.extra().dbitrate().unwrap_or(bitrate).to_string();
+                            let dbitrate_path = format!("{}/{}", channel, CANFD_DBIT_BAUD_RATE);
+                            let dbitrate_path = CmdPath::new_path(dbitrate_path.as_str());
+                            self.set_check_value(dev_hdl, &dbitrate_path, dbitrate.as_str(), dev_type).unwrap();
+                        },
+                        _ => {},
+                    }
+                }
+                else {
+                    let bitrate_path = format!("{}/{}", channel, BAUD_RATE);
+                    let bitrate_path = CmdPath::new_path(bitrate_path.as_str());
+                    self.set_check_value(dev_hdl, &bitrate_path, bitrate.to_string().as_str(), dev_type).unwrap();
+                }
             }
 
             let cfg = ZCanChlCfgDetail::from(cfg);
@@ -123,11 +125,32 @@ impl Api<'_> {
     #[inline(always)]
     pub(crate) fn transmit_can(&self, chl_hdl: u32, frames: Vec<ZCanFrame>) -> u32 {
         let len = frames.len() as u32;
-        let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
-        if ret < len {
-            warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        // method 1
+        // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
+        // if ret < len {
+        //     warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        // }
+        // ret
+        // method 2
+        // let mut boxed_slice: Box<[ZCanFrame]> = frames.into_boxed_slice();
+        // let array: *mut ZCanFrame = boxed_slice.as_mut_ptr();
+        // // let ptr = frames.as_ptr();
+        // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, array, len) };
+        // mem::forget(boxed_slice);
+        // if ret < len {
+        //     warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        // }
+        // ret
+        // method 3: just do like this because of pointer offset TODO
+        let mut count = 0;
+        frames.iter().for_each(|frame| {
+            let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frame, 1) };
+            count += ret;
+        });
+        if count < len {
+            warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
         }
-        ret
+        count
     }
 
     #[inline(always)]
@@ -146,11 +169,20 @@ impl Api<'_> {
     #[inline(always)]
     pub(crate) fn transmit_canfd(&self, chl_hdl: u32, frames: Vec<ZCanFdFrame>) -> u32 {
         let len = frames.len() as u32;
-        let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frames.as_ptr(), len) };
-        if ret < len {
-            warn!("ZLGCAN - transmit CANFD frame expect: {}, actual: {}!", len, ret);
+        // let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frames.as_ptr(), len) };
+        // if ret < len {
+        //     warn!("ZLGCAN - transmit CANFD frame expect: {}, actual: {}!", len, ret);
+        // }
+        // ret
+        let mut count = 0;
+        frames.iter().for_each(|frame| {
+            let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frame, 1) };
+            count += ret;
+        });
+        if count < len {
+            warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
         }
-        ret
+        count
     }
 }
 

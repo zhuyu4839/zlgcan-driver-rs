@@ -10,7 +10,7 @@ fn usbcanfd_200u() {
     let linux = true;
     #[cfg(target_os = "windows")]
     let linux = false;
-    canfd_device2(dev_type, 2, linux);
+    canfd_device2(dev_type, 2, 0, 1, linux);
 }
 
 /// `Attention:`
@@ -22,5 +22,13 @@ fn usbcanfd_400u() {
     let linux = true;
     #[cfg(target_os = "windows")]
     let linux = false;
-    canfd_device2(dev_type, 4, linux);
+    canfd_device2(dev_type, 4, 0, 1, linux);
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn usbcanfd_400u_other() {
+    // TODO USBCANFD-400U channel 3-4 is not supported
+    let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
+    canfd_device2(dev_type, 4, 2, 3, false);
 }

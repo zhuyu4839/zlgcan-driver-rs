@@ -52,11 +52,11 @@ impl ZLinDevice for ZCanDriver<'_> {
         }
     }
 
-    fn clear_lin_buffer(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<(), ZCanError> {
-        self.lin_handler(dev_type, dev_idx, channel, |hdl| -> Result<(), ZCanError> {
-            self.api.clear_lin_buffer(hdl)
-        })
-    }
+    // fn clear_lin_buffer(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<(), ZCanError> {
+    //     self.lin_handler(dev_type, dev_idx, channel, |hdl| -> Result<(), ZCanError> {
+    //         self.api.clear_lin_buffer(hdl)
+    //     }).unwrap()
+    // }
     
     fn get_lin_num(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<u32, ZCanError> {
         self.lin_handler(dev_type, dev_idx, channel, |hdl| -> u32 {

@@ -228,8 +228,8 @@ impl USBCANFD800UApi<'_> {
         }
     }
     #[inline(always)]
-    pub(self) unsafe  fn release_property(&self, p: &IProperty) -> Result<(), ZCanError> {
-        match (self.ReleaseIProperty)(p) {
+    pub(self) unsafe  fn release_property(&self, p: IProperty) -> Result<(), ZCanError> {
+        match (self.ReleaseIProperty)(&p) {
             STATUS_OK => Ok(()),
             code => Err(ZCanError::new(code, "ZLGCAN - release property failed".to_string())),
         }
@@ -266,7 +266,7 @@ impl USBCANFD800UApi<'_> {
                             }
                         });
 
-                        let _ = self.release_property(&p).is_err_and(|e| -> bool {
+                        let _ = self.release_property(p).is_err_and(|e| -> bool {
                             warn!("{}", e);
                             true
                         });
@@ -295,7 +295,7 @@ impl USBCANFD800UApi<'_> {
                             }
                         });
 
-                        let _ = self.release_property(&p).is_err_and(|e| -> bool {
+                        let _ = self.release_property(p).is_err_and(|e| -> bool {
                             warn!("{}", e);
                             true
                         });
