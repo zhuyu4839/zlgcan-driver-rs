@@ -2,8 +2,7 @@ use zlgcan_common as common;
 
 use log::{debug, warn};
 use common::error::ZCanError;
-use common::lin::channel::ZLinChlCfg;
-use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
+use common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 
 use crate::constant::{INVALID_CHANNEL_HANDLE, STATUS_OK};
 use super::Api;

@@ -1,3 +1,5 @@
+use zlgcan_common as common;
+
 mod utils;
 
 use common::device::ZCanDeviceType;

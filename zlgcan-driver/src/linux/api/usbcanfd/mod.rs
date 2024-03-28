@@ -18,8 +18,7 @@ use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
 use common::can::frame::{ZCanFdFrame, ZCanFrame};
 use common::device::{CmdPath, ZCanDeviceType, ZDeviceInfo};
 use common::error::ZCanError;
-use common::lin::channel::ZLinChlCfg;
-use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinSubscribe};
+use common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
 use crate::constant::STATUS_OK;
 
 mod can;
@@ -176,12 +175,15 @@ impl USBCANFDApi<'_> {
 
 #[cfg(test)]
 mod test {
+    use zlgcan_common as common;
+
     use dlopen2::symbor::{Library, SymBorApi};
     use common::can::CanChlCfg;
     use common::can::constant::{ZCanChlMode, ZCanChlType};
     use common::can::frame::{ZCanFrame, ZCanFrameV1};
     use common::can::message::CanMessage;
     use common::device::ZCanDeviceType;
+    use zlgcan_common::can::CanChlCfgFactory;
     use crate::ZCanDriver;
     use super::USBCANFDApi;
 
@@ -196,9 +198,9 @@ mod test {
         let lib = Library::open(so_path).expect("ZLGCAN - could not open library");
 
         let api = unsafe { USBCANFDApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
-        let context = ZCanDriver::load_bitrate_cfg();
+        let factory = CanChlCfgFactory::new();
 
-        let cfg = CanChlCfg::new(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default(), &context);
+        let cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
         api.open(dev_type, dev_idx).unwrap();
 
         let dev_info = api.read_device_info(dev_type, dev_idx).unwrap();

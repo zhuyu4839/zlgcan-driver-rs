@@ -186,12 +186,15 @@ impl USBCANApi<'_> {
 
 #[cfg(test)]
 mod test {
+    use zlgcan_common as common;
+
     use dlopen2::symbor::{Library, SymBorApi};
     use common::can::CanChlCfg;
     use common::can::constant::{ZCanChlMode, ZCanChlType};
     use common::can::frame::{ZCanFrame, ZCanFrameV1};
     use common::can::message::CanMessage;
     use common::device::ZCanDeviceType;
+    use zlgcan_common::can::CanChlCfgFactory;
     use crate::ZCanDriver;
     use super::USBCANApi;
 
@@ -206,8 +209,8 @@ mod test {
 
         let api = unsafe { USBCANApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
 
-        let context = ZCanDriver::load_bitrate_cfg();
-        let cfg = CanChlCfg::new(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default(), &context);
+        let factory = CanChlCfgFactory::new();
+        let cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
         api.open(dev_type, dev_idx).unwrap();
 
         let dev_info = api.read_device_info(dev_type, dev_idx).unwrap();

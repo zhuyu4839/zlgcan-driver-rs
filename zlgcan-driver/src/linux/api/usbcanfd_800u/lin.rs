@@ -1,7 +1,6 @@
 // use log::{debug, warn};
 // use common::error::ZCanError;
-// use common::lin::channel::ZLinChlCfg;
-// use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinSubscribe};
+// use common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
 //
 // use crate::constant::{STATUS_OK, INVALID_CHANNEL_HANDLE};
 use super::USBCANFD800UApi;

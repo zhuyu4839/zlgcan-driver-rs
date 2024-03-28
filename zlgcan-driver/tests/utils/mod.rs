@@ -1,3 +1,6 @@
+use zlgcan_common as common;
+use zlgcan_driver as driver;
+
 use std::thread;
 use std::time::{Duration, SystemTime};
 use rand::{Rng, thread_rng};

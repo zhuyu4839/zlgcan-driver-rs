@@ -3,9 +3,7 @@ use zlgcan_common as common;
 use log::warn;
 use common::device::{ZCanDeviceType, ZlgDevice, ZLinDevice};
 use common::error::ZCanError;
-use common::lin::channel::ZLinChlCfg;
-use common::lin::constant::ZLinDataType;
-use common::lin::frame::{ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
+use common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 
 use super::driver::ZCanDriver;
 

@@ -4,14 +4,15 @@ pub mod frame;
 pub mod message;
 mod utils;
 
+pub use channel::*;
+pub use constant::*;
+pub use frame::*;
+pub use message::*;
+
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use serde::Deserialize;
 use crate::device::ZCanDeviceType;
-use self::{
-    constant::{ZCanChlMode, ZCanChlType, ZCanFilterType, TIMING0, TIMING1, BITRATE_CFG_FILENAME},
-    channel::{ZCanChlCfg, ZCanChlCfgDetail, ZCanChlCfgV1, ZCanChlCfgV1Union, ZCanChlCfgV2, ZCanFdChlCfgSet, ZCanFdChlCfgV1, ZCanFdChlCfgV2}
-};
 
 /// The deserialize object mapped to configuration file context.
 #[derive(Debug, Deserialize)]

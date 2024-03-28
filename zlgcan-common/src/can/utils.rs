@@ -258,6 +258,7 @@ impl From<ZCanChlErrorV1> for CanMessage {
     }
 }
 
+#[warn(unused_variables)]
 impl From<ZCanChlErrorV2> for CanMessage {
     fn from(value: ZCanChlErrorV2) -> Self {
         todo!()

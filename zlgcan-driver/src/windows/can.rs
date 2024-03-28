@@ -118,6 +118,8 @@ impl ZCanDevice for ZCanDriver<'_> {
 
 #[cfg(test)]
 mod test_can {
+    use zlgcan_common as common;
+
     use common::can::{CanChlCfg, CanChlCfgFactory};
     use common::can::constant::{ZCanChlMode, ZCanChlType};
     use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};

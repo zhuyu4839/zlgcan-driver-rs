@@ -18,8 +18,7 @@ use common::can::frame::{ZCanFdFrame, ZCanFrame};
 use common::cloud::{ZCloudGpsFrame, ZCloudUserData};
 use common::device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo};
 use common::error::ZCanError;
-use common::lin::channel::ZLinChlCfg;
-use common::lin::frame::{ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
+use common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 use common::utils::c_str_to_string;
 
 use crate::constant::{STATUS_OK, INVALID_DEVICE_HANDLE, STATUS_OFFLINE, STATUS_ONLINE};
@@ -282,6 +281,8 @@ impl Api<'_> {
 
 #[cfg(test)]
 mod test {
+    use zlgcan_common as common;
+
     use dlopen2::symbor::{Library, SymBorApi};
     use common::device::ZCanDeviceType;
     use crate::windows::api::Api;

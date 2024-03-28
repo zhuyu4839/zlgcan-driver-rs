@@ -83,6 +83,8 @@ impl ZlgDevice for ZCanDriver<'_> {
 
 #[cfg(test)]
 mod test_driver {
+    use zlgcan_common as common;
+
     use common::device::ZCanDeviceType;
     use super::*;
     #[test]
