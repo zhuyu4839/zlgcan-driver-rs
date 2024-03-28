@@ -14,7 +14,7 @@ readme = "README.md"
 rand = "0.8.5"
 
 [dependencies]
-zlgcan_common = { path = "../zlgcan-common", version = "0.2.0" }
+zlgcan_common = { version = "0.2.0" }
 dlopen2 = "0.7.0"
 log = "0.4.21"
 log4rs = "1.3.0"

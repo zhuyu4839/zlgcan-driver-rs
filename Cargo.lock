@@ -744,6 +744,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "zlgcan_common"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50de746d266d9f286662ff10af57897d4c06df1fe58e535a9b7d7f1499b8f78b"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "thiserror",
+]
+
+[[package]]
 name = "zlgcan_driver"
 version = "0.2.0"
 dependencies = [
@@ -752,5 +763,5 @@ dependencies = [
  "log",
  "log4rs",
  "rand",
- "zlgcan_common",
+ "zlgcan_common 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
