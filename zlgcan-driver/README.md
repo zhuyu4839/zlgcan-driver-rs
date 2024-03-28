@@ -1,5 +1,8 @@
 ### How to use:
 ```rust
+use zlgcan_common as common;
+use zlgcan_driver as driver;
+
 use common::can::{CanChlCfgExt, CanChlCfgFactory};
 use common::can::constant::{ZCanChlMode, ZCanChlType};
 use common::can::frame::{ZCanFdFrame, ZCanFdFrameV2};
