@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "common",
-    "driver",
+    "zlgcan-common",
+    "zlgcan-driver",
 #    "linux",
 #    "windows",
 ]
