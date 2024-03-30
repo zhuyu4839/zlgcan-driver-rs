@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "zlgcan_driver"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "dlopen2",
  "lazy_static",

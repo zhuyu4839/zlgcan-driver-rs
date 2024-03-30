@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_driver"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license-file = "LICENCE-GPL-V3"
@@ -20,7 +20,7 @@ log = "0.4.21"
 log4rs = "1.3.0"
 lazy_static = "1.4.0"
 
-[lib]
-crate-type = ["cdylib"]
-bench = false
-doc = true
+#[lib]
+#crate-type = ["cdylib"]
+#bench = false
+#doc = true
