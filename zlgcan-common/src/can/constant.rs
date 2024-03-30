@@ -31,6 +31,17 @@ pub enum ZCanFrameType {
     ALL = 2,
 }
 
+impl From<u8> for ZCanFrameType {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ZCanFrameType::CAN,
+            1 => ZCanFrameType::CANFD,
+            2 => ZCanFrameType::ALL,
+            _ => panic!("value is out of range!"),
+        }
+    }
+}
+
 impl Display for ZCanFrameType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -48,11 +59,31 @@ pub enum ZCanChlMode {
     ListenOnly = 1,
 }
 
+impl From<u8> for ZCanChlMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ZCanChlMode::Normal,
+            1 => ZCanChlMode::ListenOnly,
+            _ => panic!("value is out of range!"),
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone)]
 pub enum ZCanFdStd {
     CANFD_ISO = 0,
     CANFD_NON_ISO = 1,
+}
+
+impl From<u8> for ZCanFdStd {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ZCanFdStd::CANFD_ISO,
+            1 => ZCanFdStd::CANFD_NON_ISO,
+            _ => panic!("value is out of range!"),
+        }
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -64,11 +95,32 @@ pub enum ZCanChlType {
     CANFD_NON_ISO = 2,
 }
 
+impl From<u8> for ZCanChlType {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ZCanChlType::CAN,
+            1 => ZCanChlType::CANFD_ISO,
+            2 => ZCanChlType::CANFD_NON_ISO,
+            _ => panic!("value is out of range!"),
+        }
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone)]
 pub enum ZCanFilterType {
     #[default]
     Double = 0,
     Single = 1,
+}
+
+impl From<u8> for ZCanFilterType {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ZCanFilterType::Double,
+            1 => ZCanFilterType::Single,
+            _ => panic!("value is out of range!"),
+        }
+    }
 }
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -78,6 +130,18 @@ pub enum ZCanTxMode {
     Once = 1,               //**< single-shot transmission */
     SelfReception = 2,      //**< self reception */
     SelfReceptionOnce = 3,  //**< single-shot transmission & self reception */
+}
+
+impl From<u8> for ZCanTxMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => ZCanTxMode::Normal,
+            1 => ZCanTxMode::Once,
+            2 => ZCanTxMode::SelfReception,
+            3 => ZCanTxMode::SelfReceptionOnce,
+            _ => panic!("value is out of range!"),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -90,6 +154,22 @@ pub enum ZCanHdrInfoField {
     IsBitrateSwitch = 6,
     IsErrorStateIndicator = 7,
 }
+
+impl From<u8> for ZCanHdrInfoField {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => ZCanHdrInfoField::TxMode,
+            2 => ZCanHdrInfoField::FrameType,
+            3 => ZCanHdrInfoField::IsRemoteFrame,
+            4 => ZCanHdrInfoField::IsExtendFrame,
+            5 => ZCanHdrInfoField::IsErrorFrame,
+            6 => ZCanHdrInfoField::IsBitrateSwitch,
+            7 => ZCanHdrInfoField::IsErrorStateIndicator,
+            _ => panic!("value is out of range!"),
+        }
+    }
+}
+
 /// The reference for Linux device
 #[allow(dead_code)]
 pub enum Reference {

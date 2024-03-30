@@ -283,6 +283,21 @@ impl From<ZCanDeviceType> for u32 {
     }
 }
 
+impl From<u32> for ZCanDeviceType {
+    /// Attention!!!
+    /// This method is unsafe if the value is too large
+    fn from(value: u32) -> Self {
+        let layout = std::alloc::Layout::new::<ZCanDeviceType>();
+        unsafe {
+            let vk: *mut ZCanDeviceType = std::alloc::alloc(layout).cast();
+            let ptr = vk as *mut u32;
+            *ptr = value;
+
+            *vk
+        }
+    }
+}
+
 impl std::fmt::Display for ZCanDeviceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", *self)
