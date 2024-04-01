@@ -1,7 +1,7 @@
-pub mod channel;
-pub mod constant;
-pub mod frame;
-pub mod message;
+mod channel;
+mod constant;
+mod frame;
+mod message;
 mod utils;
 
 pub use channel::*;
@@ -168,21 +168,41 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgV2 {
             let clock = cfg.clock.expect(format!("ZLGCAN - {} `clock` is not configured in file!", dev_type).as_str());
             let ext = &value.extra;
             let bitrate = value.bitrate;
-            let dbitrate = ext.dbitrate.unwrap_or(bitrate);
+            let dbitrate = ext.dbitrate;
             let bitrate_ctx = &cfg.bitrate;
             let dbitrate_ctx = &cfg.data_bitrate;
             let aset = bitrate_ctx
                 .get(&bitrate.to_string())
                 .expect(format!("ZLGCAN - the bitrate `{}` is not configured in file!", bitrate).as_str());
             let dset;
-            match dbitrate_ctx {
-                Some(v) => {
-                    match v.get(&dbitrate.to_string()) {
-                        Some(v) => dset = v,
-                        None => dset = aset,
+            match dbitrate {
+                Some(v) => {    // dbitrate is not None
+                    match dbitrate_ctx {
+                        Some(ctx) => {  // dbitrate context is not None
+                            match ctx.get(&v.to_string()) {
+                                Some(value) => dset = value,
+                                None => panic!("ZLGCAN - the data bitrate `{}` is not configured in file!", v),
+                            }
+                        },
+                        None => {   // dbitrate context is None
+                            match bitrate_ctx.get(&v.to_string()) {
+                                Some(value) => dset = value,
+                                None => panic!("ZLGCAN - the data bitrate `{}` is not configured in file!", v),
+                            }
+                        }
                     }
                 },
-                None => dset = aset,
+                None => {   // dbitrate is None
+                    match dbitrate_ctx {
+                        Some(ctx) => {
+                            match ctx.get(&bitrate.to_string()) {
+                                Some(value) => dset = value,
+                                None => dset = aset,
+                            }
+                        },
+                        None => dset = aset,
+                    }
+                }
             }
             Self::from_canfd(
                 ZCanFdChlCfgV2::new(value.can_type, value.mode, clock, ZCanFdChlCfgSet::from(aset), ZCanFdChlCfgSet::from(dset))

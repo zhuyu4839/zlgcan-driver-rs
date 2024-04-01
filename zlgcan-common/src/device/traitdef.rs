@@ -1,11 +1,7 @@
-use crate::can::CanChlCfg;
-use crate::can::channel::{ZCanChlError, ZCanChlStatus};
-use crate::can::constant::ZCanFrameType;
-use crate::can::frame::{ZCanFdFrame, ZCanFrame};
+use crate::can::{CanChlCfg, ZCanFdFrame, ZCanFrame, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use crate::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use crate::error::ZCanError;
-use crate::lin::ZLinChlCfg;
-use crate::lin::{ZLinFrame, ZLinPublish, ZLinSubscribe};
+use crate::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
 use super::{DeriveInfo, ZCanDeviceType, ZDeviceInfo};
 
 #[allow(unused_variables)]

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::{c_uchar, c_ushort, CString};
-use crate::can::constant::Reference;
+use crate::can::Reference;
 use crate::device::DeriveInfo;
 
 #[repr(C)]
