@@ -2,9 +2,7 @@ use zlgcan_common as common;
 
 use log::{debug, warn};
 use common::can::CanChlCfg;
-use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
-use common::can::constant::{ZCanChlType, ZCanFrameType};
-use common::can::frame::{ZCanFdFrame, ZCanFrame};
+use common::can::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus, ZCanFdFrame, ZCanFrame, ZCanChlType, ZCanFrameType};
 use common::device::{CmdPath, ZCanDeviceType};
 use common::error::ZCanError;
 

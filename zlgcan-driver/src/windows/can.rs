@@ -1,7 +1,7 @@
 use zlgcan_common as common;
 
 use log::warn;
-use common::can::{CanChlCfg, constant::ZCanFrameType, channel::{ZCanChlError, ZCanChlStatus}, frame::{ZCanFdFrame, ZCanFdFrameV1, ZCanFrame}};
+use common::can::{CanChlCfg, ZCanFrameType, {ZCanChlError, ZCanChlStatus}, ZCanFdFrame, ZCanFdFrameV1, ZCanFrame};
 use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 use common::error::ZCanError;
 use super::driver::ZCanDriver;
@@ -120,8 +120,7 @@ impl ZCanDevice for ZCanDriver<'_> {
 mod test_can {
     use zlgcan_common as common;
 
-    use common::can::CanChlCfgFactory;
-    use common::can::constant::{ZCanChlMode, ZCanChlType};
+    use common::can::{CanChlCfgFactory, ZCanChlMode, ZCanChlType};
     use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
     use crate::ZCanDriver;
 
