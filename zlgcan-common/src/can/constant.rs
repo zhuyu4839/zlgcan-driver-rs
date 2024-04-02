@@ -23,6 +23,7 @@ pub const CANERR_FRAME_LENGTH: usize = 8;
 pub const CANFD_FRAME_LENGTH: usize = 64;
 
 /// Then CAN frame type used in crate.
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone)]
 pub enum ZCanFrameType {

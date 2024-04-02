@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 use std::time::{SystemTime, UNIX_EPOCH};
 use super::constant::{CAN_EFF_MASK, CAN_FRAME_LENGTH, CAN_ID_FLAG, CANFD_FRAME_LENGTH};
 
+#[repr(C)]
 #[derive(Debug)]
 pub struct CanMessage {
     timestamp: u64,
@@ -9,7 +10,7 @@ pub struct CanMessage {
     is_extended_id: bool,
     is_remote_frame: bool,
     is_error_frame: bool,
-    channel: Option<u8>,
+    channel: u8,
     len: u8,
     data: Vec<u8>,
     is_fd: bool,
@@ -69,7 +70,7 @@ impl CanMessage {
                     is_extended_id: is_extended_id.unwrap_or_default() | (arbitration_id & CAN_EFF_MASK > 0),
                     is_remote_frame: false,
                     is_error_frame,
-                    channel,
+                    channel: channel.unwrap_or(0),
                     len: len as u8,
                     data,
                     is_fd,
@@ -125,10 +126,10 @@ impl CanMessage {
         self
     }
     #[inline(always)]
-    pub const fn channel(&self) -> Option<u8> { self.channel  }
+    pub const fn channel(&self) -> u8 { self.channel  }
     #[inline(always)]
     pub fn set_channel(&mut self, value: u8) -> &mut Self {
-        self.channel = Some(value);
+        self.channel = value;
         self
     }
     #[inline(always)]

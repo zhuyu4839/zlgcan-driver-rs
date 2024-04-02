@@ -33,7 +33,7 @@ pub(self) fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool) -> T {
         info.set_field(ZCanHdrInfoField::IsErrorFrame, 1);
     }
 
-    let frame = T::new(msg.arbitration_id(), msg.channel().unwrap_or_default(), msg.data(), info).unwrap();
+    let frame = T::new(msg.arbitration_id(), msg.channel(), msg.data(), info).unwrap();
     assert_eq!(msg.is_extended_id(), info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0);
 
     frame
