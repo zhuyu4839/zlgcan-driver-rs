@@ -57,11 +57,12 @@ impl ZDeviceInfo {
     fn version(ver: u16) -> String {
         let major = ((ver & 0xFF00) >> 8) as u8;
         let minor = (ver & 0xFF) as u8;
-        if major > 9 {
-            format!("V{:2}.{:02}", major, minor)
+        let h_major = (major & 0xF0) >> 4;
+        if h_major > 0 {
+            format!("V{:1}{:1}.{:1}{:1}", h_major, major & 0x0F, (minor & 0xF0) >> 4, minor & 0x0F)
         }
         else {
-            format!("V{}.{:02}", major, minor)
+            format!("V{:1}.{:1}{:1}", major & 0x0F, (minor & 0xF0) >> 4, minor & 0x0F)
         }
     }
     #[inline(always)]
@@ -202,7 +203,7 @@ mod test {
             hwv: 0x0001,
             fwv: 0x0101,
             drv: 0x0A01,
-            api: 0xA001,
+            api: 0x0237,
             irq: 8,
             chn: 3,
             sn: [0; 20],
@@ -212,7 +213,7 @@ mod test {
         assert_eq!(dev_info.hardware_version(), "V0.01");
         assert_eq!(dev_info.firmware_version(), "V1.01");
         assert_eq!(dev_info.driver_version(), "V10.01");
-        assert_eq!(dev_info.api_version(), "V160.01");
+        assert_eq!(dev_info.api_version(), "V2.37");
     }
 }
 /// use for batch setting parameters for device.

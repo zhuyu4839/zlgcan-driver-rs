@@ -180,27 +180,69 @@ pub union ZCanFrame {
     v3: ZCanFrameV3,
 }
 
+impl From<ZCanFrameV1> for ZCanFrame {
+    fn from(value: ZCanFrameV1) -> Self {
+        Self { v1: value }
+    }
+}
+
+impl From<ZCanFrame> for ZCanFrameV1 {
+    fn from(value: ZCanFrame) -> Self {
+        unsafe { value.v1 }
+    }
+}
+
+impl From<ZCanFrameV2> for ZCanFrame {
+    fn from(value: ZCanFrameV2) -> Self {
+        Self { v2: value }
+    }
+}
+
+impl From<ZCanFrame> for ZCanFrameV2 {
+    fn from(value: ZCanFrame) -> Self {
+        unsafe { value.v2 }
+    }
+}
+
+impl From<ZCanFrameV3> for ZCanFrame {
+    fn from(value: ZCanFrameV3) -> Self {
+        Self { v3: value }
+    }
+}
+
+impl From<ZCanFrame> for ZCanFrameV3 {
+    fn from(value: ZCanFrame) -> Self {
+        unsafe { value.v3 }
+    }
+}
+
 impl ZCanFrame {
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v1(v1: ZCanFrameV1) -> Self {
         Self { v1 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn get_v1(&self) -> &ZCanFrameV1 {
         unsafe { &self.v1 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v2(v2: ZCanFrameV2) -> Self {
         Self { v2 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn get_v2(&self) -> &ZCanFrameV2 {
         unsafe { &self.v2 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v3(v3: ZCanFrameV3) -> Self {
         Self { v3 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn get_v3(&self) -> &ZCanFrameV3 {
         unsafe { &self.v3 }
@@ -291,19 +333,47 @@ pub union ZCanFdFrame {
     v2: ZCanFdFrameV2,
 }
 
+impl From<ZCanFdFrameV1> for ZCanFdFrame {
+    fn from(value: ZCanFdFrameV1) -> Self {
+        Self { v1: value }
+    }
+}
+
+impl From<ZCanFdFrame> for ZCanFdFrameV1 {
+    fn from(value: ZCanFdFrame) -> Self {
+        unsafe { value.v1 }
+    }
+}
+
+impl From<ZCanFdFrameV2> for ZCanFdFrame {
+    fn from(value: ZCanFdFrameV2) -> Self {
+        Self { v2: value }
+    }
+}
+
+impl From<ZCanFdFrame> for ZCanFdFrameV2 {
+    fn from(value: ZCanFdFrame) -> Self {
+        unsafe { value.v2 }
+    }
+}
+
 impl ZCanFdFrame {
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v1(v1: ZCanFdFrameV1) -> Self {
         Self { v1 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v2(v2: ZCanFdFrameV2) -> Self {
         Self { v2 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn get_v1(&self) -> &ZCanFdFrameV1 {
         unsafe { &self.v1 }
     }
+    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn get_v2(&self) -> &ZCanFdFrameV2 {
         unsafe { &self.v2 }

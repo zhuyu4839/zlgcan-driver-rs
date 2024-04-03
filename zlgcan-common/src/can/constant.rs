@@ -53,6 +53,7 @@ impl Display for ZCanFrameType {
     }
 }
 
+#[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub enum ZCanChlMode {
     #[default]
@@ -87,6 +88,7 @@ impl From<u8> for ZCanFdStd {
     }
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Default, Copy, Clone)]
 pub enum ZCanChlType {

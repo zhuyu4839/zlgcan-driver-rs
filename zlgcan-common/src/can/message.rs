@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
+use std::slice;
 use std::time::{SystemTime, UNIX_EPOCH};
 use super::constant::{CAN_EFF_MASK, CAN_FRAME_LENGTH, CAN_ID_FLAG, CANFD_FRAME_LENGTH};
 
@@ -12,7 +13,7 @@ pub struct CanMessage {
     is_error_frame: bool,
     channel: u8,
     len: u8,
-    data: Vec<u8>,
+    data: *const u8,
     is_fd: bool,
     is_rx: bool,
     bitrate_switch: bool,
@@ -31,11 +32,14 @@ impl PartialEq for CanMessage {
         else {
             let len = self.len as usize;
 
+            let data = unsafe { slice::from_raw_parts(self.data, self.len as usize) };
+            let other_data = unsafe { slice::from_raw_parts(other.data, other.len as usize) };
+
             (self.arbitration_id == other.arbitration_id) &&
                 (self.is_extended_id == other.is_extended_id) &&
                 (self.is_error_frame == other.is_error_frame) &&
                 (self.error_state_indicator == other.error_state_indicator) &&
-                (self.data.as_slice()[..len] == other.data.as_slice()[..len])
+                (data[..len] == other_data[..len])
         }
     }
 }
@@ -72,7 +76,7 @@ impl CanMessage {
                     is_error_frame,
                     channel: channel.unwrap_or(0),
                     len: len as u8,
-                    data,
+                    data: data.as_ptr(),
                     is_fd,
                     is_rx: true,
                     bitrate_switch: false,
@@ -135,7 +139,7 @@ impl CanMessage {
     #[inline(always)]
     pub const fn length(&self) -> u8 { self.len  }
     #[inline(always)]
-    pub fn data(&self) -> &[u8] { self.data.as_slice()  }
+    pub fn data(&self) -> &[u8] { unsafe { slice::from_raw_parts(self.data, self.len as usize) }  }
     #[inline(always)]
     pub const fn is_fd(&self) -> bool { self.is_fd  }
     #[inline(always)]
