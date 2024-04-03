@@ -220,10 +220,10 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgDetail {
     fn from(value: &CanChlCfg) -> Self {
         let dev_type = value.dev_type;
         if dev_type.is_can_chl_cfg_v1() {
-            ZCanChlCfgDetail::from_v1(ZCanChlCfgV1::from(value))
+            ZCanChlCfgDetail::from(ZCanChlCfgV1::from(value))
         }
         else if dev_type.is_can_chl_cfg_v2() {
-            ZCanChlCfgDetail::from_v2(ZCanChlCfgV2::from(value))
+            ZCanChlCfgDetail::from(ZCanChlCfgV2::from(value))
         }
         else {
             panic!("ZLGCAN - the device: `{}` is not supported!", dev_type)
