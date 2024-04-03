@@ -13,10 +13,12 @@ use zlgcan_common as common;
 use std::ffi::{c_void, CString};
 use dlopen2::symbor::{Symbol, SymBorApi};
 use log::{debug, warn};
-use common::can::CanChlCfg;
-use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
-use common::can::constant::ZCanFrameType;
-use common::can::frame::ZCanFrame;
+use common::can::{
+    CanChlCfg,
+    ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus,
+    ZCanFrameType,
+    ZCanFrame
+};
 use common::device::{CmdPath, ZCanDeviceType, ZDeviceInfo};
 use common::error::ZCanError;
 use crate::constant::STATUS_OK;
@@ -116,7 +118,7 @@ impl USBCANApi<'_> {
     }
     #[inline(always)]
     pub(crate) fn read_can_chl_error(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<ZCanChlError, ZCanError> {
-        let mut info: ZCanChlError = ZCanChlError::from_v2(Default::default());
+        let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.VCI_ReadErrInfo)(dev_type as u32, dev_idx, channel as u32, &mut info) } {
             STATUS_OK => Ok(info),
             code =>Err(ZCanError::new(code, "ZLGCAN - read CAN channel error info failed".to_string())),
@@ -189,10 +191,12 @@ mod test {
     use zlgcan_common as common;
 
     use dlopen2::symbor::{Library, SymBorApi};
-    use common::can::CanChlCfg;
-    use common::can::constant::{ZCanChlMode, ZCanChlType};
-    use common::can::frame::{ZCanFrame, ZCanFrameV1};
-    use common::can::message::CanMessage;
+    use common::can::{
+        CanChlCfg,
+        ZCanChlMode, ZCanChlType,
+        ZCanFrame, ZCanFrameV1,
+        CanMessage
+    };
     use common::device::ZCanDeviceType;
     use zlgcan_common::can::CanChlCfgFactory;
     use crate::ZCanDriver;
@@ -227,7 +231,7 @@ mod test {
         api.init_can_chl(dev_type, dev_idx, 0, &cfg).unwrap();
         let frame = CanMessage::new(0x7E0, Some(0), [0x01, 0x02, 0x03], false, false, None).unwrap();
         let frame1 = CanMessage::new(0x1888FF00, Some(0), [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], false, false, None).unwrap();
-        let frames = vec![ZCanFrame::from_v1(ZCanFrameV1::from(frame)), ZCanFrame::from_v1(ZCanFrameV1::from(frame1))];
+        let frames = vec![ZCanFrame::from(ZCanFrameV1::from(frame)), ZCanFrame::from(ZCanFrameV1::from(frame1))];
         let ret = api.transmit_can(dev_type, dev_idx, channel, frames);
         assert_eq!(ret, 2);
 

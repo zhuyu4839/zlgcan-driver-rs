@@ -1,7 +1,10 @@
 use zlgcan_common as common;
 
 use log::warn;
-use common::can::{CanChlCfg, ZCanFrameType, {ZCanChlError, ZCanChlStatus}, ZCanFdFrame, ZCanFdFrameV1, ZCanFrame};
+use common::can::{
+    CanChlCfg, ZCanFrameType, {ZCanChlError, ZCanChlStatus},
+    ZCanFdFrame, ZCanFdFrameV1, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3
+};
 use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 use common::error::ZCanError;
 use super::driver::ZCanDriver;
@@ -80,13 +83,13 @@ impl ZCanDevice for ZCanDriver<'_> {
         self.can_handler(dev_type, dev_idx, channel, |hdl| -> Vec<ZCanFrame> {
             self.api.receive_can(hdl, size, timeout, |frames, size| {
                 if dev_type.is_frame_v1() {
-                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v1(Default::default()) });
+                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV1::default()) });
                 }
                 else if dev_type.is_frame_v2() {
-                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v3(Default::default()) });
+                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV2::default()) });
                 }
                 else if dev_type.is_frame_v3() {
-                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v3(Default::default()) });
+                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV3::default()) });
                 }
                 else {
                     panic!("ZLGCAN - receive CAN frame is not supported!");
@@ -104,7 +107,7 @@ impl ZCanDevice for ZCanDriver<'_> {
     fn receive_canfd(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
         self.can_handler(dev_type, dev_idx, channel, |hdl| -> Vec<ZCanFdFrame> {
             self.api.receive_canfd(hdl, size, timeout, |frames, size| {
-                frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from_v1(ZCanFdFrameV1::default()) });
+                frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV1::default()) });
             })
         })
     }

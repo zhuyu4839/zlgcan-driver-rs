@@ -1,10 +1,12 @@
 use zlgcan_common as common;
 
 use log::warn;
-use common::can::CanChlCfg;
-use common::can::channel::{ZCanChlError, ZCanChlStatus};
-use common::can::constant::ZCanFrameType;
-use common::can::frame::{ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3};
+use common::can::{
+    CanChlCfg,
+    ZCanChlError, ZCanChlStatus,
+    ZCanFrameType,
+    ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3
+};
 use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 use common::error::ZCanError;
 
@@ -241,35 +243,35 @@ impl ZCanDevice for ZCanDriver<'_> {
             ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 => {
                 self.can_handler1(dev_type, dev_idx, channel, |dev_type, dev_idx, channel| -> Vec<ZCanFrame> {
                     self.usbcan_api.receive_can(dev_type, dev_idx, channel, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v1(ZCanFrameV1::default()) });
+                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV1::default()) });
                     })
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                 self.can_handler(dev_type, dev_idx, channel, |chl_hdl| -> Vec<ZCanFrame> {
                     self.usbcan_4e_api.receive_can(chl_hdl, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v3(ZCanFrameV3::default()) });
+                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV3::default()) });
                     })
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
                 self.can_handler(dev_type, dev_idx, channel, |chl_hdl| -> Vec<ZCanFrame> {
                     self.usbcan_8e_api.receive_can(chl_hdl, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v3(ZCanFrameV3::default()) });
+                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV3::default()) });
                     })
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.can_handler1(dev_type, dev_idx, channel, |dev_type, dev_idx, channel| -> Vec<ZCanFrame> {
                     self.usbcanfd_api.receive_can(dev_type, dev_idx, channel, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v2(ZCanFrameV2::default()) });
+                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV2::default()) });
                     })
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
                 self.can_handler(dev_type, dev_idx, channel, |chl_hdl| -> Vec<ZCanFrame> {
                     self.usbcanfd_800u_api.receive_can(chl_hdl, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from_v3(ZCanFrameV3::default()) });
+                        frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV3::default()) });
                     })
                 })
             },
@@ -315,28 +317,28 @@ impl ZCanDevice for ZCanDriver<'_> {
             // ZCanDeviceType::ZCAN_USBCAN_4E_U => {
             //     self.can_handler(dev_type, dev_idx, channel, |chl_hdl| -> Vec<ZCanFdFrame> {
             //         self.usbcan_4e_api.receive_canfd(chl_hdl, size, timeout, |frames, size| {
-            //             frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from_v2(ZCanFdFrameV2::default()) });
+            //             frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV2::default()) });
             //         })
             //     })
             // },
             // ZCanDeviceType::ZCAN_USBCAN_8E_U => {
             //     self.can_handler(dev_type, dev_idx, channel, |chl_hdl| -> Vec<ZCanFdFrame> {
             //         self.usbcan_8e_api.receive_canfd(chl_hdl, size, timeout, |frames, size| {
-            //             frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from_v2(ZCanFdFrameV2::default()) });
+            //             frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV2::default()) });
             //         })
             //     })
             // },
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.can_handler1(dev_type, dev_idx, channel, |dev_type, dev_idx, channel| -> Vec<ZCanFdFrame> {
                     self.usbcanfd_api.receive_canfd(dev_type, dev_idx, channel, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from_v1(ZCanFdFrameV1::default()) });
+                        frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV1::default()) });
                     })
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
                 self.can_handler(dev_type, dev_idx, channel, |chl_hdl| -> Vec<ZCanFdFrame> {
                     self.usbcanfd_800u_api.receive_canfd(chl_hdl, size, timeout, |frames, size| {
-                        frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from_v2(ZCanFdFrameV2::default()) });
+                        frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV2::default()) });
                     })
                 })
             },

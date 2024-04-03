@@ -14,8 +14,10 @@ use dlopen2::symbor::{Symbol, SymBorApi};
 use std::ffi::{c_uchar, c_uint, c_void, CString};
 use log::warn;
 
-use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
-use common::can::frame::{ZCanFdFrame, ZCanFrame};
+use common::can::{
+    ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus,
+    ZCanFdFrame, ZCanFrame
+};
 use common::device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo};
 use common::error::ZCanError;
 use common::utils::c_str_to_string;

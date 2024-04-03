@@ -2,10 +2,12 @@ use zlgcan_common as common;
 
 use std::ffi::{c_void, CString};
 use log::{debug, warn};
-use common::can::CanChlCfg;
-use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
-use common::can::constant::{Reference, ZCanFrameType};
-use common::can::frame::{ZCanFdFrame, ZCanFrame};
+use common::can::{
+    CanChlCfg,
+    ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus,
+    Reference, ZCanFrameType,
+    ZCanFdFrame, ZCanFrame,
+};
 use common::device::{CmdPath, ZCanDeviceType};
 use common::error::ZCanError;
 use crate::constant::STATUS_OK;
@@ -56,7 +58,7 @@ impl USBCANFDApi<'_> {
 
     #[inline(always)]
     pub(crate) fn read_can_chl_error(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<ZCanChlError, ZCanError> {
-        let mut info: ZCanChlError = ZCanChlError::from_v2(Default::default());
+        let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.VCI_ReadErrInfo)(dev_type as u32, dev_idx, channel as u32, &mut info) } {
             STATUS_OK => Ok(info),
             code =>Err(ZCanError::new(code, "ZLGCAN - read CAN channel error info failed".to_string())),

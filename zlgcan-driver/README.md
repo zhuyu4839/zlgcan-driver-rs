@@ -3,10 +3,12 @@
 use zlgcan_common as common;
 use zlgcan_driver as driver;
 
-use common::can::{CanChlCfgExt, CanChlCfgFactory};
-use common::can::constant::{ZCanChlMode, ZCanChlType};
-use common::can::frame::{ZCanFdFrame, ZCanFdFrameV2};
-use common::can::message::CanMessage;
+use common::can::{
+    CanChlCfgExt, CanChlCfgFactory,
+    ZCanChlMode, ZCanChlType,
+    ZCanFdFrame, ZCanFdFrameV2,
+    CanMessage
+};
 use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 use driver::ZCanDriver;
 
@@ -40,9 +42,9 @@ fn main() {
     let mut msg = CanMessage::new(0x7DF, None, [0x01, 0x02, 0x03, 0x04, 0x05], true, false, None).unwrap();
     msg.set_bitrate_switch(true);   // set canfd is bitrate switch
     #[cfg(target_os = "windows")]
-    let frame = ZCanFdFrame::from_v2(ZCanFdFrameV2::from(msg));
+    let frame = ZCanFdFrame::from(ZCanFdFrameV2::from(msg));
     #[cfg(target_os = "linux")]
-    let frame = ZCanFdFrame::from_v1(ZCanFdFrameV1::from(frame));
+    let frame = ZCanFdFrame::from(ZCanFdFrameV1::from(frame));
 
     let frames = vec![frame];
 

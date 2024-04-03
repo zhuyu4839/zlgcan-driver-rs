@@ -14,8 +14,10 @@ use zlgcan_common as common;
 
 use dlopen2::symbor::{Symbol, SymBorApi};
 use std::ffi::{c_uint, c_void, CString};
-use common::can::channel::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus};
-use common::can::frame::{ZCanFdFrame, ZCanFrame};
+use common::can::{
+    ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus,
+    ZCanFdFrame, ZCanFrame
+};
 use common::device::{CmdPath, ZCanDeviceType, ZDeviceInfo};
 use common::error::ZCanError;
 use common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
@@ -178,10 +180,12 @@ mod test {
     use zlgcan_common as common;
 
     use dlopen2::symbor::{Library, SymBorApi};
-    use common::can::CanChlCfg;
-    use common::can::constant::{ZCanChlMode, ZCanChlType};
-    use common::can::frame::{ZCanFrame, ZCanFrameV1};
-    use common::can::message::CanMessage;
+    use common::can::{
+        CanChlCfg,
+        ZCanChlMode, ZCanChlType,
+        ZCanFrame, ZCanFrameV1,
+        CanMessage
+    };
     use common::device::ZCanDeviceType;
     use zlgcan_common::can::CanChlCfgFactory;
     use crate::ZCanDriver;
@@ -217,7 +221,7 @@ mod test {
         api.init_can_chl(dev_type, dev_idx, 0, &cfg).unwrap();
         let frame = CanMessage::new(0x7E0, Some(0), [0x01, 0x02, 0x03], false, false, None).unwrap();
         let frame1 = CanMessage::new(0x1888FF00, Some(0), [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], false, false, None).unwrap();
-        let frames = vec![ZCanFrame::from_v1(ZCanFrameV1::from(frame)), ZCanFrame::from_v1(ZCanFrameV1::from(frame1))];
+        let frames = vec![ZCanFrame::from(ZCanFrameV1::from(frame)), ZCanFrame::from(ZCanFrameV1::from(frame1))];
         let ret = api.transmit_can(dev_type, dev_idx, channel, frames);
         assert_eq!(ret, 2);
 

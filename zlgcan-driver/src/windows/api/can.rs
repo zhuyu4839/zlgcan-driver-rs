@@ -1,8 +1,10 @@
 use zlgcan_common as common;
 
 use log::{debug, warn};
-use common::can::CanChlCfg;
-use common::can::{ZCanChlCfgDetail, ZCanChlError, ZCanChlStatus, ZCanFdFrame, ZCanFrame, ZCanChlType, ZCanFrameType};
+use common::can::{
+    CanChlCfg, ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus,
+    ZCanFdFrame, ZCanFrame, ZCanChlType, ZCanFrameType
+};
 use common::device::{CmdPath, ZCanDeviceType};
 use common::error::ZCanError;
 
@@ -88,7 +90,7 @@ impl Api<'_> {
 
     #[inline(always)]
     pub(crate) fn read_can_chl_error(&self, chl_hdl: u32) -> Result<ZCanChlError, ZCanError> {
-        let mut info: ZCanChlError = ZCanChlError::from_v2(Default::default());
+        let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.ZCAN_ReadChannelErrInfo)(chl_hdl, &mut info) } {
             STATUS_OK => Ok(info),
             code =>Err(ZCanError::new(code, "ZLGCAN - read CAN channel error info failed".to_string())),
