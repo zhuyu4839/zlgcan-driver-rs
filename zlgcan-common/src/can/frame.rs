@@ -186,8 +186,8 @@ impl From<ZCanFrameV1> for ZCanFrame {
     }
 }
 
-impl From<ZCanFrame> for ZCanFrameV1 {
-    fn from(value: ZCanFrame) -> Self {
+impl From<&ZCanFrame> for ZCanFrameV1 {
+    fn from(value: &ZCanFrame) -> Self {
         unsafe { value.v1 }
     }
 }
@@ -198,8 +198,8 @@ impl From<ZCanFrameV2> for ZCanFrame {
     }
 }
 
-impl From<ZCanFrame> for ZCanFrameV2 {
-    fn from(value: ZCanFrame) -> Self {
+impl From<&ZCanFrame> for ZCanFrameV2 {
+    fn from(value: &ZCanFrame) -> Self {
         unsafe { value.v2 }
     }
 }
@@ -210,8 +210,8 @@ impl From<ZCanFrameV3> for ZCanFrame {
     }
 }
 
-impl From<ZCanFrame> for ZCanFrameV3 {
-    fn from(value: ZCanFrame) -> Self {
+impl From<&ZCanFrame> for ZCanFrameV3 {
+    fn from(value: &ZCanFrame) -> Self {
         unsafe { value.v3 }
     }
 }
@@ -339,8 +339,8 @@ impl From<ZCanFdFrameV1> for ZCanFdFrame {
     }
 }
 
-impl From<ZCanFdFrame> for ZCanFdFrameV1 {
-    fn from(value: ZCanFdFrame) -> Self {
+impl From<&ZCanFdFrame> for ZCanFdFrameV1 {
+    fn from(value: &ZCanFdFrame) -> Self {
         unsafe { value.v1 }
     }
 }
@@ -351,8 +351,8 @@ impl From<ZCanFdFrameV2> for ZCanFdFrame {
     }
 }
 
-impl From<ZCanFdFrame> for ZCanFdFrameV2 {
-    fn from(value: ZCanFdFrame) -> Self {
+impl From<&ZCanFdFrame> for ZCanFdFrameV2 {
+    fn from(value: &ZCanFdFrame) -> Self {
         unsafe { value.v2 }
     }
 }

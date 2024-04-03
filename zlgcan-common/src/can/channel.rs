@@ -232,20 +232,47 @@ pub union ZCanChlError {
     v2: ZCanChlErrorV2,
 }
 
+impl From<ZCanChlErrorV1> for ZCanChlError {
+    fn from(value: ZCanChlErrorV1) -> Self {
+        Self { v1: value }
+    }
+}
+
+impl From<&ZCanChlError> for ZCanChlErrorV1 {
+    fn from(value: &ZCanChlError) -> Self {
+        unsafe { value.v1 }
+    }
+}
+
+impl From<ZCanChlErrorV2> for ZCanChlError {
+    fn from(value: ZCanChlErrorV2) -> Self {
+        Self { v2: value }
+    }
+}
+
+impl From<&ZCanChlError> for ZCanChlErrorV2 {
+    fn from(value: &ZCanChlError) -> Self {
+        unsafe { value.v2 }
+    }
+}
+
 impl ZCanChlError {
+    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v1(v1: ZCanChlErrorV1) -> Self {
         Self { v1 }
     }
+    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v2(v2: ZCanChlErrorV2) -> Self {
         Self { v2 }
     }
+    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
     #[inline(always)]
-
     pub fn get_v1(&self) -> ZCanChlErrorV1 {
         unsafe { self.v1 }
     }
+    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn get_v2(&self) -> ZCanChlErrorV2 {
         unsafe { self.v2 }
