@@ -196,12 +196,12 @@ impl From<ZCanChlCfgV2> for ZCanChlCfgDetail {
 }
 
 impl ZCanChlCfgDetail {
-    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
+    #[deprecated(since = "0.2.3-Beta3", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v1(v1: ZCanChlCfgV1) -> Self {
         Self { v1: ManuallyDrop::new(v1) }
     }
-    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
+    #[deprecated(since = "0.2.3-Beta3", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v2(v2: ZCanChlCfgV2) -> Self {
         Self { v2: ManuallyDrop::new(v2) }
