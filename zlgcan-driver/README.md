@@ -17,10 +17,10 @@ fn main() {
     let dev_idx = 0;
 
     // Create driver instance
-    let mut driver = ZCanDriver::new();
+    let mut driver = ZCanDriver::new(dev_type, dev_idx, None);
 
     // Open device
-    driver.open(dev_type, dev_idx, None).unwrap();
+    driver.open().unwrap();
 
     // Get device info and assert some information
     let dev_info = driver.device_info(dev_type, dev_idx).unwrap();
@@ -36,7 +36,7 @@ fn main() {
     let cfg = vec![ch1_cfg, ch2_cfg];
 
     // intialize channels
-    driver.init_can_chl(dev_type, dev_idx, cfg).unwrap();
+    driver.init_can_chl(cfg).unwrap();
 
     // Create CANFD frame
     let mut msg = CanMessage::new(0x7DF, None, [0x01, 0x02, 0x03, 0x04, 0x05], true, false, None).unwrap();
@@ -49,7 +49,7 @@ fn main() {
     let frames = vec![frame];
 
     // Transmit frame
-    let ret = driver.transmit_canfd(dev_type, dev_idx, 0, frames).unwrap();
+    let ret = driver.transmit_canfd(0, frames).unwrap();
     assert_eq!(ret, 1);
 
     driver.close(dev_type, dev_idx);

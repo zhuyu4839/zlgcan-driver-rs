@@ -5,13 +5,13 @@ use common::can::{
     CanChlCfg, ZCanFrameType, {ZCanChlError, ZCanChlStatus},
     ZCanFdFrame, ZCanFdFrameV1, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3
 };
-use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
+use common::device::{ZCanDevice, ZlgDevice};
 use common::error::ZCanError;
 use super::driver::ZCanDriver;
 
 impl ZCanDevice for ZCanDriver<'_> {
-    fn init_can_chl(&mut self, dev_type: ZCanDeviceType, dev_idx: u32, cfg: Vec<CanChlCfg>) -> Result<(), ZCanError> {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+    fn init_can_chl(&mut self, cfg: Vec<CanChlCfg>) -> Result<(), ZCanError> {
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         match self.handlers.get_mut(&dev_name) {
             Some(dev_hdl) => {
                 let dev_info = dev_hdl.device_info();
@@ -38,8 +38,8 @@ impl ZCanDevice for ZCanDriver<'_> {
         }
     }
 
-    fn reset_can_chl(&mut self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<(), ZCanError> {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+    fn reset_can_chl(&mut self, channel: u8) -> Result<(), ZCanError> {
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         match self.handlers.get_mut(&dev_name) {
             Some(dev_hdl) => {
                 match dev_hdl.find_can(channel) {
@@ -55,40 +55,41 @@ impl ZCanDevice for ZCanDriver<'_> {
         }
     }
 
-    fn read_can_chl_status(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<ZCanChlStatus, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> Result<ZCanChlStatus, ZCanError> {
+    fn read_can_chl_status(&self, channel: u8) -> Result<ZCanChlStatus, ZCanError> {
+        self.can_handler(channel, |hdl| -> Result<ZCanChlStatus, ZCanError> {
             self.api.read_can_chl_status(hdl)
         }).unwrap()
     }
 
-    fn read_can_chl_error(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<ZCanChlError, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> Result<ZCanChlError, ZCanError> {
+    fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, ZCanError> {
+        self.can_handler(channel, |hdl| -> Result<ZCanChlError, ZCanError> {
             self.api.read_can_chl_error(hdl)
         }).unwrap()
     }
 
-    fn clear_can_buffer(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8) -> Result<(), ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> Result<(), ZCanError> {
+    fn clear_can_buffer(&self, channel: u8) -> Result<(), ZCanError> {
+        self.can_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.clear_can_buffer(hdl)
         }).unwrap()
     }
 
-    fn get_can_num(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, msg: ZCanFrameType) -> Result<u32, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> u32 {
+    fn get_can_num(&self, channel: u8, msg: ZCanFrameType) -> Result<u32, ZCanError> {
+        self.can_handler(channel, |hdl| -> u32 {
             self.api.get_can_num(hdl, msg)
         })
     }
 
-    fn receive_can(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFrame>, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> Vec<ZCanFrame> {
+    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFrame>, ZCanError> {
+        let timeout = timeout.unwrap_or(50);
+        self.can_handler(channel, |hdl| -> Vec<ZCanFrame> {
             self.api.receive_can(hdl, size, timeout, |frames, size| {
-                if dev_type.is_frame_v1() {
+                if self.dev_type.is_frame_v1() {
                     frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV1::default()) });
                 }
-                else if dev_type.is_frame_v2() {
+                else if self.dev_type.is_frame_v2() {
                     frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV2::default()) });
                 }
-                else if dev_type.is_frame_v3() {
+                else if self.dev_type.is_frame_v3() {
                     frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV3::default()) });
                 }
                 else {
@@ -98,22 +99,23 @@ impl ZCanDevice for ZCanDriver<'_> {
         })
     }
 
-    fn transmit_can(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> u32 {
+    fn transmit_can(&self, channel: u8, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError> {
+        self.can_handler(channel, |hdl| -> u32 {
             self.api.transmit_can(hdl, frames)
         })
     }
 
-    fn receive_canfd(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> Vec<ZCanFdFrame> {
+    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
+        let timeout = timeout.unwrap_or(50);
+        self.can_handler(channel, |hdl| -> Vec<ZCanFdFrame> {
             self.api.receive_canfd(hdl, size, timeout, |frames, size| {
                 frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV1::default()) });
             })
         })
     }
 
-    fn transmit_canfd(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, frames: Vec<ZCanFdFrame>) -> Result<u32, ZCanError> {
-        self.can_handler(dev_type, dev_idx, channel, |hdl| -> u32 {
+    fn transmit_canfd(&self, channel: u8, frames: Vec<ZCanFdFrame>) -> Result<u32, ZCanError> {
+        self.can_handler(channel, |hdl| -> u32 {
             self.api.transmit_canfd(hdl, frames)
         })
     }
@@ -132,8 +134,8 @@ mod test_can {
         let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
         let dev_idx = 0;
 
-        let mut driver = ZCanDriver::new();
-        driver.open(dev_type, dev_idx, None).unwrap();
+        let mut driver = ZCanDriver::new(dev_type, dev_idx, None);
+        driver.open().unwrap();
 
         let factory = CanChlCfgFactory::new();
 

@@ -11,9 +11,7 @@ use super::Api;
 impl Api<'_> {
     #[inline(always)]
     pub(crate) fn set_server(&self, server: ZCloudServerInfo) -> Result<(), ZCanError> {
-        let http = CString::new(server.http_url).expect("");
-        let mqtt = CString::new(server.mqtt_url).expect("");
-        unsafe { (self.ZCLOUD_SetServerInfo)(http.as_ptr(), server.http_port, mqtt.as_ptr(), server.mqtt_port) }
+        unsafe { (self.ZCLOUD_SetServerInfo)(server.http_url, server.http_port, server.mqtt_url, server.mqtt_port) }
 
         Ok(())
     }
@@ -42,9 +40,9 @@ impl Api<'_> {
     }
 
     #[inline(always)]
-    pub(crate) fn get_userdata(&self, update: Option<i32>) -> Result<ZCloudUserData, ZCanError> {
+    pub(crate) fn get_userdata(&self, update: i32) -> Result<ZCloudUserData, ZCanError> {
         unsafe {
-            let data = (self.ZCLOUD_GetUserData)(update.unwrap_or(0));
+            let data = (self.ZCLOUD_GetUserData)(update);
             if data.is_null() {
                 Err(ZCanError::new(0, format!("ZLGCAN - {} failed", "`get_userdata`")))
             }
@@ -55,11 +53,11 @@ impl Api<'_> {
     }
 
     #[inline(always)]
-    pub(crate) fn receive_gps(&self, dev_hdl: u32, size: u32, timeout: Option<u32>, resize: impl Fn(&mut Vec<ZCloudGpsFrame>, usize)) -> Vec<ZCloudGpsFrame> {
+    pub(crate) fn receive_gps(&self, dev_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCloudGpsFrame>, usize)) -> Vec<ZCloudGpsFrame> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
-        let ret = unsafe { (self.ZCLOUD_ReceiveGPS)(dev_hdl, frames.as_mut_ptr(), size, timeout.unwrap_or(50)) };
+        let ret = unsafe { (self.ZCLOUD_ReceiveGPS)(dev_hdl, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
             warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }

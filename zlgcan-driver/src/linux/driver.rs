@@ -12,70 +12,127 @@ use super::api::{usbcan::*, usbcan_e::*, usbcanfd_800u::*, usbcanfd::*};
 
 #[cfg(target_arch = "x86_64")]
 lazy_static!(
-    static ref USBCAN_LIB: Library = Library::open("library/linux/x86_64/libusbcan.so").expect(LOAD_LIB_FAILED);
-    static ref USBCAN4E_LIB: Library = Library::open("library/linux/x86_64/libusbcan-4e.so").expect(LOAD_LIB_FAILED);
-    static ref USBCAN8E_LIB: Library = Library::open("library/linux/x86_64/libusbcan-8e.so").expect(LOAD_LIB_FAILED);
-    static ref USBCANFD_LIB: Library = Library::open("library/linux/x86_64/libusbcanfd.so").expect(LOAD_LIB_FAILED);
+    static ref USBCAN_LIB:       Library = Library::open("library/linux/x86_64/libusbcan.so"      ).expect(LOAD_LIB_FAILED);
+    static ref USBCAN4E_LIB:     Library = Library::open("library/linux/x86_64/libusbcan-4e.so"   ).expect(LOAD_LIB_FAILED);
+    static ref USBCAN8E_LIB:     Library = Library::open("library/linux/x86_64/libusbcan-8e.so"   ).expect(LOAD_LIB_FAILED);
+    static ref USBCANFD_LIB:     Library = Library::open("library/linux/x86_64/libusbcanfd.so"    ).expect(LOAD_LIB_FAILED);
     static ref USBCANFD800U_LIB: Library = Library::open("library/linux/x86_64/libusbcanfd800u.so").expect(LOAD_LIB_FAILED);
 );
 
 pub struct ZCanDriver<'a> {
-    pub(crate) handlers: HashMap<String, Handler>,
-    pub(crate) usbcan_api: USBCANApi<'a>,
-    pub(crate) usbcan_4e_api: USBCANEApi<'a>,
-    pub(crate) usbcan_8e_api: USBCANEApi<'a>,
-    pub(crate) usbcanfd_api: USBCANFDApi<'a>,
+    pub(crate) handlers:          HashMap<String, Handler>,
+    pub(crate) usbcan_api:        USBCANApi<'a>,
+    pub(crate) usbcan_4e_api:     USBCANEApi<'a>,
+    pub(crate) usbcan_8e_api:     USBCANEApi<'a>,
+    pub(crate) usbcanfd_api:      USBCANFDApi<'a>,
     pub(crate) usbcanfd_800u_api: USBCANFD800UApi<'a>,
+    pub(crate) dev_type:          ZCanDeviceType,
+    pub(crate) dev_idx:           u32,
+    pub(crate) derive:            Option<DeriveInfo>,
 }
 
 impl ZlgDevice for ZCanDriver<'_> {
-    fn new() -> Self {
+    fn new(dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Self {
         unsafe {
-            let usbcan_api = USBCANApi::load(&USBCAN_LIB).expect(LOAD_SYMBOLS_FAILED);
-            let usbcan_4e_api = USBCANEApi::load(&USBCAN4E_LIB).expect(LOAD_SYMBOLS_FAILED);
-            let usbcan_8e_api = USBCANEApi::load(&USBCAN4E_LIB).expect(LOAD_SYMBOLS_FAILED);
-            let usbcanfd_api = USBCANFDApi::load(&USBCANFD_LIB).expect(LOAD_SYMBOLS_FAILED);
-            let usbcanfd_800u_api = USBCANFD800UApi::load(&USBCANFD800U_LIB).expect(LOAD_SYMBOLS_FAILED);
+            let mut usbcan_api:        Option<USBCANApi> = None;
+            let mut usbcan_4e_api:     Option<USBCANEApi> = None;
+            let mut usbcan_8e_api:     Option<USBCANEApi> = None;
+            let mut usbcanfd_api:      Option<USBCANFDApi> = None;
+            let mut usbcanfd_800u_api: Option<USBCANFD800UApi> = None;
+            match dev_type {
+                ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 => {
+                    match USBCANApi::load(&USBCAN_LIB) {
+                        Ok(v) => {
+                            usbcan_api = Some(v);
+                        },
+                        Err(e) => panic!("{} {}", LOAD_SYMBOLS_FAILED, e.to_string()),
+                    }
+                },
+                ZCanDeviceType::ZCAN_USBCAN_4E_U => {
+                    match USBCANEApi::load(&USBCAN4E_LIB) {
+                        Ok(v) => {
+                            usbcan_4e_api = Some(v);
+                        },
+                        Err(e) => panic!("{} {}", LOAD_SYMBOLS_FAILED, e.to_string()),
+                    }
+                },
+                ZCanDeviceType::ZCAN_USBCAN_8E_U => {
+                    match USBCANEApi::load(&USBCAN8E_LIB) {
+                        Ok(v) => {
+                            usbcan_8e_api = Some(v);
+                        },
+                        Err(e) => panic!("{} {}", LOAD_SYMBOLS_FAILED, e.to_string()),
+                    }
+                },
+                ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
+                    match USBCANFDApi::load(&USBCANFD_LIB) {
+                        Ok(v) => {
+                            usbcanfd_api = Some(v);
+                        },
+                        Err(e) => panic!("{} {}", LOAD_SYMBOLS_FAILED, e.to_string()),
+                    }
+                },
+                ZCanDeviceType::ZCAN_USBCANFD_800U => {
+                    match USBCANFD800UApi::load(&USBCANFD800U_LIB) {
+                        Ok(v) => {
+                            usbcanfd_800u_api = Some(v);
+                        },
+                        Err(e) => panic!("{} {}", LOAD_SYMBOLS_FAILED, e.to_string()),
+                    }
+                },
+                _ => panic!("ZLGCAN - {} not supported", <ZCanDriver<'_> as ZlgDevice>::device_name(dev_type, dev_idx).as_str()),
+            }
             let handlers = Default::default();
             Self {
                 handlers,
-                usbcan_api,
-                usbcan_4e_api,
-                usbcan_8e_api,
-                usbcanfd_api,
-                usbcanfd_800u_api,
+                usbcan_api:        usbcan_api.unwrap(),
+                usbcan_4e_api:     usbcan_4e_api.unwrap(),
+                usbcan_8e_api:     usbcan_8e_api.unwrap(),
+                usbcanfd_api:      usbcanfd_api.unwrap(),
+                usbcanfd_800u_api: usbcanfd_800u_api.unwrap(),
+                dev_type,
+                dev_idx,
+                derive
             }
         }
     }
 
-    fn open(&mut self, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<(), ZCanError> {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+    fn device_type(&self) -> ZCanDeviceType {
+        self.dev_type
+    }
+
+    fn device_index(&self) -> u32 {
+        self.dev_idx
+    }
+
+    fn open(&mut self) -> Result<(), ZCanError> {
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         let dev_hdl: u32;
         let dev_info: ZDeviceInfo;
-        match dev_type {
+        match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 => {
-                dev_hdl = self.usbcan_api.open(dev_type, dev_idx).unwrap();
-                match derive {
+                dev_hdl = self.usbcan_api.open(self.dev_type, self.dev_idx).unwrap();
+                match self.derive {
                     Some(v) => {
-                        dev_info = ZDeviceInfo::from(v);
+                        dev_info = ZDeviceInfo::from(&v);
                     },
-                    None => dev_info = self.usbcan_api.read_device_info(dev_type, dev_idx).unwrap(),
+                    None => dev_info = self.usbcan_api.read_device_info(self.dev_type, self.dev_idx).unwrap(),
                 }
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                dev_hdl = self.usbcan_4e_api.open(dev_type, dev_idx).unwrap();
+                dev_hdl = self.usbcan_4e_api.open(self.dev_type, self.dev_idx).unwrap();
                 dev_info = self.usbcan_4e_api.read_device_info(dev_hdl).unwrap();
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                dev_hdl = self.usbcan_8e_api.open(dev_type, dev_idx).unwrap();
+                dev_hdl = self.usbcan_8e_api.open(self.dev_type, self.dev_idx).unwrap();
                 dev_info = self.usbcan_8e_api.read_device_info(dev_hdl).unwrap();
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                dev_hdl = self.usbcanfd_api.open(dev_type, dev_idx).unwrap();
-                dev_info = self.usbcanfd_api.read_device_info(dev_type, dev_idx).unwrap();
+                dev_hdl = self.usbcanfd_api.open(self.dev_type, self.dev_idx).unwrap();
+                dev_info = self.usbcanfd_api.read_device_info(self.dev_type, self.dev_idx).unwrap();
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                dev_hdl = self.usbcanfd_800u_api.open(dev_type, dev_idx).unwrap();
+                dev_hdl = self.usbcanfd_800u_api.open(self.dev_type, self.dev_idx).unwrap();
                 dev_info = self.usbcanfd_800u_api.read_device_info(dev_hdl).unwrap();
             },
             _ => return Err(ZCanError::new(0xFF, format!("ZLGCAN - {} not supported", dev_name))),
@@ -84,20 +141,20 @@ impl ZlgDevice for ZCanDriver<'_> {
         Ok(())
     }
 
-    fn close(&mut self, dev_type: ZCanDeviceType, dev_idx: u32) {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+    fn close(&mut self) {
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         if let Some(dev_hdl) = self.handlers.get(&dev_name) {
             let cans = dev_hdl.can_channels();
             let lins = dev_hdl.lin_channels();
 
-            match dev_type {
+            match self.dev_type {
                 ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 => {
                     for (idx, _hdl) in cans {
                         info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcan_api.reset_can_chl(dev_type, dev_idx, *idx).unwrap_or_else(|e| warn!("{}", e));
+                        self.usbcan_api.reset_can_chl(self.dev_type, self.dev_idx, *idx).unwrap_or_else(|e| warn!("{}", e));
                     }
 
-                    self.usbcan_api.close(dev_type, dev_idx).unwrap_or_else(|e| warn!("{}", e));
+                    self.usbcan_api.close(self.dev_type, self.dev_idx).unwrap_or_else(|e| warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                     for (idx, hdl) in cans {
@@ -117,15 +174,15 @@ impl ZlgDevice for ZCanDriver<'_> {
                 ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
                     for (idx, _hdl) in cans {
                         info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcanfd_api.reset_can_chl(dev_type, dev_idx, *idx).unwrap_or_else(|e| warn!("{}", e));
+                        self.usbcanfd_api.reset_can_chl(self.dev_type, self.dev_idx, *idx).unwrap_or_else(|e| warn!("{}", e));
                     }
 
                     for (idx, _hdl) in lins {
                         info!("ZLGCAN - closing LIN channel: {}", *idx);
-                        self.usbcanfd_api.reset_lin_chl(dev_type, dev_idx, *idx).unwrap_or_else(|e| warn!("{}", e));
+                        self.usbcanfd_api.reset_lin_chl(self.dev_type, self.dev_idx, *idx).unwrap_or_else(|e| warn!("{}", e));
                     }
 
-                    self.usbcanfd_api.close(dev_type, dev_idx).unwrap_or_else(|e| warn!("{}", e))
+                    self.usbcanfd_api.close(self.dev_type, self.dev_idx).unwrap_or_else(|e| warn!("{}", e))
                 },
                 ZCanDeviceType::ZCAN_USBCANFD_800U => {
                     for (idx, hdl) in cans {
@@ -147,16 +204,20 @@ impl ZlgDevice for ZCanDriver<'_> {
         }
     }
 
-    fn device_info(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Option<&ZDeviceInfo> {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+    fn device_info(&self) -> Option<&ZDeviceInfo> {
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         match self.handlers.get(&dev_name) {
             Some(hdr) => Some(hdr.device_info()),
             None => None,
         }
     }
 
-    // fn is_online(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<bool, ZCanError> {
-    //     self.device_handler(dev_type, dev_idx, |dev_hdl| -> Result<bool, ZCanError> {
+    fn is_derive_device(&self) -> bool{
+        self.derive.is_some()
+    }
+
+    // fn is_online(&self) -> Result<bool, ZCanError> {
+    //     self.device_handler(|dev_hdl| -> Result<bool, ZCanError> {
     //         match dev_type {
     //             ZCanDeviceType::ZCAN_USBCANFD_800U => self.usbcanfd_800u_api.is_online(dev_hdl.device_handler()),
     //             _ => Err(ZCanError::new(0xFF, format!("ZLGCAN - {} is not supported", "`is_online`"))),

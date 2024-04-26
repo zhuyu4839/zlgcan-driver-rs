@@ -140,11 +140,11 @@ impl USBCANEApi<'_> {
         ret as u32
     }
     #[inline(always)]
-    pub(crate) fn receive_can(&self, chl_hdl: u32, size: u32, timeout: Option<u32>, resize: impl Fn(&mut Vec<ZCanFrame>, usize)) -> Vec<ZCanFrame> {
+    pub(crate) fn receive_can(&self, chl_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrame>, usize)) -> Vec<ZCanFrame> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
-        let ret = unsafe { (self.ZCAN_Receive)(chl_hdl, frames.as_mut_ptr(), size, timeout.unwrap_or(50)) };
+        let ret = unsafe { (self.ZCAN_Receive)(chl_hdl, frames.as_mut_ptr(), size, timeout) };
         let ret = ret as u32;
         if ret < size {
             warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
@@ -162,12 +162,12 @@ impl USBCANEApi<'_> {
         ret
     }
     // #[inline(always)]
-    // pub(crate) fn receive_canfd(&self, chl_hdl: u32, size: u32, timeout: Option<u32>, resize: fn(&mut Vec<ZCanFdFrame>, usize)) -> Vec<ZCanFdFrame> {
+    // pub(crate) fn receive_canfd(&self, chl_hdl: u32, size: u32, timeout: u32, resize: fn(&mut Vec<ZCanFdFrame>, usize)) -> Vec<ZCanFdFrame> {
     //     let mut frames = Vec::new();
     //     // frames.resize_with(size as usize, Default::default);
     //     resize(&mut frames, size as usize);
     //
-    //     let ret = unsafe { (self.ZCAN_ReceiveFD)(chl_hdl, frames.as_mut_ptr(), size, timeout.unwrap_or(50)) };
+    //     let ret = unsafe { (self.ZCAN_ReceiveFD)(chl_hdl, frames.as_mut_ptr(), size, timeout) };
     //     let ret = ret as u32;
     //     if ret < size {
     //         warn!("ZLGCAN - receive CANFD frame expect: {}, actual: {}!", size, ret);

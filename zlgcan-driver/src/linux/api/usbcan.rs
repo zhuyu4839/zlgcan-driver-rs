@@ -144,11 +144,11 @@ impl USBCANApi<'_> {
         ret
     }
     #[inline(always)]
-    pub(crate) fn receive_can(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: Option<u32>, resize: impl Fn(&mut Vec<ZCanFrame>, usize)) -> Vec<ZCanFrame> {
+    pub(crate) fn receive_can(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrame>, usize)) -> Vec<ZCanFrame> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
-        let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout.unwrap_or(50)) };
+        let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
             warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }
@@ -192,14 +192,12 @@ mod test {
 
     use dlopen2::symbor::{Library, SymBorApi};
     use common::can::{
-        CanChlCfg,
         ZCanChlMode, ZCanChlType,
         ZCanFrame, ZCanFrameV1,
         CanMessage
     };
     use common::device::ZCanDeviceType;
     use zlgcan_common::can::CanChlCfgFactory;
-    use crate::ZCanDriver;
     use super::USBCANApi;
 
     #[test]

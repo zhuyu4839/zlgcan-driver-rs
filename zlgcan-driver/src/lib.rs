@@ -1,6 +1,6 @@
 use zlgcan_common as common;
 
-use common::device::{Handler, ZCanDeviceType, ZlgDevice};
+use common::device::{Handler, ZlgDevice};
 use common::error::ZCanError;
 
 #[cfg(target_os = "linux")]
@@ -12,18 +12,92 @@ pub use linux::driver::ZCanDriver;
 mod windows;
 #[cfg(target_os = "windows")]
 pub use windows::driver::ZCanDriver;
+use zlgcan_common::can::{CanMessage, ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameType, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3};
+use zlgcan_common::device::ZCanDevice;
 
-// lazy_static!(
-//     static ref STATIC_DRIVER: driver::ZCanDriver<'static> = driver::ZCanDriver::new();
-// );
+pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> bool {
+    let channel = msg.channel();
+    if msg.is_fd() {
+        let frames =
+            if device.device_type().is_fdframe_v1() {
+                vec![ZCanFdFrame::from(ZCanFdFrameV1::from(msg))]
+            }
+            else if device.device_type().is_fdframe_v2() {
+                vec![ZCanFdFrame::from(ZCanFdFrameV2::from(msg))]
+            }
+            else {
+                panic!("")
+            };
+
+        device.transmit_canfd(channel, frames).is_ok()
+    }
+    else {
+        let frames =
+            if device.device_type().is_frame_v1() {
+                vec![ZCanFrame::from(ZCanFrameV1::from(msg))]
+            }
+            else if device.device_type().is_frame_v2() {
+                vec![ZCanFrame::from(ZCanFrameV2::from(msg))]
+            }
+            else if device.device_type().is_frame_v3() {
+                vec![ZCanFrame::from(ZCanFrameV3::from(msg))]
+            }
+            else {
+                panic!("")
+            };
+
+        device.transmit_can(channel, frames).is_ok()
+    }
+}
+pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
+    let count_can = device.get_can_num(channel, ZCanFrameType::CAN)?;
+    let mut results: Vec<CanMessage> = Vec::new();
+
+    let frames = device.receive_can(channel, count_can, timeout)?;
+    let mut frames = frames.iter().map(|f| -> CanMessage {
+        if device.device_type().is_frame_v1() {
+            CanMessage::from(ZCanFrameV1::from(f))
+        }
+        else if device.device_type().is_frame_v2() {
+            CanMessage::from(ZCanFrameV2::from(f))
+        }
+        else if device.device_type().is_frame_v3() {
+            CanMessage::from(ZCanFrameV3::from(f))
+        }
+        else {
+            panic!("")
+        }
+    });
+
+    results.extend(&mut frames);
+    if device.device_type().canfd_support() {
+        let count_fd = device.get_can_num(channel, ZCanFrameType::CANFD)?;
+        let frames = device.receive_canfd(channel, count_fd, timeout)?;
+        let mut frames = frames.iter().map(|f| -> CanMessage {
+            if device.device_type().is_fdframe_v1() {
+                CanMessage::from(ZCanFdFrameV1::from(f))
+            }
+            else if device.device_type().is_fdframe_v2() {
+                CanMessage::from(ZCanFdFrameV2::from(f))
+            }
+            else {
+                panic!("")
+            }
+        });
+
+        results.extend(&mut frames);
+    }
+
+    Ok(results)
+}
 
 #[allow(dead_code)]
 impl ZCanDriver<'_> {
     #[inline(always)]
-    pub(crate) fn device_handler<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, callback: C) -> Result<T, ZCanError>
+    pub(crate) fn device_handler<C, T>(&self, callback: C) -> Result<T, ZCanError>
         where
             C: FnOnce(&Handler) -> T {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         match self.handlers.get(&dev_name) {
             Some(v) => Ok(callback(v)),
             None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not opened", dev_name))),
@@ -31,21 +105,21 @@ impl ZCanDriver<'_> {
     }
     #[cfg(target_os = "linux")]
     #[inline(always)]
-    pub(crate) fn device_handler1<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, callback: C) -> Result<T, ZCanError>
+    pub(crate) fn device_handler1<C, T>(&self, callback: C) -> Result<T, ZCanError>
         where
-            C: FnOnce(ZCanDeviceType, u32) -> T {
-        let dev_name = Self::device_name(dev_type, dev_idx);
+            C: FnOnce() -> T {
+        let dev_name = Self::device_name(self.dev_type, self.dev_idx);
         match self.handlers.get(&dev_name) {
-            Some(_) => Ok(callback(dev_type, dev_idx)),
+            Some(_) => Ok(callback()),
             None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not opened", dev_name))),
         }
     }
     #[inline(always)]
-    pub(self) fn can_handler<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, callback: C) -> Result<T, ZCanError>
+    pub(self) fn can_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
         where
             C: FnOnce(u32) -> T {
-        self.device_handler(dev_type, dev_idx, |hdl| -> Result<T, ZCanError> {
-            let dev_name = Self::device_name(dev_type, dev_idx);
+        self.device_handler(|hdl| -> Result<T, ZCanError> {
+            let dev_name = Self::device_name(self.dev_type, self.dev_idx);
             match hdl.find_can(channel) {
                 Some(chl) => Ok(callback(chl)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - {} CAN channel: {} is not opened", dev_name, channel))),
@@ -54,23 +128,23 @@ impl ZCanDriver<'_> {
     }
     #[cfg(target_os = "linux")]
     #[inline(always)]
-    pub(self) fn can_handler1<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, callback: C) -> Result<T, ZCanError>
+    pub(self) fn can_handler1<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
         where
-            C: FnOnce(ZCanDeviceType, u32, u8) -> T {
-        self.device_handler(dev_type, dev_idx, |hdl| -> Result<T, ZCanError> {
-            let dev_name = Self::device_name(dev_type, dev_idx);
+            C: FnOnce(u8) -> T {
+        self.device_handler(|hdl| -> Result<T, ZCanError> {
+            let dev_name = Self::device_name(self.dev_type, self.dev_idx);
             match hdl.find_can(channel) {
-                Some(_) => Ok(callback(dev_type, dev_idx, channel)),
+                Some(_) => Ok(callback(channel)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - {} CAN channel: {} is not opened", dev_name, channel))),
             }
         }).unwrap()
     }
 
     #[inline(always)]
-    pub(self) fn lin_handler<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, callback: C) -> Result<T, ZCanError>
+    pub(self) fn lin_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
         where
             C: FnOnce(u32) -> T {
-        self.device_handler(dev_type, dev_idx, |hdl| -> Result<T, ZCanError> {
+        self.device_handler(|hdl| -> Result<T, ZCanError> {
             match hdl.lin_channels().get(&channel) {
                 Some(chl) => Ok(callback(*chl)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - CAN channel: {} is not opened", channel))),
@@ -79,12 +153,12 @@ impl ZCanDriver<'_> {
     }
     #[cfg(target_os = "linux")]
     #[inline(always)]
-    pub(self) fn lin_handler1<C, T>(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, callback: C) -> Result<T, ZCanError>
+    pub(self) fn lin_handler1<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
         where
-            C: FnOnce(ZCanDeviceType, u32, u8) -> T {
-        self.device_handler(dev_type, dev_idx, |hdl| -> Result<T, ZCanError> {
+            C: FnOnce(u8) -> T {
+        self.device_handler(|hdl| -> Result<T, ZCanError> {
             match hdl.lin_channels().get(&channel) {
-                Some(_) => Ok(callback(dev_type, dev_idx, channel)),
+                Some(_) => Ok(callback(channel)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - CAN channel: {} is not opened", channel))),
             }
         }).unwrap()

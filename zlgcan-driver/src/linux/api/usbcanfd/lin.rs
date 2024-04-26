@@ -47,11 +47,11 @@ impl USBCANFDApi<'_> {
     }
 
     #[inline(always)]
-    pub(crate) fn receive_lin(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: Option<u32>, resize: impl Fn(&mut Vec<ZLinFrame>, usize)) -> Vec<ZLinFrame> {
+    pub(crate) fn receive_lin(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZLinFrame>, usize)) -> Vec<ZLinFrame> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
-        let ret = unsafe { (self.VCI_ReceiveLIN)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout.unwrap_or(50)) };
+        let ret = unsafe { (self.VCI_ReceiveLIN)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
             warn!("ZLGCAN - receive LIN frame expect: {}, actual: {}!", size, ret);
         }

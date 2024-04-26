@@ -43,12 +43,12 @@ impl USBCANFD800UApi<'_> {
     // }
     //
     // #[inline(always)]
-    // pub(crate) fn receive_lin(&self, chl_hdl: u32, size: u32, timeout: Option<u32>, resize: impl Fn(&mut Vec<ZLinFrame>, usize)) -> Vec<ZLinFrame> {
+    // pub(crate) fn receive_lin(&self, chl_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZLinFrame>, usize)) -> Vec<ZLinFrame> {
     //     let mut frames = Vec::new();
     //
     //     resize(&mut frames, size as usize);
     //
-    //     let ret = unsafe { (self.ZCAN_ReceiveLIN)(chl_hdl, frames.as_mut_ptr(), size, timeout.unwrap_or(50)) };
+    //     let ret = unsafe { (self.ZCAN_ReceiveLIN)(chl_hdl, frames.as_mut_ptr(), size, timeout) };
     //     if ret < size {
     //         warn!("ZLGCAN - receive LIN frame expect: {}, actual: {}!", size, ret);
     //     }
