@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_driver"
-version = "0.2.4-Beta1"
+version = "0.3.0"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license-file = "LICENCE-GPL-V3"
