@@ -8,7 +8,6 @@ use common::{
     error::*,
     device::*,
 };
-use zlgcan_common::can::CanMessage;
 
 use crate::constant::{LOAD_LIB_FAILED, LOAD_SYMBOLS_FAILED};
 use super::api::Api;
@@ -31,15 +30,16 @@ lazy_static!(
 );
 
 impl ZlgDevice for ZCanDriver<'_> {
-    fn new(dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Self {
-        match unsafe { Api::load(&LIB) } {
-            Ok(api) => {
-                let handlers = Default::default();
-
-                Self { handlers, api, dev_type, dev_idx, derive }
-            },
-            Err(e) => panic!("{} {}", LOAD_SYMBOLS_FAILED, e.to_string()),
-        }
+    fn new(dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError> {
+        let api =  unsafe {
+            Api::load(&LIB)
+                .map_err(|e| {
+                    log::warn!("{:?}", e);
+                    ZCanError::new(0x01, LOAD_SYMBOLS_FAILED.to_string())
+                })
+        }?;
+        let handlers = Default::default();
+        Ok(Self { handlers, api, dev_type, dev_idx, derive })
     }
     fn device_type(&self) -> ZCanDeviceType {
         self.dev_type
@@ -52,10 +52,10 @@ impl ZlgDevice for ZCanDriver<'_> {
     /// Open a device.
     /// Specify the derive information when device is derivative.
     fn open(&mut self) -> Result<(), ZCanError> {
-        let value = self.api.open(self.dev_type, self.dev_idx).unwrap();
+        let value = self.api.open(self.dev_type, self.dev_idx)?;
         let dev_info = match &self.derive {
             Some(v) => ZDeviceInfo::from(v),
-            None => self.api.read_device_info(value).unwrap(),
+            None => self.api.read_device_info(value)?,
         };
 
         let handler = Handler::new(value, dev_info);
@@ -98,7 +98,7 @@ impl ZlgDevice for ZCanDriver<'_> {
     fn is_online(&self) -> Result<bool, ZCanError> {
         self.device_handler(|hdl| -> Result<bool, ZCanError> {
             self.api.is_online(hdl.device_handler())
-        }).unwrap()
+        })?
     }
 }
 

@@ -23,7 +23,7 @@ impl USBCANFDApi<'_> {
                 let state = (cfg.extra().resistance() as u32).to_string();
                 let resistance_path = CmdPath::new_reference(Reference::Resistance);
                 let _value = CString::new(state).expect("ZLGCAN - convert value to C string failed!");
-                self.set_reference(dev_type, dev_idx, channel, &resistance_path, _value.as_ptr() as *mut c_void).unwrap();
+                self.set_reference(dev_type, dev_idx, channel, &resistance_path, _value.as_ptr() as *mut c_void)?;
             }
 
             let cfg = ZCanChlCfgDetail::from(cfg);

@@ -21,7 +21,7 @@ impl USBCANFD800UApi<'_> {
             if let Some(clock) = cfg.clock() {
                 todo!()
                 // let clock_path = CmdPath::new_path("clock");
-                // self.set_check_value(dev_hdl, &clock_path, clock.to_string().as_str(), dev_type).unwrap();
+                // self.set_check_value(dev_hdl, &clock_path, clock.to_string().as_str(), dev_type)?;
             }
             // set channel resistance status
             if dev_type.has_resistance() {
@@ -29,27 +29,27 @@ impl USBCANFD800UApi<'_> {
                 // let state = (cfg.extra().resistance() as u32).to_string();
                 // let resistance_path = format!("{}/{}", channel, INTERNAL_RESISTANCE);
                 // let resistance_path = CmdPath::new_path(resistance_path.as_str());
-                // self.set_check_value(dev_hdl, &resistance_path, state.as_str(), dev_type).unwrap();
+                // self.set_check_value(dev_hdl, &resistance_path, state.as_str(), dev_type)?;
             }
             // set channel protocol
             let can_type = cfg.can_type();
             // let protocol = (can_type as u32).to_string();
             // let protocol_path = format!("{}/{}", channel, PROTOCOL);
             // let protocol_path = CmdPath::new_path(protocol_path.as_str());
-            // self.set_check_value(dev_hdl, &protocol_path, protocol.as_str(), dev_type).unwrap();
+            // self.set_check_value(dev_hdl, &protocol_path, protocol.as_str(), dev_type)?;
 
             // set channel bitrate
             // let bitrate = cfg.bitrate();
             // let abitrate_path = format!("{}/{}", channel, CANFD_ABIT_BAUD_RATE);
             // let abitrate_path = CmdPath::new_path(abitrate_path.as_str());
-            // self.set_check_value(dev_hdl, &abitrate_path, bitrate.to_string().as_str(), dev_type).unwrap();
+            // self.set_check_value(dev_hdl, &abitrate_path, bitrate.to_string().as_str(), dev_type)?;
             match can_type {
                 ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
                     todo!()
                     // let dbitrate = cfg.extra().dbitrate().unwrap_or(bitrate).to_string();
                     // let dbitrate_path = format!("{}/{}", channel, CANFD_DBIT_BAUD_RATE);
                     // let dbitrate_path = CmdPath::new_path(dbitrate_path.as_str());
-                    // self.set_check_value(dev_hdl, &dbitrate_path, dbitrate.as_str(), dev_type).unwrap();
+                    // self.set_check_value(dev_hdl, &dbitrate_path, dbitrate.as_str(), dev_type)?;
                 },
                 _ => {},
             }

@@ -1,7 +1,7 @@
 use zlgcan_common as common;
 
 use log::warn;
-use common::device::{ZCanDeviceType, ZlgDevice, ZLinDevice};
+use common::device::{ZlgDevice, ZLinDevice};
 use common::error::ZCanError;
 use common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 
@@ -26,7 +26,7 @@ impl ZLinDevice for ZCanDriver<'_> {
                         dev_hdl.remove_lin(idx);
                     }
 
-                    let chl_hdl = self.api.init_lin_chl(dev_hdl.device_handler(), idx, cfg).unwrap();
+                    let chl_hdl = self.api.init_lin_chl(dev_hdl.device_handler(), idx, cfg)?;
                     dev_hdl.add_lin(idx, chl_hdl);
                 }
 
@@ -41,7 +41,7 @@ impl ZLinDevice for ZCanDriver<'_> {
             Some(dev_hdl) => {
                 match dev_hdl.find_lin(channel) {
                     Some(v) => {
-                        self.api.reset_lin_chl(v).unwrap();
+                        self.api.reset_lin_chl(v)?;
                         dev_hdl.remove_lin(channel);
                         Ok(())
                     },
@@ -55,7 +55,7 @@ impl ZLinDevice for ZCanDriver<'_> {
     // fn clear_lin_buffer(&self, channel: u8) -> Result<(), ZCanError> {
     //     self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
     //         self.api.clear_lin_buffer(hdl)
-    //     }).unwrap()
+    //     })?
     // }
     
     fn get_lin_num(&self, channel: u8) -> Result<u32, ZCanError> {
@@ -79,29 +79,29 @@ impl ZLinDevice for ZCanDriver<'_> {
     fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>)-> Result<(), ZCanError> {
         self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.set_lin_subscribe(hdl, cfg)
-        }).unwrap()
+        })?
     }
     fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> Result<(), ZCanError> {
         self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.set_lin_publish(hdl, cfg)
-        }).unwrap()
+        })?
     }
     fn wakeup_lin(&self, channel: u8) -> Result<(), ZCanError> {
         self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.wakeup_lin(hdl)
-        }).unwrap()
+        })?
     }
     #[allow(deprecated)]
     fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
         self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.set_lin_slave_msg(hdl, msg)
-        }).unwrap()
+        })?
     }
     #[allow(deprecated)]
     fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> Result<(), ZCanError> {
         self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.clear_lin_slave_msg(hdl, pids)
-        }).unwrap()
+        })?
     }
 }
 
@@ -109,7 +109,7 @@ impl ZCanDriver<'_> {
     pub fn set_lin_publish_ext(&self, channel: u8, cfg: Vec<ZLinPublishEx>) -> Result<(), ZCanError> {
         self.lin_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.set_lin_publish_ex(hdl, cfg)
-        }).unwrap()
+        })?
     }
 }
 

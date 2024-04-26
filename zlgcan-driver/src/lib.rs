@@ -124,7 +124,7 @@ impl ZCanDriver<'_> {
                 Some(chl) => Ok(callback(chl)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - {} CAN channel: {} is not opened", dev_name, channel))),
             }
-        }).unwrap()
+        })?
     }
     #[cfg(target_os = "linux")]
     #[inline(always)]
@@ -137,7 +137,7 @@ impl ZCanDriver<'_> {
                 Some(_) => Ok(callback(channel)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - {} CAN channel: {} is not opened", dev_name, channel))),
             }
-        }).unwrap()
+        })?
     }
 
     #[inline(always)]
@@ -149,7 +149,7 @@ impl ZCanDriver<'_> {
                 Some(chl) => Ok(callback(*chl)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - CAN channel: {} is not opened", channel))),
             }
-        }).unwrap()
+        })?
     }
     #[cfg(target_os = "linux")]
     #[inline(always)]
@@ -161,7 +161,7 @@ impl ZCanDriver<'_> {
                 Some(_) => Ok(callback(channel)),
                 None => Err(ZCanError::new(0, format!("ZLGCAN - CAN channel: {} is not opened", channel))),
             }
-        }).unwrap()
+        })?
     }
 }
 

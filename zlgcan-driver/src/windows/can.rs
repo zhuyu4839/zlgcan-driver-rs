@@ -28,7 +28,7 @@ impl ZCanDevice for ZCanDriver<'_> {
                         dev_hdl.remove_can(idx);
                     }
 
-                    let chl_hdl = self.api.init_can_chl(dev_hdl.device_handler(), idx, cfg).unwrap();
+                    let chl_hdl = self.api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
 
                     dev_hdl.add_can(idx, chl_hdl);
                 }
@@ -44,7 +44,7 @@ impl ZCanDevice for ZCanDriver<'_> {
             Some(dev_hdl) => {
                 match dev_hdl.find_can(channel) {
                     Some(v) => {
-                        self.api.reset_can_chl(v).unwrap();
+                        self.api.reset_can_chl(v)?;
                         dev_hdl.remove_can(channel);
                         Ok(())
                     },
@@ -58,19 +58,19 @@ impl ZCanDevice for ZCanDriver<'_> {
     fn read_can_chl_status(&self, channel: u8) -> Result<ZCanChlStatus, ZCanError> {
         self.can_handler(channel, |hdl| -> Result<ZCanChlStatus, ZCanError> {
             self.api.read_can_chl_status(hdl)
-        }).unwrap()
+        })?
     }
 
     fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, ZCanError> {
         self.can_handler(channel, |hdl| -> Result<ZCanChlError, ZCanError> {
             self.api.read_can_chl_error(hdl)
-        }).unwrap()
+        })?
     }
 
     fn clear_can_buffer(&self, channel: u8) -> Result<(), ZCanError> {
         self.can_handler(channel, |hdl| -> Result<(), ZCanError> {
             self.api.clear_can_buffer(hdl)
-        }).unwrap()
+        })?
     }
 
     fn get_can_num(&self, channel: u8, msg: ZCanFrameType) -> Result<u32, ZCanError> {

@@ -142,7 +142,7 @@ impl USBCANFDApi<'_> {
     pub(self) fn set_check_value(&self, dev_type: ZCanDeviceType, dev_idx: u32, channel: u8, cmd_path: &CmdPath, value: &str) -> Result<(), ZCanError> {
         let _value = CString::new(value).expect("ZLGCAN - convert value to C string failed!");
 
-        self.set_reference(dev_type, dev_idx, channel, cmd_path, _value.as_ptr() as *const c_void).unwrap();
+        self.set_reference(dev_type, dev_idx, channel, cmd_path, _value.as_ptr() as *const c_void)?;
         if dev_type.get_value_support() {
             let mut ret: Vec<u8> = Vec::new();
             ret.resize(16, 0);

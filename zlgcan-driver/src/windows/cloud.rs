@@ -40,7 +40,7 @@ impl ZCloudDevice for ZCanDriver<'_> {
     }
     fn get_userdata(&self, update: Option<i32>) -> Result<ZCloudUserData, ZCanError> {
         if self.dev_type.cloud_support() {
-            self.api.get_userdata(update)
+            self.api.get_userdata(update.unwrap_or(0))
         }
         else {
             Err(ZCanError::new(0xFF, format!("ZLGCAN - {} is not supported", self.dev_type)))
