@@ -5,7 +5,7 @@ use crate::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
 use super::{DeriveInfo, ZCanDeviceType, ZDeviceInfo};
 
 pub trait ZlgDevice {
-    fn new(dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Self
+    fn new(dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError>
         where Self: Sized;
     fn device_type(&self) -> ZCanDeviceType;
     fn device_index(&self) -> u32;

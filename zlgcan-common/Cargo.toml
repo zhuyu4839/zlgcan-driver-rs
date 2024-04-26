@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_common"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license-file = "LICENCE-GPL-V3"
@@ -14,3 +14,4 @@ repository = "https://github.com/zhuyu4839/zlgcan-driver-rs"
 thiserror = { version = "1.0.58" }
 serde_yaml = "0.9.33"
 serde = { version = "1.0.197", features = ["derive"] }
+log = "0.4"

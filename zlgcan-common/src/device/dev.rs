@@ -110,15 +110,15 @@ impl ZDeviceInfo {
 impl Display for ZDeviceInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Device Info")
-            .field("   Serial Number: ", &self.sn())
-            .field("              ID: ", &self.id())
-            .field("    CAN channels: ", &self.can_channels())
-            .field(" CANFD supported: ", &self.canfd())
-            .field("            IRQs: ", &self.irq())
-            .field("Hardware Version: ", &self.hardware_version())
-            .field("Firmware Version: ", &self.firmware_version())
-            .field("  Driver Version: ", &self.driver_version())
-            .field("     Api Version: ", &self.api_version())
+            .field("\n   Serial Number", &self.sn())
+            .field("\n              ID", &self.id())
+            .field("\n    CAN channels", &self.can_channels())
+            .field("\n CANFD supported", &self.canfd())
+            .field("\n            IRQs", &self.irq())
+            .field("\nHardware Version", &self.hardware_version())
+            .field("\nFirmware Version", &self.firmware_version())
+            .field("\n  Driver Version", &self.driver_version())
+            .field("\n     Api Version", &self.api_version())
             .finish()
     }
 }

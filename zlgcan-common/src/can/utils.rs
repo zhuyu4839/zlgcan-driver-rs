@@ -33,10 +33,16 @@ pub(self) fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool) -> T {
         info.set_field(ZCanHdrInfoField::IsErrorFrame, 1);
     }
 
-    let frame = T::new(msg.arbitration_id(), msg.channel(), msg.data(), info).unwrap();
-    assert_eq!(msg.is_extended_id(), info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0);
-
-    frame
+    match T::new(msg.arbitration_id(), msg.channel(), msg.data(), info) {
+        Some(v) => {
+            assert_eq!(msg.is_extended_id(), info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0);
+            v
+        },
+        None => {
+            log::warn!("Convert frame to `CanMessage` failed!");
+            panic!("Can't convert from `CanMessage`!")
+        }
+    }
 }
 
 impl From<CanMessage> for ZCanFrameV1 {
@@ -47,12 +53,19 @@ impl From<CanMessage> for ZCanFrameV1 {
 
 impl From<ZCanFrameV1> for CanMessage {
     fn from(value: ZCanFrameV1) -> Self {
-        let mut msg = CanMessage::new(
+        match CanMessage::new(
             value.can_id, None, value.data, false, false, Some(value.ext_flag > 0)
-        ).unwrap();
+        ) {
+            Some(mut v) => {
+                v.set_is_remote_frame(value.rem_flag > 0);
+                v
+            },
+            None => {
+                log::warn!("Can't convert `ZCanFrameV1` to `CanMessage` failed!");
+                panic!("Can't convert `ZCanFrameV1` to `CanMessage`!")
+            }
+        }
 
-        msg.set_is_remote_frame(value.rem_flag > 0);
-        msg
     }
 }
 
@@ -86,14 +99,19 @@ impl From<ZCanFrameV2> for CanMessage {
     fn from(value: ZCanFrameV2) -> Self {
         let hdr = value.hdr;
         let info = hdr.info;
-        let mut msg = CanMessage::new(
+        match CanMessage::new(
             hdr.can_id, Some(hdr.channel), value.data, false, false, Some(info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
-        ).unwrap();
-
-        msg.set_is_remote_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0)
-            .set_is_error_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0);
-
-        msg
+        ) {
+            Some(mut v) => {
+                v.set_is_remote_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0)
+                    .set_is_error_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0);
+                v
+            },
+            None => {
+                log::warn!("Can't convert `ZCanFrameV2` to `CanMessage` failed!");
+                panic!("Can't convert `ZCanFrameV2` to `CanMessage`!")
+            }
+        }
     }
 }
 
@@ -128,13 +146,19 @@ impl From<ZCanFrameV3> for CanMessage {
         let hdr = value.hdr;
 
         let can_id = hdr.can_id;
-        let mut msg = CanMessage::new(
+        match CanMessage::new(
             can_id & CAN_ID_FLAG, None, value.data, false, false, Some((can_id & CAN_EFF_FLAG) > 0)
-        ).unwrap();
-
-        msg.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-           .set_is_error_frame(can_id & CAN_ERR_FLAG > 0);
-        msg
+        ) {
+            Some(mut v) => {
+                v.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
+                    .set_is_error_frame(can_id & CAN_ERR_FLAG > 0);
+                v
+            },
+            None => {
+                log::warn!("Can't convert `ZCanFrameV3` to CanMessage!");
+                panic!("Covert `ZCanFrameV3` to `CanMessage` failed!");
+            }
+        }
     }
 }
 
@@ -171,15 +195,21 @@ impl From<ZCanFdFrameV1> for CanMessage {
         let info = hdr.info;
 
         let can_id = hdr.can_id;
-        let mut msg = CanMessage::new(
+        match CanMessage::new(
             can_id, None, value.data.data, true, false, Some( info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
-        ).unwrap();
-
-        msg.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-            .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
-            .set_bitrate_switch(info.get_field(ZCanHdrInfoField::IsBitrateSwitch) > 0)
-            .set_error_state_indicator(info.get_field(ZCanHdrInfoField::IsErrorStateIndicator) > 0);
-        msg
+        ) {
+            Some(mut v) => {
+                v.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
+                    .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
+                    .set_bitrate_switch(info.get_field(ZCanHdrInfoField::IsBitrateSwitch) > 0)
+                    .set_error_state_indicator(info.get_field(ZCanHdrInfoField::IsErrorStateIndicator) > 0);
+                v
+            },
+            None => {
+                log::warn!("Can't convert `ZCanFdFrameV1` to CanMessage!");
+                panic!("Covert `ZCanFdFrameV1` to `CanMessage` failed!");
+            }
+        }
     }
 }
 
@@ -214,16 +244,22 @@ impl From<ZCanFdFrameV2> for CanMessage {
         let hdr = value.hdr;
 
         let can_id = hdr.can_id;
-        let mut msg = CanMessage::new(
+        match CanMessage::new(
             can_id & CAN_ID_FLAG, None, value.data.data, true, false, Some((can_id & CAN_EFF_FLAG) > 0)
-        ).unwrap();
-
-        let flag = hdr.flag;
-        msg.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-            .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
-            .set_bitrate_switch(flag & CANFD_BRS > 0)
-            .set_error_state_indicator(flag & CANFD_ESI > 0);
-        msg
+        ) {
+            Some(mut v) => {
+                let flag = hdr.flag;
+                v.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
+                 .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
+                 .set_bitrate_switch(flag & CANFD_BRS > 0)
+                 .set_error_state_indicator(flag & CANFD_ESI > 0);
+                v
+            },
+            None => {
+                log::warn!("Can't convert `ZCanFdFrameV1` to CanMessage!");
+                panic!("Covert `ZCanFdFrameV1` to `CanMessage` failed!");
+            }
+        }
     }
 }
 
@@ -250,11 +286,15 @@ impl FromIterator<ZCanFdFrameV2> for Vec<CanMessage> {
 impl From<ZCanChlErrorV1> for CanMessage {
     fn from(value: ZCanChlErrorV1) -> Self {
         let hdr = value.hdr;
-        let msg = CanMessage::new(
+        match CanMessage::new(
             hdr.can_id, Some(hdr.channel), value.data, false, true, None
-        ).unwrap();
-
-        msg
+        ) {
+            Some(v) => v,
+            None => {
+                log::warn!("Can't convert `ZCanChlErrorV1` to CanMessage!");
+                panic!("Covert `ZCanChlErrorV1` to `CanMessage` failed!");
+            }
+        }
     }
 }
 
