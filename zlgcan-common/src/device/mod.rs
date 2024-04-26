@@ -3,15 +3,17 @@ mod property;
 mod traitdef;
 mod typedef;
 
-use std::ffi::{c_char, CString};
 pub use dev::*;
 pub use property::*;
 pub use traitdef::*;
 pub use typedef::*;
-use crate::error::ZCanError;
+pub use crate::error::ZCanError;
+
+use std::ffi::{c_char, CString};
 use crate::utils::c_str_to_string;
 
 /// The information about derive device.
+#[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct DeriveInfo {
     pub(crate) canfd: bool,

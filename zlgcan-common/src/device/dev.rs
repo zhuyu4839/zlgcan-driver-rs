@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::{c_uchar, c_ushort, CString};
+use std::fmt::{Display, Formatter};
 use crate::can::Reference;
 use crate::device::DeriveInfo;
 
@@ -35,8 +36,8 @@ impl Default for ZDeviceInfo {
     }
 }
 
-impl From<DeriveInfo> for ZDeviceInfo {
-    fn from(value: DeriveInfo) -> Self {
+impl From<&DeriveInfo> for ZDeviceInfo {
+    fn from(value: &DeriveInfo) -> Self {
         let mut id = if value.canfd {
             CString::new("Derive USBCANFD device").as_ref().expect("msg").as_bytes().to_owned()
         } else {
@@ -51,7 +52,6 @@ impl From<DeriveInfo> for ZDeviceInfo {
     }
 }
 
-#[allow(dead_code)]
 impl ZDeviceInfo {
     #[inline(always)]
     fn version(ver: u16) -> String {
@@ -104,6 +104,22 @@ impl ZDeviceInfo {
     #[inline(always)]
     pub fn canfd(&self) -> bool {
         self.id().contains("CANFD")
+    }
+}
+
+impl Display for ZDeviceInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Device Info")
+            .field("   Serial Number: ", &self.sn())
+            .field("              ID: ", &self.id())
+            .field("    CAN channels: ", &self.can_channels())
+            .field(" CANFD supported: ", &self.canfd())
+            .field("            IRQs: ", &self.irq())
+            .field("Hardware Version: ", &self.hardware_version())
+            .field("Firmware Version: ", &self.firmware_version())
+            .field("  Driver Version: ", &self.driver_version())
+            .field("     Api Version: ", &self.api_version())
+            .finish()
     }
 }
 

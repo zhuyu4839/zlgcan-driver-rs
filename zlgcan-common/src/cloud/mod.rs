@@ -1,10 +1,11 @@
 use std::ffi::{c_char, c_int, c_uchar, c_ushort};
 
+#[repr(C)]
 #[derive(Debug)]
-pub struct ZCloudServerInfo<'a> {
-    pub http_url: &'a str,
+pub struct ZCloudServerInfo {
+    pub http_url: *const c_char,
     pub http_port: u16,
-    pub mqtt_url: &'a str,
+    pub mqtt_url: *const c_char,
     pub mqtt_port: u16,
 }
 
