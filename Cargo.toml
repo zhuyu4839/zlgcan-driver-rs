@@ -2,7 +2,6 @@
 members = [
     "zlgcan-common",
     "zlgcan-driver",
-#    "linux",
-#    "windows",
+    "zlgcan-driver-rs-api",
 ]
 resolver = "2"

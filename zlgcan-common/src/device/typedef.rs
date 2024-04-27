@@ -1,6 +1,6 @@
 //! `typedef.rs` defined the zlgcan device type and some function supported feature.
 #[allow(non_camel_case_types, dead_code)]
-#[repr(u32)]
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum ZCanDeviceType {
     Undefined                          = 0,

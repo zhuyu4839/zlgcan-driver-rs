@@ -243,6 +243,7 @@ impl From<&CanChlCfg> for ZCanChlCfgDetail {
     }
 }
 
+#[repr(C)]
 pub struct CanChlCfgFactory(Rc<HashMap<String, BitrateCfg>>);
 
 
