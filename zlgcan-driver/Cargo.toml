@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_driver"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license-file = "LICENCE-GPL-V3"
@@ -14,7 +14,7 @@ readme = "README.md"
 rand = "0.8.5"
 
 [dependencies]
-zlgcan_common = { version = "0.3.1"}
+zlgcan_common = { version = "0.3.2"}
 dlopen2 = "0.7.0"
 log = "0.4.21"
 lazy_static = "1.4.0"

@@ -1,8 +1,3 @@
-use zlgcan_common as common;
-
-use common::device::{Handler, ZlgDevice};
-use common::error::ZCanError;
-
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -12,8 +7,10 @@ pub use linux::driver::ZCanDriver;
 mod windows;
 #[cfg(target_os = "windows")]
 pub use windows::driver::ZCanDriver;
+
 use zlgcan_common::can::{CanMessage, ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameType, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3};
-use zlgcan_common::device::ZCanDevice;
+use zlgcan_common::device::{Handler, ZCanDevice, ZlgDevice, };
+use zlgcan_common::error::ZCanError;
 
 pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> bool {
     let channel = msg.channel();
@@ -26,7 +23,7 @@ pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> bool {
                 vec![ZCanFdFrame::from(ZCanFdFrameV2::from(msg))]
             }
             else {
-                panic!("")
+                panic!("Invalid device type!")
             };
 
         device.transmit_canfd(channel, frames).is_ok()
@@ -43,7 +40,7 @@ pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> bool {
                 vec![ZCanFrame::from(ZCanFrameV3::from(msg))]
             }
             else {
-                panic!("")
+                panic!("Invalid device type!")
             };
 
         device.transmit_can(channel, frames).is_ok()
@@ -65,7 +62,7 @@ pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> Res
             CanMessage::from(ZCanFrameV3::from(f))
         }
         else {
-            panic!("")
+            panic!("Invalid device type!")
         }
     });
 
@@ -81,7 +78,7 @@ pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> Res
                 CanMessage::from(ZCanFdFrameV2::from(f))
             }
             else {
-                panic!("")
+                panic!("Invalid device type!")
             }
         });
 
