@@ -11,6 +11,7 @@ pub use message::*;
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
+use std::rc::{Rc, Weak};
 use serde::Deserialize;
 use crate::device::ZCanDeviceType;
 
@@ -72,18 +73,23 @@ impl CanChlCfgExt {
 
 /// The common CAN channel configuration.
 #[derive(Debug, Clone)]
-pub struct CanChlCfg<'a> {
+pub struct CanChlCfg {
     dev_type: ZCanDeviceType,
     can_type: ZCanChlType,
     mode: ZCanChlMode,
     bitrate: u32,
     extra: CanChlCfgExt,
-    cfg_ctx: &'a BitrateCfg,
+    cfg_ctx: Weak<HashMap<String, BitrateCfg>>,
     // cfg_ctx: HashMap<String, BitrateCfg>,
 }
 
-impl<'a> CanChlCfg<'a> {
-    pub fn new(dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt, cfg_ctx: &'a BitrateCfg) -> Self {
+impl CanChlCfg {
+    pub fn new(dev_type: ZCanDeviceType,
+               can_type: ZCanChlType,
+               mode: ZCanChlMode,
+               bitrate: u32,
+               extra: CanChlCfgExt,
+               cfg_ctx: Weak<HashMap<String, BitrateCfg>>) -> Self {
         // let contents = fs::read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
         // let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
         // println!("{:?}", config);
@@ -106,7 +112,10 @@ impl<'a> CanChlCfg<'a> {
     }
     #[inline(always)]
     pub fn clock(&self) -> Option<u32> {
-        self.cfg_ctx.clock
+        match self.cfg_ctx.upgrade().unwrap().get(&self.bitrate.to_string()) {
+            Some(v) => v.clock,
+            None => None
+        }
     }
     #[inline(always)]
     pub fn bitrate(&self) -> u32 {
@@ -131,9 +140,11 @@ pub(self) fn to_chl_cfg(mode: ZCanChlMode, bitrate: u32, cfg_ctx: &BitrateCfg, e
     }
 }
 
-impl From<&CanChlCfg<'_>> for ZCanChlCfgV1 {
+impl From<&CanChlCfg> for ZCanChlCfgV1 {
     fn from(value: &CanChlCfg) -> Self {
         let dev_type = value.dev_type;
+        let binding = value.cfg_ctx.upgrade().unwrap();
+        let cfg = binding.get(&(dev_type as u32).to_string()).unwrap();
         if dev_type.canfd_support() {      // the device supported canfd can't set CAN type to CAN
             let ext = &value.extra;
             let can_type = match value.can_type {
@@ -153,18 +164,19 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgV1 {
             ZCanChlCfgV1::new(
                 ZCanChlType::CAN,
                 ZCanChlCfgV1Union::from_can(
-                    to_chl_cfg(value.mode, value.bitrate, &value.cfg_ctx, &value.extra)
+                    to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)
                 )
             )
         }
     }
 }
 
-impl From<&CanChlCfg<'_>> for ZCanChlCfgV2 {
+impl From<&CanChlCfg> for ZCanChlCfgV2 {
     fn from(value: &CanChlCfg) -> Self {
         let dev_type = value.dev_type;
+        let binding = value.cfg_ctx.upgrade().unwrap();
+        let cfg = binding.get(&(dev_type as u32).to_string()).unwrap();
         if dev_type.canfd_support() {
-            let cfg = value.cfg_ctx;
             let clock = cfg.clock.expect(format!("ZLGCAN - {} `clock` is not configured in file!", dev_type).as_str());
             let ext = &value.extra;
             let bitrate = value.bitrate;
@@ -210,13 +222,13 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgV2 {
         }
         else {
             Self::from_can(
-                to_chl_cfg(value.mode, value.bitrate, &value.cfg_ctx, &value.extra)
+                to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)
             )
         }
     }
 }
 
-impl From<&CanChlCfg<'_>> for ZCanChlCfgDetail {
+impl From<&CanChlCfg> for ZCanChlCfgDetail {
     fn from(value: &CanChlCfg) -> Self {
         let dev_type = value.dev_type;
         if dev_type.is_can_chl_cfg_v1() {
@@ -231,20 +243,22 @@ impl From<&CanChlCfg<'_>> for ZCanChlCfgDetail {
     }
 }
 
-pub struct CanChlCfgFactory(HashMap<String, BitrateCfg>);
+pub struct CanChlCfgFactory(Rc<HashMap<String, BitrateCfg>>);
 
 
 impl CanChlCfgFactory {
     pub fn new() -> Self {
         let contents = read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
         let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
-        Self(config)
+        Self(Rc::new(config))
     }
 
     pub fn new_can_chl_cfg(&self, dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt) -> Option<CanChlCfg> {
-        match self.0.get(&(dev_type as u32).to_string()) {
-            Some(cfg) => Some(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, cfg)),
-            None => None,
+        if self.0.contains_key(&(dev_type as u32).to_string()) {
+            Some(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Rc::downgrade(&self.0)))
+        }
+        else {
+            None
         }
     }
 }

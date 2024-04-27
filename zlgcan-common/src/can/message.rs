@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::constant::{CAN_EFF_MASK, CAN_FRAME_LENGTH, CAN_ID_FLAG, CANFD_FRAME_LENGTH};
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CanMessage {
     timestamp: u64,
     arbitration_id: u32,
@@ -76,7 +76,7 @@ impl CanMessage {
                     is_error_frame,
                     channel: channel.unwrap_or(0),
                     len: len as u8,
-                    data: data.as_ptr(),
+                    data: Box::leak(data.into_boxed_slice()).as_ptr(),
                     is_fd,
                     is_rx: true,
                     bitrate_switch: false,
