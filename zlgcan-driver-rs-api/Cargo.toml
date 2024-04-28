@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zlgcan_common = { version = "0.3.2", path = "../zlgcan-common" }
-zlgcan_driver = { version = "0.3.2", path = "../zlgcan-driver" }
+zlgcan_common = { version = "0.3.2" }
+zlgcan_driver = { version = "0.3.2" }

@@ -1,9 +1,10 @@
 use zlgcan_driver::{unify_recv, unify_send, ZCanDriver};
 use std::ffi::{c_char, c_void, CString};
-use zlgcan_common::can::{CanChlCfg, CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType};
+use zlgcan_common::can::{CanChlCfg, CanChlCfgExt, ZCanChlMode, ZCanChlType};
 use zlgcan_common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 
 pub use zlgcan_common::can::CanMessage;
+pub use zlgcan_common::can::CanChlCfgFactory;
 pub use zlgcan_common::device::DeriveInfo;
 
 #[allow(unused_assignments, unused_variables)]
@@ -15,13 +16,13 @@ pub(self) fn set_error(msg: String, error: &mut *const c_char) {
 }
 
 #[inline]
-pub(self) fn convert<'a, T>(ptr: *const T, mut error: &mut *const c_char) -> Option<&'a T> {
+pub(self) fn convert<'a, T>(ptr: *const T, mut error: &mut *const c_char) -> Option<&'a mut T> {
     if ptr.is_null() {
         set_error(String::from("The parameter is error!"), &mut error);
         return None;
     }
 
-    Some(unsafe { ptr.as_ref() }.unwrap())
+    Some(unsafe { ptr.cast_mut().as_mut() }.unwrap())
 }
 
 #[no_mangle]
@@ -131,7 +132,7 @@ pub extern "C" fn zlgcan_init_can(
     }
 
     match convert(device as *const ZCanDriver, error) {
-        Some(mut v) => {
+        Some(v) => {
             let slice: &[CanChlCfg] = unsafe { std::slice::from_raw_parts(cfg as *const CanChlCfg, len) };
             let cfg = slice.to_vec();
 
@@ -234,9 +235,9 @@ pub extern "C" fn zlgcan_recv(
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::CStr;
+    use std::ffi::{c_void, CStr};
     use std::time::Duration;
-    use zlgcan_common::can::CanMessage;
+    use zlgcan_common::can::{CanChlCfg, CanMessage};
     use zlgcan_common::device::ZCanDeviceType;
     use super::{zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};
 
@@ -275,12 +276,12 @@ mod tests {
                 println!("Error: {}", c_str.to_string_lossy().to_string());
                 return;
             }
-            cfg.push(unsafe { cfg1.as_ref().unwrap().clone() });
+            cfg.push(unsafe { (cfg1 as *const CanChlCfg).as_ref().unwrap().clone() });
         }
 
         let cfg_len = cfg.len();
         let mut error = std::ptr::null();
-        let ret = zlgcan_init_can(device, cfg.as_ptr(), cfg_len, &mut error);
+        let ret = zlgcan_init_can(device, cfg.as_ptr() as *const c_void, cfg_len, &mut error);
         if !ret {
             assert!(!error.is_null());
 
