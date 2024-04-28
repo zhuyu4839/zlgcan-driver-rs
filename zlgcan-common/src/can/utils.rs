@@ -57,6 +57,7 @@ impl From<ZCanFrameV1> for CanMessage {
             value.can_id, None, value.data.to_owned().to_vec(), false, false, Some(value.ext_flag > 0)
         ) {
             Some(mut v) => {
+                v.set_length(value.len);
                 v.set_timestamp(None);
                 v.set_is_remote_frame(value.rem_flag > 0);
                 v
@@ -104,6 +105,7 @@ impl From<ZCanFrameV2> for CanMessage {
             hdr.can_id, Some(hdr.channel), value.data, false, false, Some(info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
         ) {
             Some(mut v) => {
+                v.set_length(hdr.len);
                 v.set_timestamp(None);
                 v.set_is_remote_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0)
                     .set_is_error_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0);
@@ -152,6 +154,7 @@ impl From<ZCanFrameV3> for CanMessage {
             can_id & CAN_ID_FLAG, None, value.data, false, false, Some((can_id & CAN_EFF_FLAG) > 0)
         ) {
             Some(mut v) => {
+                v.set_length(hdr.can_len);
                 v.set_timestamp(None);
                 v.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
                     .set_is_error_frame(can_id & CAN_ERR_FLAG > 0);
@@ -202,6 +205,7 @@ impl From<ZCanFdFrameV1> for CanMessage {
             can_id, None, value.data.data, true, false, Some( info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
         ) {
             Some(mut v) => {
+                v.set_length(hdr.len);
                 v.set_timestamp(None);
                 v.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
                     .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
@@ -252,12 +256,13 @@ impl From<ZCanFdFrameV2> for CanMessage {
             can_id & CAN_ID_FLAG, None, value.data.data, true, false, Some((can_id & CAN_EFF_FLAG) > 0)
         ) {
             Some(mut v) => {
+                v.set_length(hdr.can_len);
                 v.set_timestamp(None);
                 let flag = hdr.flag;
                 v.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-                 .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
-                 .set_bitrate_switch(flag & CANFD_BRS > 0)
-                 .set_error_state_indicator(flag & CANFD_ESI > 0);
+                    .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
+                    .set_bitrate_switch(flag & CANFD_BRS > 0)
+                    .set_error_state_indicator(flag & CANFD_ESI > 0);
                 v
             },
             None => {

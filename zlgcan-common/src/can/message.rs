@@ -139,6 +139,10 @@ impl CanMessage {
     #[inline(always)]
     pub const fn length(&self) -> u8 { self.len  }
     #[inline(always)]
+    pub(crate) fn set_length(&mut self, len: u8) {
+        self.len = len;
+    }
+    #[inline(always)]
     pub fn data(&self) -> &[u8] { unsafe { slice::from_raw_parts(self.data, self.len as usize) }  }
     #[inline(always)]
     pub const fn is_fd(&self) -> bool { self.is_fd  }

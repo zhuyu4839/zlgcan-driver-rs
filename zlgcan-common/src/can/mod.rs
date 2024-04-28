@@ -72,6 +72,7 @@ impl CanChlCfgExt {
 }
 
 /// The common CAN channel configuration.
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct CanChlCfg {
     dev_type: ZCanDeviceType,

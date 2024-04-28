@@ -122,7 +122,7 @@ pub extern "C" fn zlgcan_open(
 #[no_mangle]
 pub extern "C" fn zlgcan_init_can(
     device: *const c_void,
-    cfg: *const c_void,
+    cfg: *const *const c_void,
     len: usize,
     mut error: &mut *const c_char
 ) -> bool {
@@ -133,10 +133,18 @@ pub extern "C" fn zlgcan_init_can(
 
     match convert(device as *const ZCanDriver, error) {
         Some(v) => {
-            let slice: &[CanChlCfg] = unsafe { std::slice::from_raw_parts(cfg as *const CanChlCfg, len) };
+            let slice: &[*const CanChlCfg] = unsafe { std::slice::from_raw_parts(cfg as *const *const CanChlCfg, len) };
             let cfg = slice.to_vec();
+            let mut _cfg = Vec::new();
+            for ptr in cfg {
+                if ptr.is_null() {
+                    set_error(String::from("The parameter is error!"), &mut error);
+                    return false;
+                }
+                _cfg.push(unsafe { ptr.as_ref().unwrap().clone() })
+            }
 
-            if let Err(e) = v.init_can_chl(cfg) {
+            if let Err(e) = v.init_can_chl(_cfg) {
                 set_error(e.to_string(), &mut error);
                 return false;
             }
@@ -233,13 +241,23 @@ pub extern "C" fn zlgcan_recv(
     }
 }
 
+#[no_mangle]
+pub extern "C" fn zlgcan_close(
+    device: *const c_void,
+) {
+    let mut error: *const c_char = std::ptr::null_mut();
+    if let Some(v) = convert(device as *const ZCanDriver, &mut error) {
+        v.close();
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::ffi::{c_void, CStr};
+    use std::ffi::CStr;
     use std::time::Duration;
-    use zlgcan_common::can::{CanChlCfg, CanMessage};
+    use zlgcan_common::can::CanMessage;
     use zlgcan_common::device::ZCanDeviceType;
-    use super::{zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};
+    use super::{zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_close, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};
 
     // cargo test --package zlgcan-driver-rs-api --lib tests::test_usbcanfd_200u --show-output -- --release
     #[test]
@@ -276,12 +294,12 @@ mod tests {
                 println!("Error: {}", c_str.to_string_lossy().to_string());
                 return;
             }
-            cfg.push(unsafe { (cfg1 as *const CanChlCfg).as_ref().unwrap().clone() });
+            cfg.push(cfg1);
         }
 
         let cfg_len = cfg.len();
         let mut error = std::ptr::null();
-        let ret = zlgcan_init_can(device, cfg.as_ptr() as *const c_void, cfg_len, &mut error);
+        let ret = zlgcan_init_can(device, cfg.as_ptr(), cfg_len, &mut error);
         if !ret {
             assert!(!error.is_null());
 
@@ -307,9 +325,11 @@ mod tests {
         let recv = slice.to_vec();
         println!("{:?}", recv);
         for msg in recv {
-            println!("{:?}", msg.data())
+            println!("length: {} ({:?})", msg.length(), msg.data())
         }
 
         println!("received: {}", count);
+
+        zlgcan_close(device);
     }
 }
