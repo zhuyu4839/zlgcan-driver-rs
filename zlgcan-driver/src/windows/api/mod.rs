@@ -279,7 +279,7 @@ impl Api<'_> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use zlgcan_common as common;
 
     use dlopen2::symbor::{Library, SymBorApi};

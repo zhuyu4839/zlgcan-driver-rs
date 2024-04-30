@@ -103,7 +103,7 @@ impl ZlgDevice for ZCanDriver<'_> {
 }
 
 #[cfg(test)]
-mod test_driver {
+mod tests {
     use zlgcan_common as common;
 
     use common::device::ZCanDeviceType;
@@ -113,7 +113,7 @@ mod test_driver {
         let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
         let dev_idx = 0;
 
-        let mut driver = ZCanDriver::new(dev_type, dev_idx, None);
+        let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
         driver.open().unwrap();
 
         let info = driver.device_info().unwrap();

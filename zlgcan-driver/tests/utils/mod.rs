@@ -134,7 +134,7 @@ pub fn can_device1(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
     let comm_count = 5;
     let ext_count = 5;
 
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, derive_info);
+    let mut driver = ZCanDriver::new(dev_type, dev_idx, derive_info).unwrap();
     driver.open().unwrap();
     let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), channels);
@@ -214,7 +214,7 @@ pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
     let comm_count = 5;
     let ext_count = 5;
 
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, derive_info);
+    let mut driver = ZCanDriver::new(dev_type, dev_idx, derive_info).unwrap();
     driver.open().unwrap();
     let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), channels);
@@ -289,7 +289,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
     let ext_count = 5;
     let brs_count = 5;
 
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, None);
+    let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
     driver.open().unwrap();
     let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), channels);
@@ -425,10 +425,10 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
             println!("received frame:");
             frames.iter().for_each(|frame| {
                 if linux {
-                    println!("{:?}", ZCanFrameV1::from(frame));
+                    println!("{:?}", ZCanFdFrameV1::from(frame));
                 }
                 else {
-                    println!("{:?}", ZCanFrameV2::from(frame));
+                    println!("{:?}", ZCanFdFrameV2::from(frame));
                 }
             });
             break;
@@ -446,7 +446,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{new_v1_fdframes, new_v1_frames, new_v2_frames, new_v3_frames, new_v2_fdframes};
 
     #[test]

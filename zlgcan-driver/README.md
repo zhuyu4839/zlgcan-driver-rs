@@ -17,13 +17,13 @@ fn main() {
     let dev_idx = 0;
 
     // Create driver instance
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, None);
+    let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
 
     // Open device
     driver.open().unwrap();
 
     // Get device info and assert some information
-    let dev_info = driver.device_info(dev_type, dev_idx).unwrap();
+    let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), 2);
     assert_eq!(dev_info.canfd(), true);
 

@@ -493,7 +493,7 @@ pub(self) fn zcanfd_frame_new2<T, R>(can_id: u32, channel: u8, data: T, mut info
 }
 
 #[cfg(test)]
-mod test_can {
+mod tests {
     use crate::can::constant::{ZCanFrameType, ZCanTxMode};
     use super::{ZCanHdrInfo, ZCanHdrInfoField};
 

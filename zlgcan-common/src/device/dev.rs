@@ -190,7 +190,7 @@ impl Handler {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::device::DeriveInfo;
     use super::ZDeviceInfo;
 
@@ -200,7 +200,7 @@ mod test {
             canfd: false,
             channels: 2,
         };
-        let device_info = ZDeviceInfo::from(derive);
+        let device_info = ZDeviceInfo::from(&derive);
         assert_eq!(device_info.chn, 2);
         assert_eq!(device_info.id(), "Derive USBCAN device");
 
@@ -208,7 +208,7 @@ mod test {
             canfd: true,
             channels: 2,
         };
-        let device_info = ZDeviceInfo::from(derive);
+        let device_info = ZDeviceInfo::from(&derive);
         assert_eq!(device_info.chn, 2);
         assert_eq!(device_info.id(), "Derive USBCANFD device");
     }

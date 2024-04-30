@@ -176,19 +176,17 @@ impl USBCANFDApi<'_> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use zlgcan_common as common;
 
     use dlopen2::symbor::{Library, SymBorApi};
     use common::can::{
-        CanChlCfg,
         ZCanChlMode, ZCanChlType,
         ZCanFrame, ZCanFrameV1,
         CanMessage
     };
     use common::device::ZCanDeviceType;
     use zlgcan_common::can::CanChlCfgFactory;
-    use crate::ZCanDriver;
     use super::USBCANFDApi;
 
     #[test]

@@ -122,7 +122,7 @@ impl ZCanDevice for ZCanDriver<'_> {
 }
 
 #[cfg(test)]
-mod test_can {
+mod tests {
     use zlgcan_common as common;
 
     use common::can::{CanChlCfgFactory, ZCanChlMode, ZCanChlType};
@@ -134,7 +134,7 @@ mod test_can {
         let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
         let dev_idx = 0;
 
-        let mut driver = ZCanDriver::new(dev_type, dev_idx, None);
+        let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
         driver.open().unwrap();
 
         let factory = CanChlCfgFactory::new();
@@ -143,9 +143,9 @@ mod test_can {
         let cfg2 = factory.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
         let cfg = vec![cfg1, cfg2];
 
-        driver.init_can_chl(dev_type, dev_idx, cfg).unwrap();
+        driver.init_can_chl(cfg).unwrap();
 
-        driver.close(dev_type, dev_idx);
+        driver.close();
     }
 }
 
