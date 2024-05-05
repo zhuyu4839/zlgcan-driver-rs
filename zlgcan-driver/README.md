@@ -28,7 +28,7 @@ fn main() {
     assert_eq!(dev_info.canfd(), true);
 
     // Create channel configuration factory
-    let factory = CanChlCfgFactory::new();
+    let factory = CanChlCfgFactory::new().unwrap();
     let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000,
                                           CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None)).unwrap();
     let ch2_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000,

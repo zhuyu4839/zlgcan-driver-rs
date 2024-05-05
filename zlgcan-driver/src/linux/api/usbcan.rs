@@ -211,7 +211,7 @@ mod tests {
 
         let api = unsafe { USBCANApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
 
-        let factory = CanChlCfgFactory::new();
+        let factory = CanChlCfgFactory::new().unwrap();
         let cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
         api.open(dev_type, dev_idx).unwrap();
 

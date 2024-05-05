@@ -137,7 +137,7 @@ mod tests {
         let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
         driver.open().unwrap();
 
-        let factory = CanChlCfgFactory::new();
+        let factory = CanChlCfgFactory::new().unwrap();
 
         let cfg1 = factory.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
         let cfg2 = factory.new_can_chl_cfg(ZCanDeviceType::ZCAN_USBCANFD_200U, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();

@@ -140,7 +140,7 @@ pub fn can_device1(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
     assert_eq!(dev_info.can_channels(), channels);
     assert_eq!(dev_info.canfd(), false);
 
-    let factory = CanChlCfgFactory::new();
+    let factory = CanChlCfgFactory::new().unwrap();
     // reconfigure channels as CAN
     let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
     let cfg = vec![ch1_cfg,];
@@ -220,7 +220,7 @@ pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
     assert_eq!(dev_info.can_channels(), channels);
     assert_eq!(dev_info.canfd(), false);
 
-    let factory = CanChlCfgFactory::new();
+    let factory = CanChlCfgFactory::new().unwrap();
     // reconfigure channels as CAN
     let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
     let ch2_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
@@ -295,7 +295,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
     assert_eq!(dev_info.can_channels(), channels);
     assert_eq!(dev_info.canfd(), true);
 
-    let factory = CanChlCfgFactory::new();
+    let factory = CanChlCfgFactory::new().unwrap();
     // reconfigure channels as CAN
     let mut cfg = Vec::new();
     // #[cfg(target_os = "windows")]
