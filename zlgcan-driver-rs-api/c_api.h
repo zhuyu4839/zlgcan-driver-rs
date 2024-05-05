@@ -28,24 +28,26 @@ struct CanMessage {
     bool error_state_indicator;
 };
 
+struct ZCanChlCfg {
+    uint32_t dev_type;
+    uint8_t chl_type;
+    uint8_t chl_mode;
+    uint32_t bitrate;
+    uint8_t *filter;
+    uint32_t *dbitrate;
+    bool *resistance;
+    uint32_t *acc_code;
+    uint32_t *acc_mask;
+    uint32_t *brp;
+};
+
 extern "C" {
 
-const CanChlCfgFactory *zlgcan_cfg_factory_can();
+const CanChlCfgFactory *zlgcan_cfg_factory_can(const char **error);
 
 const void *zlgcan_chl_cfg_can(const CanChlCfgFactory *factory,
-                               uint32_t dev_type,
-                               uint8_t chl_type,
-                               uint8_t chl_mode,
-                               uint32_t bitrate,
+                               struct ZCanChlCfg cfg,
                                const char **error);
-
-const void *zlgcan_chl_cfg_fd(const CanChlCfgFactory *factory,
-                              uint32_t dev_type,
-                              uint8_t chl_type,
-                              uint8_t chl_mode,
-                              uint32_t bitrate,
-                              uint32_t dbitrate,
-                              const char **error);
 
 const void *zlgcan_open(uint32_t dev_type,
                         uint32_t dev_idx,
@@ -65,5 +67,7 @@ uint32_t zlgcan_recv(const void *device,
                      uint32_t timeout,
                      const CanMessage **buffer,
                      const char **error);
+
+void zlgcan_close(const void *device);
 
 } // extern "C"

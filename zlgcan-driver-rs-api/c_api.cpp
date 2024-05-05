@@ -18,11 +18,26 @@ int main() {
     const char *dev_info = zlgcan_device_info(device, &error);
     printf("%s\n", dev_info);
 
-    const CanChlCfgFactory *factory = zlgcan_cfg_factory_can();
+    const CanChlCfgFactory *factory = zlgcan_cfg_factory_can(&error);
+    if (nullptr == factory) {
+        printf("%s\n", error);
+        return -1;
+    }
     const void *cfg[2];
     for (auto & i : cfg) {
         const char *_error = nullptr;
-        i = zlgcan_chl_cfg_can(factory, dev_type, 0, 0, 500000, &_error);
+        struct ZCanChlCfg cfg = ZCanChlCfg {
+            .dev_type = dev_type,
+            .chl_type = 0,
+            .chl_mode = 0,
+            .bitrate = 500000,
+            .filter = nullptr,
+            .resistance = nullptr,
+            .acc_code = nullptr,
+            .acc_mask = nullptr,
+            .brp = nullptr,
+        };
+        i = zlgcan_chl_cfg_can(factory, cfg, &_error);
         if (i == nullptr) {
             printf("%s\n", _error);
             return -1;
@@ -65,6 +80,8 @@ int main() {
         auto message = recv[i];
         printf("received id: %d, length: %d\n", message.arbitration_id, message.len);
     }
+
+    zlgcan_close(device);
 
     return 0;
 }

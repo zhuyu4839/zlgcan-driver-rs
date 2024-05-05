@@ -1,11 +1,25 @@
 use zlgcan_driver::{unify_recv, unify_send, ZCanDriver};
 use std::ffi::{c_char, c_void, CString};
-use zlgcan_common::can::{CanChlCfg, CanChlCfgExt, ZCanChlMode, ZCanChlType};
+use zlgcan_common::can::{CanChlCfg, CanChlCfgExt, ZCanChlMode, ZCanChlType, ZCanFilterType};
 use zlgcan_common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
 
 pub use zlgcan_common::can::CanMessage;
 pub use zlgcan_common::can::CanChlCfgFactory;
 pub use zlgcan_common::device::DeriveInfo;
+
+#[repr(C)]
+pub struct ZCanChlCfgApi {
+    dev_type: u32,
+    chl_type: u8,
+    chl_mode: u8,
+    bitrate: u32,
+    filter: *const u8,
+    dbitrate: *const u32,
+    resistance: *const u8,
+    acc_code: *const u32,
+    acc_mask: *const u32,
+    brp: *const u32,
+}
 
 #[allow(unused_assignments, unused_variables)]
 #[inline]
@@ -26,61 +40,43 @@ pub(self) fn convert<'a, T>(ptr: *const T, mut error: &mut *const c_char) -> Opt
 }
 
 #[no_mangle]
-pub extern "C" fn zlgcan_cfg_factory_can() -> *const CanChlCfgFactory {
-    let factory = CanChlCfgFactory::new();
-    Box::into_raw(Box::new(factory))
+pub extern "C" fn zlgcan_cfg_factory_can(mut error: &mut *const c_char) -> *const CanChlCfgFactory {
+    match CanChlCfgFactory::new() {
+        Ok(v) => Box::into_raw(Box::new(v)),
+        Err(e) => {
+            set_error(format!("{}", e), &mut error);
+            std::ptr::null()
+        }
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn zlgcan_chl_cfg_can(
     factory: *const CanChlCfgFactory,
-    dev_type: u32,
-    chl_type: u8,
-    chl_mode: u8,
-    bitrate: u32,
+    cfg: ZCanChlCfgApi,
     mut error: &mut *const c_char
 ) -> *const c_void {
     match convert(factory, error) {
-        Some(v) => {
+        Some(v) => unsafe {
+            let bitrate = cfg.bitrate;
+            let filter = if cfg.filter.is_null() { None } else { Some(ZCanFilterType::from(*cfg.filter)) };
+            let dbitrate = if cfg.dbitrate.is_null() { None } else { Some(*cfg.dbitrate) };
+            let resistance = if cfg.resistance.is_null() { None } else { Some(*cfg.resistance == 0) };
+            let acc_code = if cfg.acc_code.is_null() { None } else { Some(*cfg.acc_code) };
+            let acc_mask = if cfg.acc_mask.is_null() { None } else { Some(*cfg.acc_mask) };
+            let brp = if cfg.brp.is_null() { None } else { Some(*cfg.brp) };
             match v.new_can_chl_cfg(
-                ZCanDeviceType::from(dev_type),
-                ZCanChlType::from(chl_type),
-                ZCanChlMode::from(chl_mode),
+                ZCanDeviceType::from(cfg.dev_type),
+                ZCanChlType::from(cfg.chl_type),
+                ZCanChlMode::from(cfg.chl_mode),
                 bitrate,
-                Default::default()) {
+                CanChlCfgExt::new(filter, dbitrate, resistance, acc_code, acc_mask, brp, )) {
                 Some(v) => Box::into_raw(Box::new(v)) as *const c_void,
                 None => {
-                    set_error(format!("Can't create configuration for bitrate: {}", bitrate), &mut error);
-                    std::ptr::null()
-                }
-            }
-        },
-        None => std::ptr::null()
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn zlgcan_chl_cfg_fd(
-    factory: *const CanChlCfgFactory,
-    dev_type: u32,
-    chl_type: u8,
-    chl_mode: u8,
-    bitrate: u32,
-    dbitrate: u32,
-    mut error: &mut *const c_char
-) -> *const c_void {
-    match convert(factory, error) {
-        Some(v) => {
-            let extra = CanChlCfgExt::new(None, Some(dbitrate), None, None, None, None);
-            match v.new_can_chl_cfg(
-                    ZCanDeviceType::from(dev_type),
-                    ZCanChlType::from(chl_type),
-                    ZCanChlMode::from(chl_mode),
-                    bitrate,
-                    extra) {
-                Some(v) => Box::into_raw(Box::new(v)) as *const c_void,
-                None => {
-                    set_error(format!("Can't create configuration for bitrate: {}, data bitrate: {}", bitrate, dbitrate), &mut error);
+                    match dbitrate {
+                        Some(v) => set_error(format!("Can't create configuration for bitrate: {}, dbitrate: {}", bitrate, v), &mut error),
+                        None => set_error(format!("Can't create configuration for bitrate: {}", bitrate), &mut error),
+                    }
                     std::ptr::null()
                 }
             }
@@ -127,7 +123,7 @@ pub extern "C" fn zlgcan_init_can(
     mut error: &mut *const c_char
 ) -> bool {
     if cfg.is_null() {
-        set_error(String::from("The parameter is error!"), &mut error);
+        set_error(String::from("The configuration array is error!"), &mut error);
         return false;
     }
 
@@ -136,9 +132,9 @@ pub extern "C" fn zlgcan_init_can(
             let slice: &[*const CanChlCfg] = unsafe { std::slice::from_raw_parts(cfg as *const *const CanChlCfg, len) };
             let cfg = slice.to_vec();
             let mut _cfg = Vec::new();
-            for ptr in cfg {
+            for (idx, ptr) in cfg.into_iter().enumerate() {
                 if ptr.is_null() {
-                    set_error(String::from("The parameter is error!"), &mut error);
+                    set_error(format!("The configuration index at: {} is error!", idx), &mut error);
                     return false;
                 }
                 _cfg.push(unsafe { ptr.as_ref().unwrap().clone() })
@@ -257,9 +253,9 @@ mod tests {
     use std::time::Duration;
     use zlgcan_common::can::CanMessage;
     use zlgcan_common::device::ZCanDeviceType;
-    use super::{zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_close, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};
+    use super::{ZCanChlCfgApi, zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_close, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};
 
-    // cargo test --package zlgcan-driver-rs-api --lib tests::test_usbcanfd_200u --show-output -- --release
+    // RUSTFLAGS=-Zsanitizer=leak cargo test --package zlgcan-driver-rs-api --lib tests::test_usbcanfd_200u --release -- --show-output
     #[test]
     fn test_usbcanfd_200u() {
         let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
@@ -281,12 +277,31 @@ mod tests {
         let dev_info = unsafe { CStr::from_ptr(dev_info) };
         println!("{}", dev_info.to_string_lossy().to_string());
 
-        let factory = zlgcan_cfg_factory_can();
+        let factory = zlgcan_cfg_factory_can(&mut error);
+        if factory.is_null() {
+            assert!(!error.is_null());
+
+            let c_str = unsafe { CStr::from_ptr(error) };
+            println!("Error: {}", c_str.to_string_lossy().to_string());
+            return;
+        }
 
         let mut cfg = Vec::new();
         for _ in 0..2 {
             let mut error = std::ptr::null();
-            let cfg1 = zlgcan_chl_cfg_can(factory, dev_type as u32, 0, 0, 500_000, &mut error);
+            let chl_cfg = ZCanChlCfgApi {
+                dev_type: dev_type as u32,
+                chl_type: 0,
+                chl_mode: 0,
+                bitrate: 500_000,
+                filter: std::ptr::null(),
+                dbitrate: std::ptr::null(),
+                resistance: std::ptr::null(),
+                acc_code: std::ptr::null(),
+                acc_mask: std::ptr::null(),
+                brp: std::ptr::null(),
+            };
+            let cfg1 = zlgcan_chl_cfg_can(factory, chl_cfg, &mut error);
             if cfg1.is_null() {
                 assert!(!error.is_null());
 

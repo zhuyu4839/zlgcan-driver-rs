@@ -14,6 +14,7 @@ use std::fs::read_to_string;
 use std::rc::{Rc, Weak};
 use serde::Deserialize;
 use crate::device::ZCanDeviceType;
+use crate::error::ZCanError;
 
 /// The deserialize object mapped to configuration file context.
 #[derive(Debug, Deserialize)]
@@ -91,9 +92,6 @@ impl CanChlCfg {
                bitrate: u32,
                extra: CanChlCfgExt,
                cfg_ctx: Weak<HashMap<String, BitrateCfg>>) -> Self {
-        // let contents = fs::read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
-        // let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
-        // println!("{:?}", config);
         Self {
             dev_type,
             can_type,
@@ -249,10 +247,14 @@ pub struct CanChlCfgFactory(Rc<HashMap<String, BitrateCfg>>);
 
 
 impl CanChlCfgFactory {
-    pub fn new() -> Self {
-        let contents = read_to_string(BITRATE_CFG_FILENAME).unwrap_or_else(|e| { panic!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)});
-        let config = serde_yaml::from_str(&contents).unwrap_or_else(|e| { panic!("Error parsing YAML: {:?}", e) });
-        Self(Rc::new(config))
+    pub fn new() -> Result<Self, ZCanError> {
+        match read_to_string(BITRATE_CFG_FILENAME) {
+            Ok(v) => match serde_yaml::from_str(&v) {
+                Ok(v) => Ok(Self(Rc::new(v))),
+                Err(e) => Err(ZCanError::new(0x02, format!("Error parsing YAML: {:?}", e))),
+            },
+            Err(e) => Err(ZCanError::new(0x02, format!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e))),
+        }
     }
 
     pub fn new_can_chl_cfg(&self, dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt) -> Option<CanChlCfg> {

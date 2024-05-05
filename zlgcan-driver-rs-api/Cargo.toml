@@ -8,5 +8,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-zlgcan_common = { version = "0.3.3" }
-zlgcan_driver = { version = "0.3.3" }
+zlgcan_common = { version = "0.3.4" }
+zlgcan_driver = { version = "0.3.4" }
