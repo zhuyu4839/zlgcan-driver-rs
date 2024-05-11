@@ -164,7 +164,7 @@ pub extern "C" fn zlgcan_init_can(
 #[no_mangle]
 pub extern "C" fn zlgcan_device_info(
     device: *const c_void,
-    error: &mut *const c_char
+    mut error: &mut *const c_char
 ) -> *const c_char {
     match convert(device as *const ZCanDriver, error) {
         Some(v) => {
@@ -174,7 +174,7 @@ pub extern "C" fn zlgcan_device_info(
                     val.into_raw()
                 },
                 Err(e) => {
-                    set_error(e.to_string(), error);
+                    set_error(e.to_string(), &mut error);
                     std::ptr::null()
                 }
             }
@@ -206,13 +206,13 @@ pub extern "C" fn zlgcan_clear_can_buffer(
 pub extern "C" fn zlgcan_send(
     device: *const c_void,
     msg: CanMessage,
-    error: &mut *const c_char
+    mut error: &mut *const c_char
 ) -> bool {
     match convert(device as *const ZCanDriver, error) {
         Some(v) => match unify_send(v, msg) {
             Ok(r) => r > 0,
             Err(e) => {
-                set_error(e.to_string(), error);
+                set_error(e.to_string(), &mut error);
                 false
             }
         }
