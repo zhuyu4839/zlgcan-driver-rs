@@ -3,6 +3,7 @@ use std::ffi::{c_uchar, c_ushort, CString};
 use std::fmt::{Display, Formatter};
 use crate::can::Reference;
 use crate::device::DeriveInfo;
+use crate::error::ZCanError;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -36,19 +37,17 @@ impl Default for ZDeviceInfo {
     }
 }
 
-impl From<&DeriveInfo> for ZDeviceInfo {
-    fn from(value: &DeriveInfo) -> Self {
-        let mut id = if value.canfd {
-            CString::new("Derive USBCANFD device").as_ref().expect("msg").as_bytes().to_owned()
-        } else {
-            CString::new("Derive USBCAN device").as_ref().expect("msg").as_bytes().to_owned()
-        };
+impl TryFrom<&DeriveInfo> for ZDeviceInfo {
+    type Error = ZCanError;
+    fn try_from(value: &DeriveInfo) -> Result<Self, Self::Error> {
+        let device = if value.canfd {  "Derive USBCANFD device" } else { "Derive USBCAN device" };
+        let mut id = CString::new(device).as_ref().map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?.as_bytes().to_owned();
         id.resize(40, 0);
-        Self {
+        Ok(Self {
             chn: value.channels,
-            id: id.try_into().expect("ZLGCAN - invalid the length of device id!"),
+            id: id.try_into().map_err(|v| ZCanError::CStringConvertFailed(format!("{:?}", v)))?,
             ..Default::default()
-        }
+        })
     }
 }
 
@@ -200,7 +199,7 @@ mod tests {
             canfd: false,
             channels: 2,
         };
-        let device_info = ZDeviceInfo::from(&derive);
+        let device_info = ZDeviceInfo::try_from(&derive).unwrap();
         assert_eq!(device_info.chn, 2);
         assert_eq!(device_info.id(), "Derive USBCAN device");
 
@@ -208,7 +207,7 @@ mod tests {
             canfd: true,
             channels: 2,
         };
-        let device_info = ZDeviceInfo::from(&derive);
+        let device_info = ZDeviceInfo::try_from(&derive).unwrap();
         assert_eq!(device_info.chn, 2);
         assert_eq!(device_info.id(), "Derive USBCANFD device");
     }

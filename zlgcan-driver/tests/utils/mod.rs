@@ -1,18 +1,10 @@
-use zlgcan_common as common;
-use zlgcan_driver as driver;
-
 use std::thread;
 use std::time::{Duration, SystemTime};
 use rand::{Rng, thread_rng};
 use rand::prelude::ThreadRng;
-use common::can::{
-    CanChlCfgExt, CanChlCfgFactory,
-    CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFrameType,
-    ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3,
-    CanMessage
-};
-use common::device::{DeriveInfo, ZCanDevice, ZCanDeviceType, ZlgDevice};
-use driver::ZCanDriver;
+use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3, CanMessage, ZCanTxMode};
+use zlgcan_common::device::{DeriveInfo, ZCanDeviceType};
+use zlgcan_driver::driver::{ZCanDriver, ZDevice};
 
 fn generate_can_id(rng: &mut ThreadRng, extend: bool) -> u32 {
     if extend {
@@ -41,7 +33,7 @@ fn new_v1_frames(size: u32, extend: bool) -> Vec<ZCanFrame> {
             None
         ).unwrap();
 
-        frames.push(ZCanFrame::from(ZCanFrameV1::from(frame)));
+        frames.push(ZCanFrame::from(ZCanFrameV1::try_from(frame).unwrap()));
     }
     frames
 }
@@ -50,7 +42,7 @@ fn new_v2_frames(size: u32, extend: bool) -> Vec<ZCanFrame> {
     let mut rng = thread_rng();
     let  mut frames = Vec::new();
     for _ in 0..size {
-        let frame = CanMessage::new(
+        let mut frame = CanMessage::new(
             generate_can_id(&mut rng, extend),
             None,
             generate_data(&mut rng, CAN_FRAME_LENGTH),
@@ -58,8 +50,9 @@ fn new_v2_frames(size: u32, extend: bool) -> Vec<ZCanFrame> {
             false,
             None
         ).unwrap();
+        frame.set_tx_mode(ZCanTxMode::SelfReception as u8);
 
-        frames.push(ZCanFrame::from(ZCanFrameV2::from(frame)));
+        frames.push(ZCanFrame::from(ZCanFrameV2::try_from(frame).unwrap()));
     }
     frames
 }
@@ -77,7 +70,7 @@ fn new_v3_frames(size: u32, extend: bool) -> Vec<ZCanFrame> {
             None
         ).unwrap();
 
-        frames.push(ZCanFrame::from(ZCanFrameV3::from(frame)));
+        frames.push(ZCanFrame::from(ZCanFrameV3::try_from(frame).unwrap()));
     }
     frames
 }
@@ -99,7 +92,7 @@ fn new_v1_fdframes(size: u32, extend: bool, brs: bool) -> Vec<ZCanFdFrame> {
             frame.set_bitrate_switch(true);
         }
 
-        frames.push(ZCanFdFrame::from(ZCanFdFrameV1::from(frame)));
+        frames.push(ZCanFdFrame::from(ZCanFdFrameV1::try_from(frame).unwrap()));
     }
     frames
 }
@@ -121,7 +114,7 @@ fn new_v2_fdframes(size: u32, extend: bool, brs: bool) -> Vec<ZCanFdFrame> {
             frame.set_bitrate_switch(true);
         }
 
-        frames.push(ZCanFdFrame::from(ZCanFdFrameV2::from(frame)));
+        frames.push(ZCanFdFrame::from(ZCanFdFrameV2::try_from(frame).unwrap()));
     }
     frames
 }
@@ -134,7 +127,7 @@ pub fn can_device1(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
     let comm_count = 5;
     let ext_count = 5;
 
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, derive_info).unwrap();
+    let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, derive_info).unwrap();
     driver.open().unwrap();
     let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), channels);
@@ -142,7 +135,7 @@ pub fn can_device1(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
 
     let factory = CanChlCfgFactory::new().unwrap();
     // reconfigure channels as CAN
-    let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CAN, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
+    let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000, Default::default()).unwrap();
     let cfg = vec![ch1_cfg,];
     driver.init_can_chl(cfg).unwrap();
 
@@ -214,7 +207,7 @@ pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
     let comm_count = 5;
     let ext_count = 5;
 
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, derive_info).unwrap();
+    let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, derive_info).unwrap();
     driver.open().unwrap();
     let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), channels);
@@ -222,8 +215,8 @@ pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
 
     let factory = CanChlCfgFactory::new().unwrap();
     // reconfigure channels as CAN
-    let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
-    let ch2_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap();
+    let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000, Default::default()).unwrap();
+    let ch2_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000, Default::default()).unwrap();
     let cfg = vec![ch1_cfg, ch2_cfg];
     driver.init_can_chl(cfg).unwrap();
     // create CAN frames
@@ -285,11 +278,11 @@ pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
 
 pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_ch: u8, linux: bool) {
     let dev_idx = 0;
-    let comm_count = 5;
-    let ext_count = 5;
-    let brs_count = 5;
+    let comm_count = 1;
+    let ext_count = 1;
+    let brs_count = 1;
 
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
+    let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, None).unwrap();
     driver.open().unwrap();
     let dev_info = driver.device_info().unwrap();
     assert_eq!(dev_info.can_channels(), channels);
@@ -304,7 +297,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
     // TODO USBCANFD-400U channel 3-4 is not supported
     let _channels = if channels > 2 { 2 } else { channels };
     for _ in 0.._channels {
-        cfg.push(factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, Default::default()).unwrap());
+        cfg.push(factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000, Default::default()).unwrap());
     }
     driver.init_can_chl(cfg).unwrap();
     let frames1;
@@ -346,6 +339,23 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
     let timeout = Duration::from_secs(3);
     let start_time = SystemTime::now();
     loop {
+        let cnt_tr = driver.get_can_num(trans_ch, ZCanFrameType::CAN).unwrap();
+        let cnt_fd_tr = driver.get_can_num(trans_ch, ZCanFrameType::CANFD).unwrap();
+        println!("self CAN Frames: {}, CANFD Frames: {}", cnt_tr, cnt_fd_tr);
+
+        if cnt_tr > 0 || cnt_fd_tr > 0 {
+            let frames = driver.receive_can(trans_ch, cnt_tr + cnt_fd_tr, None).unwrap();
+            println!("self received frames:");
+            frames.iter().for_each(|frame| {
+                if linux {
+                    println!("{:?}", ZCanFrameV2::from(frame));
+                }
+                else {
+                    println!("{:?}", ZCanFrameV3::from(frame));
+                }
+            });
+        }
+
         // get CAN receive count
         let cnt = driver.get_can_num(recv_ch, ZCanFrameType::CAN).unwrap();
         let cnt_fd = driver.get_can_num(recv_ch, ZCanFrameType::CANFD).unwrap();
@@ -380,7 +390,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, trans_ch: u8, recv_
     let mut cfg = Vec::new();
     for _ in 0.._channels {
         let cfg_ext = CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None);
-        cfg.push(factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000, cfg_ext).unwrap());
+        cfg.push(factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000, cfg_ext).unwrap());
     }
     driver.init_can_chl(cfg).unwrap();
     // create CANFD frames

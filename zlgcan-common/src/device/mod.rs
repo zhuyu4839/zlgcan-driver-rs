@@ -1,11 +1,9 @@
 mod dev;
 mod property;
-mod traitdef;
 mod typedef;
 
 pub use dev::*;
 pub use property::*;
-pub use traitdef::*;
 pub use typedef::*;
 pub use crate::error::ZCanError;
 
@@ -29,33 +27,24 @@ impl DeriveInfo {
 
 pub fn set_value(p: &IProperty, cmd_path: CmdPath, value: *const c_char) -> Result<(), ZCanError> {
     unsafe {
-        match p.SetValue {
-            Some(f) => {
-                let path = cmd_path.get_path();
-                let _path = CString::new(path).expect("ZLGCAN - couldn't convert to CString!");
-
-                match f(_path.as_ptr(), value) {
-                    1 => Ok(()),
-                    code => Err(ZCanError::new(code as u32, format!("ZLGCAN - set `{}` value failed", path))),
-                }
-            },
-            None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not supported", "set_value"))),
+        let f = p.SetValue.ok_or(ZCanError::MethodNotSupported)?;
+        let path = cmd_path.get_path();
+        let path = CString::new(path).map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?;
+        match f(path.as_ptr(), value) {
+            1 => Ok(()),
+            code => Err(ZCanError::MethodExecuteFailed("SetValue".to_string(), code as u32)),
         }
     }
 }
 
-pub fn get_value(p: &IProperty, cmd_path: CmdPath) -> Result<Option<String>, ZCanError> {
+pub fn get_value(p: &IProperty, cmd_path: CmdPath) -> Result<String, ZCanError> {
     unsafe {
-        match p.GetValue {
-            Some(f) => {
-                let path = cmd_path.get_path();
-                let _path = CString::new(path).expect("ZLGCAN - couldn't convert to CString!");
+        let f = p.GetValue.ok_or(ZCanError::MethodNotSupported)?;
+        let path = cmd_path.get_path();
+        let path = CString::new(path).map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?;
 
-                let ret = f(_path.as_ptr());
-                Ok(c_str_to_string(ret))
-            },
-            None => Err(ZCanError::new(0, format!("ZLGCAN - {} is not supported", "set_value"))),
-        }
+        let ret = f(path.as_ptr());
+        c_str_to_string(ret)
     }
 }
 

@@ -27,7 +27,7 @@ pub struct BitrateCfg {
 /// The extra info for common CAN channel configuration.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct CanChlCfgExt {
-    filter: ZCanFilterType,
+    filter: u8,
     dbitrate: Option<u32>,
     resistance: Option<bool>,
     acc_code: Option<u32>,
@@ -36,10 +36,14 @@ pub struct CanChlCfgExt {
 }
 #[allow(dead_code)]
 impl CanChlCfgExt {
-    pub fn new(filter: Option<ZCanFilterType>,
-               dbitrate: Option<u32>, resistance: Option<bool>,
-               acc_code: Option<u32>, acc_mask: Option<u32>,
-               brp: Option<u32>) -> Self {
+    pub fn new(
+        filter: Option<u8>,
+        dbitrate: Option<u32>,
+        resistance: Option<bool>,
+        acc_code: Option<u32>,
+        acc_mask: Option<u32>,
+        brp: Option<u32>
+    ) -> Self {
         Self {
             filter: filter.unwrap_or_default(),
             // canfd,
@@ -51,8 +55,8 @@ impl CanChlCfgExt {
         }
     }
     #[inline(always)]
-    pub fn filter(&self) -> ZCanFilterType {
-        self.filter
+    pub fn filter(&self) -> Result<ZCanFilterType, ZCanError> {
+        ZCanFilterType::try_from(self.filter)
     }
     #[inline(always)]
     pub fn dbitrate(&self) -> Option<u32> {
@@ -76,9 +80,9 @@ impl CanChlCfgExt {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct CanChlCfg {
-    dev_type: ZCanDeviceType,
-    can_type: ZCanChlType,
-    mode: ZCanChlMode,
+    dev_type: u32,
+    can_type: u8,
+    mode: u8,
     bitrate: u32,
     extra: CanChlCfgExt,
     cfg_ctx: Weak<HashMap<String, BitrateCfg>>,
@@ -86,12 +90,14 @@ pub struct CanChlCfg {
 }
 
 impl CanChlCfg {
-    pub fn new(dev_type: ZCanDeviceType,
-               can_type: ZCanChlType,
-               mode: ZCanChlMode,
-               bitrate: u32,
-               extra: CanChlCfgExt,
-               cfg_ctx: Weak<HashMap<String, BitrateCfg>>) -> Self {
+    pub fn new(
+        dev_type: u32,
+        can_type: u8,
+        mode: u8,
+        bitrate: u32,
+        extra: CanChlCfgExt,
+        cfg_ctx: Weak<HashMap<String, BitrateCfg>>
+    ) -> Self {
         Self {
             dev_type,
             can_type,
@@ -102,12 +108,12 @@ impl CanChlCfg {
         }
     }
     #[inline(always)]
-    pub fn device_type(&self) -> ZCanDeviceType {
-        self.dev_type
+    pub fn device_type(&self) -> Result<ZCanDeviceType, ZCanError> {
+        ZCanDeviceType::try_from(self.dev_type)
     }
     #[inline(always)]
-    pub fn can_type(&self) -> ZCanChlType {
-        self.can_type
+    pub fn can_type(&self) -> Result<ZCanChlType, ZCanError> {
+        ZCanChlType::try_from(self.can_type)
     }
     #[inline(always)]
     pub fn clock(&self) -> Option<u32> {
@@ -126,57 +132,64 @@ impl CanChlCfg {
     }
 }
 
-pub(self) fn to_chl_cfg(mode: ZCanChlMode, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) -> ZCanChlCfg {
+pub(self) fn to_chl_cfg(mode: u8, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) -> Result<ZCanChlCfg, ZCanError> {
     match cfg_ctx.bitrate.get(&bitrate.to_string()) {
         Some(v) => {
-            let timing0 = v.get(TIMING0).expect(format!("ZLGCAN - `{}` is not configured in file!", TIMING0).as_str());
-            let timing1 = v.get(TIMING1).expect(format!("ZLGCAN - `{}` is not configured in file!", TIMING1).as_str());
+            let timing0 = v.get(TIMING0)
+                .ok_or(ZCanError::ConfigurationError(format!("`{}` is not configured in file!", TIMING0)))?;
+            let timing1 = v.get(TIMING1)
+                .ok_or(ZCanError::ConfigurationError(format!("`{}` is not configured in file!", TIMING1)))?;
             ZCanChlCfg::new(
                 mode, *timing0, *timing1, ext.filter, ext.acc_code, ext.acc_mask
             )
         },
-        None => panic!("ZLGCAN - the bitrate: `{}` is not configured in file!", bitrate),
+        None => Err(ZCanError::ConfigurationError(format!("the bitrate: `{}` is not configured", bitrate))),
     }
 }
 
-impl From<&CanChlCfg> for ZCanChlCfgV1 {
-    fn from(value: &CanChlCfg) -> Self {
+impl TryFrom<&CanChlCfg> for ZCanChlCfgV1 {
+    type Error = ZCanError;
+
+    fn try_from(value: &CanChlCfg) -> Result<Self, Self::Error> {
         let dev_type = value.dev_type;
         let binding = value.cfg_ctx.upgrade().unwrap();
-        let cfg = binding.get(&(dev_type as u32).to_string()).unwrap();
-        if dev_type.canfd_support() {      // the device supported canfd can't set CAN type to CAN
+        let cfg = binding.get(&dev_type.to_string())
+            .ok_or(ZCanError::ConfigurationError(format!("device: {:?} is not configured in file!", dev_type)))?;
+        if value.device_type()?
+            .canfd_support() {      // the device supported canfd can't set CAN type to CAN
             let ext = &value.extra;
-            let can_type = match value.can_type {
-                ZCanChlType::CAN | ZCanChlType::CANFD_ISO => ZCanChlType::CANFD_ISO,
-                v => v,
-            };
             ZCanChlCfgV1::new(
-                can_type,
+                value.can_type,
                 ZCanChlCfgV1Union::from_canfd(
                     ZCanFdChlCfgV1::new(
                         value.mode, 0, 0, ext.filter, ext.acc_code, ext.acc_mask, ext.brp  // TODO timing0 and timing1 ignored
-                    )
+                    )?
                 )
             )
         }
         else {
             ZCanChlCfgV1::new(
-                ZCanChlType::CAN,
+                ZCanChlType::CAN as u8,
                 ZCanChlCfgV1Union::from_can(
-                    to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)
+                    to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)?
                 )
             )
         }
     }
 }
 
-impl From<&CanChlCfg> for ZCanChlCfgV2 {
-    fn from(value: &CanChlCfg) -> Self {
+impl TryFrom<&CanChlCfg> for ZCanChlCfgV2 {
+
+    type Error = ZCanError;
+    fn try_from(value: &CanChlCfg) -> Result<Self, Self::Error> {
         let dev_type = value.dev_type;
         let binding = value.cfg_ctx.upgrade().unwrap();
-        let cfg = binding.get(&(dev_type as u32).to_string()).unwrap();
-        if dev_type.canfd_support() {
-            let clock = cfg.clock.expect(format!("ZLGCAN - {} `clock` is not configured in file!", dev_type).as_str());
+        let cfg = binding.get(&dev_type.to_string())
+            .ok_or(ZCanError::ConfigurationError(format!("device: {:?} is not configured in file!", dev_type)))?;
+        if value.device_type()?
+            .canfd_support() {
+            let clock = cfg.clock
+                .ok_or(ZCanError::ConfigurationError("`clock` is not configured in file!".to_string()))?;
             let ext = &value.extra;
             let bitrate = value.bitrate;
             let dbitrate = ext.dbitrate;
@@ -184,21 +197,21 @@ impl From<&CanChlCfg> for ZCanChlCfgV2 {
             let dbitrate_ctx = &cfg.data_bitrate;
             let aset = bitrate_ctx
                 .get(&bitrate.to_string())
-                .expect(format!("ZLGCAN - the bitrate `{}` is not configured in file!", bitrate).as_str());
-            let dset;
+                .ok_or(ZCanError::ConfigurationError(format!("bitrate `{}` is not configured in file!", bitrate)))?;
+            let dset=
             match dbitrate {
                 Some(v) => {    // dbitrate is not None
                     match dbitrate_ctx {
                         Some(ctx) => {  // dbitrate context is not None
                             match ctx.get(&v.to_string()) {
-                                Some(value) => dset = value,
-                                None => panic!("ZLGCAN - the data bitrate `{}` is not configured in file!", v),
+                                Some(value) => Ok(value),
+                                None => Err(ZCanError::ConfigurationError(format!("data bitrate `{}` is not configured in file!", v))),
                             }
                         },
                         None => {   // dbitrate context is None
                             match bitrate_ctx.get(&v.to_string()) {
-                                Some(value) => dset = value,
-                                None => panic!("ZLGCAN - the data bitrate `{}` is not configured in file!", v),
+                                Some(value) => Ok(value),
+                                None => Err(ZCanError::ConfigurationError(format!("data bitrate `{}` is not configured in file!", v))),
                             }
                         }
                     }
@@ -207,37 +220,46 @@ impl From<&CanChlCfg> for ZCanChlCfgV2 {
                     match dbitrate_ctx {
                         Some(ctx) => {
                             match ctx.get(&bitrate.to_string()) {
-                                Some(value) => dset = value,
-                                None => dset = aset,
+                                Some(value) => Ok(value),
+                                None => Ok(aset),
                             }
                         },
-                        None => dset = aset,
+                        None => Ok(aset),
                     }
                 }
-            }
-            Self::from_canfd(
-                ZCanFdChlCfgV2::new(value.can_type, value.mode, clock, ZCanFdChlCfgSet::from(aset), ZCanFdChlCfgSet::from(dset))
-            )
+            }?;
+            Ok(Self::from_canfd(
+                ZCanFdChlCfgV2::new(
+                    value.can_type,
+                    value.mode,
+                    clock,
+                    ZCanFdChlCfgSet::try_from(aset)?,
+                    ZCanFdChlCfgSet::try_from(dset)?
+                )?
+            ))
         }
         else {
-            Self::from_can(
-                to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)
-            )
+            Ok(Self::from_can(
+                to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)?
+            ))
         }
     }
 }
 
-impl From<&CanChlCfg> for ZCanChlCfgDetail {
-    fn from(value: &CanChlCfg) -> Self {
-        let dev_type = value.dev_type;
+impl TryFrom<&CanChlCfg> for ZCanChlCfgDetail {
+
+    type Error = ZCanError;
+
+    fn try_from(value: &CanChlCfg) -> Result<Self, Self::Error> {
+        let dev_type = value.device_type()?;
         if dev_type.is_can_chl_cfg_v1() {
-            ZCanChlCfgDetail::from(ZCanChlCfgV1::from(value))
+            Ok(ZCanChlCfgDetail::from(ZCanChlCfgV1::try_from(value)?))
         }
         else if dev_type.is_can_chl_cfg_v2() {
-            ZCanChlCfgDetail::from(ZCanChlCfgV2::from(value))
+            Ok(ZCanChlCfgDetail::from(ZCanChlCfgV2::try_from(value)?))
         }
         else {
-            panic!("ZLGCAN - the device: `{}` is not supported!", dev_type)
+            Err(ZCanError::DeviceNotSupported)
         }
     }
 }
@@ -248,21 +270,26 @@ pub struct CanChlCfgFactory(Rc<HashMap<String, BitrateCfg>>);
 
 impl CanChlCfgFactory {
     pub fn new() -> Result<Self, ZCanError> {
-        match read_to_string(BITRATE_CFG_FILENAME) {
-            Ok(v) => match serde_yaml::from_str(&v) {
-                Ok(v) => Ok(Self(Rc::new(v))),
-                Err(e) => Err(ZCanError::new(0x02, format!("Error parsing YAML: {:?}", e))),
-            },
-            Err(e) => Err(ZCanError::new(0x02, format!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e))),
-        }
+        let data = read_to_string(BITRATE_CFG_FILENAME)
+            .map_err(|e| ZCanError::ConfigurationError(format!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)))?;
+        let result = serde_yaml::from_str(&data)
+            .map_err(|e| ZCanError::ConfigurationError(format!("Error parsing YAML: {:?}", e)))?;
+        Ok(Self(Rc::new(result)))
     }
 
-    pub fn new_can_chl_cfg(&self, dev_type: ZCanDeviceType, can_type: ZCanChlType, mode: ZCanChlMode, bitrate: u32, extra: CanChlCfgExt) -> Option<CanChlCfg> {
-        if self.0.contains_key(&(dev_type as u32).to_string()) {
-            Some(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Rc::downgrade(&self.0)))
+    pub fn new_can_chl_cfg(
+        &self,
+        dev_type: u32,
+        can_type: u8,
+        mode: u8,
+        bitrate: u32,
+        extra: CanChlCfgExt
+    ) -> Result<CanChlCfg, ZCanError> {
+        if self.0.contains_key(&dev_type.to_string()) {
+            Ok(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Rc::downgrade(&self.0)))
         }
         else {
-            None
+            Err(ZCanError::ConfigurationError(format!("device: {:?} is not configured in file!", dev_type)))
         }
     }
 }

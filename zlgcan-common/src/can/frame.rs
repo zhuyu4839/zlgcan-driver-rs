@@ -1,8 +1,14 @@
 use std::ffi::{c_uchar, c_uint, c_ushort};
+use crate::error::ZCanError;
 use super::constant::{CAN_ID_FLAG, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanHdrInfoField, CAN_EFF_MASK, CAN_EFF_FLAG, CAN_RTR_FLAG, CAN_ERR_FLAG, CANFD_BRS, CANFD_ESI};
 
 pub trait NewZCanFrame {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Option<Self>
+    fn new<T>(
+        can_id: u32,
+        channel: u8,
+        data: T,
+        info: ZCanHdrInfo
+    ) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]>,
             Self: Sized;
@@ -25,9 +31,11 @@ pub struct ZCanFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Option<Self> where T: AsRef<[u8]> {
-        zcan_frame_new(can_id, channel, data, info, |id, _chl, data, len, info| -> Self {
-            Self {
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
+        where
+            T: AsRef<[u8]> {
+        zcan_frame_new(can_id, channel, data, info, |id, _chl, data, len, info| {
+            Ok(Self {
                 can_id: id,
                 timestamp: Default::default(),
                 time_flag: Default::default(),
@@ -35,9 +43,9 @@ impl NewZCanFrame for ZCanFrameV1 {
                 rem_flag: info.get_field(ZCanHdrInfoField::IsRemoteFrame),
                 ext_flag: info.get_field(ZCanHdrInfoField::IsExtendFrame),
                 len,
-                data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!"),
+                data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
                 reserved: Default::default(),
-            }
+            })
         })
     }
 }
@@ -112,11 +120,11 @@ pub struct ZCanFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFrameV2 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Option<Self>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
-        zcan_frame_new(can_id, channel, data, info, |id, chl, data, len, info| -> Self {
-            Self {
+        zcan_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
+            Ok(Self {
                 hdr: ZCanHeaderV1 {
                     timestamp: Default::default(),
                     can_id: id,
@@ -125,8 +133,8 @@ impl NewZCanFrame for ZCanFrameV2 {
                     channel: chl,
                     len,
                 },
-                data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!"),
-            }
+                data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
+            })
         })
     }
 }
@@ -153,12 +161,12 @@ pub struct ZCanFrameV3 {
 }
 
 impl NewZCanFrame for ZCanFrameV3 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Option<Self>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         // zcan_frame_new2::<CAN_FRAME_LENGTH, T, Self>(can_id, channel, data, info,  |id, _chl, data, len, info| -> Self {
-        zcan_frame_new2(can_id, channel, data, info,  |id, _chl, data, len, info| -> Self {
-            Self {
+        zcan_frame_new2(can_id, channel, data, info,  |id, _chl, data, len, info| {
+            Ok(Self {
                 hdr: ZCanHeaderV2 {
                     can_id: id,
                     can_len: len,
@@ -166,9 +174,9 @@ impl NewZCanFrame for ZCanFrameV3 {
                     __res0: Default::default(),
                     __res1: Default::default(),
                 },
-                data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!"),
+                data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
                 ts_or_mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
-            }
+            })
         })
     }
 }
@@ -270,11 +278,11 @@ pub struct ZCanFdFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Option<Self>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
-        zcanfd_frame_new(can_id, channel, data, info, |id, chl, data, len, info| -> Self {
-            Self {
+        zcanfd_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
+            Ok(Self {
                 hdr: ZCanHeaderV1 {
                     timestamp: Default::default(),
                     can_id: id,
@@ -283,8 +291,8 @@ impl NewZCanFrame for ZCanFdFrameV1 {
                     channel: chl,
                     len,
                 },
-                data: CanFdData {data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!") },
-            }
+                data: CanFdData {data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)? },
+            })
         })
     }
 }
@@ -299,11 +307,11 @@ pub struct ZCanFdFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV2 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Option<Self>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         // zcan_frame_new2::<CANFD_FRAME_LENGTH, T, Self>(can_id, channel, data, info, |id, _chl, data, len, info| -> Self {
-        zcanfd_frame_new2(can_id, channel, data, info, |id, _chl, data, len, info| -> Self {
+        zcanfd_frame_new2(can_id, channel, data, info, |id, _chl, data, len, info| {
             let mut flag: u8 = Default::default();
             if info.get_field(ZCanHdrInfoField::IsBitrateSwitch) > 0 {
                 flag |= CANFD_BRS;
@@ -312,7 +320,7 @@ impl NewZCanFrame for ZCanFdFrameV2 {
                 flag |= CANFD_ESI;
             }
 
-            Self {
+            Ok(Self {
                 hdr: ZCanHeaderV2 {
                     can_id: id,
                     can_len: len,
@@ -320,9 +328,9 @@ impl NewZCanFrame for ZCanFdFrameV2 {
                     __res0: Default::default(),
                     __res1: Default::default(),
                 },
-                data: CanFdData { data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!") },
+                data: CanFdData { data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)? },
                 ts_or_mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
-            }
+            })
         })
     }
 }
@@ -380,8 +388,13 @@ impl ZCanFdFrame {
     }
 }
 
-pub(self) fn zcan_frame_new<T, R>(can_id: u32, channel: u8, data: T, mut info: ZCanHdrInfo,
-                                  callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> R) -> Option<R>
+pub(self) fn zcan_frame_new<T, R>(
+    can_id: u32,
+    channel: u8,
+    data: T,
+    mut info: ZCanHdrInfo,
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     match can_id {
@@ -394,17 +407,22 @@ pub(self) fn zcan_frame_new<T, R>(can_id: u32, channel: u8, data: T, mut info: Z
             }
             match len {
                 0..=CAN_FRAME_LENGTH => {
-                    Some(callback(can_id, channel, data, len as u8, info))
+                    callback(can_id, channel, data, len as u8, info)
                 },
-                _ => None,
+                _ => Err(ZCanError::ParamNotSupported),
             }
         },
-        _ => None,
+        _ => Err(ZCanError::ParamNotSupported),
     }
 }
 
-pub(self) fn zcanfd_frame_new<T, R>(can_id: u32, channel: u8, data: T, mut info: ZCanHdrInfo,
-                                    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> R) -> Option<R>
+pub(self) fn zcanfd_frame_new<T, R>(
+    can_id: u32,
+    channel: u8,
+    data: T,
+    mut info: ZCanHdrInfo,
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     if let 0..=CAN_ID_FLAG = can_id {
@@ -415,20 +433,25 @@ pub(self) fn zcanfd_frame_new<T, R>(can_id: u32, channel: u8, data: T, mut info:
             info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
         }
         if let 0..=CANFD_FRAME_LENGTH = len {
-            Some(callback(can_id, channel, data, len as u8, info))
+            callback(can_id, channel, data, len as u8, info)
         }
         else {
-            None
+            Err(ZCanError::ParamNotSupported)
         }
     } else {
-        None
+        Err(ZCanError::ParamNotSupported)
     }
 }
 
 // pub(self) fn zcan_frame_new2<const MAX_LEN: usize, T, R>(can_id: u32, channel: u8, data: T, mut info: ZCanHdrInfo,
 //                                    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> R) -> Option<R>
-pub(self) fn zcan_frame_new2<T, R>(can_id: u32, channel: u8, data: T, mut info: ZCanHdrInfo,
-                                   callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> R) -> Option<R>
+pub(self) fn zcan_frame_new2<T, R>(
+    can_id: u32,
+    channel: u8,
+    data: T,
+    mut info: ZCanHdrInfo,
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     match can_id {
@@ -451,17 +474,22 @@ pub(self) fn zcan_frame_new2<T, R>(can_id: u32, channel: u8, data: T, mut info: 
                     if info.get_field(ZCanHdrInfoField::IsErrorFrame) > 0 {
                         can_id |= CAN_ERR_FLAG;
                     }
-                    Some(callback(can_id, channel, data, len as u8, info))
+                    callback(can_id, channel, data, len as u8, info)
                 },
-                _ => None,
+                _ => Err(ZCanError::ParamNotSupported),
             }
         },
-        _ => None,
+        _ => Err(ZCanError::ParamNotSupported),
     }
 }
 
-pub(self) fn zcanfd_frame_new2<T, R>(can_id: u32, channel: u8, data: T, mut info: ZCanHdrInfo,
-                                     callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> R) -> Option<R>
+pub(self) fn zcanfd_frame_new2<T, R>(
+    can_id: u32,
+    channel: u8,
+    data: T,
+    mut info: ZCanHdrInfo,
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     if let 0..=CAN_ID_FLAG = can_id {
@@ -482,13 +510,13 @@ pub(self) fn zcanfd_frame_new2<T, R>(can_id: u32, channel: u8, data: T, mut info
             if info.get_field(ZCanHdrInfoField::IsErrorFrame) > 0 {
                 can_id |= CAN_ERR_FLAG;
             }
-            Some(callback(can_id, channel, data, len as u8, info))
+            callback(can_id, channel, data, len as u8, info)
         } else {
-            None
+            Err(ZCanError::ParamNotSupported)
         }
     }
     else {
-        None
+        Err(ZCanError::ParamNotSupported)
     }
 }
 

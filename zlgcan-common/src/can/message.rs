@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter, Result};
 use std::slice;
 use std::time::{SystemTime, UNIX_EPOCH};
+use crate::error::ZCanError;
 use super::constant::{CAN_EFF_MASK, CAN_FRAME_LENGTH, CAN_ID_FLAG, CANFD_FRAME_LENGTH};
 
 #[repr(C)]
@@ -18,6 +18,7 @@ pub struct CanMessage {
     is_rx: bool,
     bitrate_switch: bool,
     error_state_indicator: bool,
+    tx_mode: u8,
 }
 
 impl PartialEq for CanMessage {
@@ -44,19 +45,21 @@ impl PartialEq for CanMessage {
     }
 }
 
-impl Display for CanMessage {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+impl std::fmt::Display for CanMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self)   // TODO
     }
 }
 
 impl CanMessage {
-    pub fn new<T>(arbitration_id: u32,
-                  channel: Option<u8>,
-                  data: T,
-                  is_fd: bool,
-                  is_error_frame: bool,
-                  is_extended_id: Option<bool>) -> Option<Self>
+    pub fn new<T>(
+        arbitration_id: u32,
+        channel: Option<u8>,
+        data: T,
+        is_fd: bool,
+        is_error_frame: bool,
+        is_extended_id: Option<bool>
+    ) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]>  {
         match arbitration_id {
@@ -66,24 +69,27 @@ impl CanMessage {
 
                 if (is_fd && len > CANFD_FRAME_LENGTH) ||
                     (!is_fd && len > CAN_FRAME_LENGTH) {
-                    return None;
+                    Err(ZCanError::ParamNotSupported)
                 }
-                Some(Self {
-                    timestamp: 0,
-                    arbitration_id,
-                    is_extended_id: is_extended_id.unwrap_or_default() | (arbitration_id & CAN_EFF_MASK > 0),
-                    is_remote_frame: false,
-                    is_error_frame,
-                    channel: channel.unwrap_or(0),
-                    len: len as u8,
-                    data: Box::leak(data.into_boxed_slice()).as_ptr(),
-                    is_fd,
-                    is_rx: true,
-                    bitrate_switch: false,
-                    error_state_indicator: false,
-                })
+                else {
+                    Ok(Self {
+                        timestamp: 0,
+                        arbitration_id,
+                        is_extended_id: is_extended_id.unwrap_or_default() | (arbitration_id & CAN_EFF_MASK > 0),
+                        is_remote_frame: false,
+                        is_error_frame,
+                        channel: channel.unwrap_or(0),
+                        len: len as u8,
+                        data: Box::leak(data.into_boxed_slice()).as_ptr(),
+                        is_fd,
+                        is_rx: true,
+                        bitrate_switch: false,
+                        error_state_indicator: false,
+                        tx_mode: Default::default(),
+                    })
+                }
             },
-            _ => None,
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
     #[inline(always)]
@@ -170,6 +176,13 @@ impl CanMessage {
     #[inline(always)]
     pub fn set_error_state_indicator(&mut self, value: bool) -> &mut Self {
         self.error_state_indicator = value;
+        self
+    }
+    #[inline(always)]
+    pub const fn tx_mode(&self) -> u8 { self.tx_mode }
+    #[inline(always)]
+    pub fn set_tx_mode(&mut self, tx_mode: u8) -> &mut Self {
+        self.tx_mode = if tx_mode > 3 { Default::default() } else { tx_mode };
         self
     }
 

@@ -1,4 +1,5 @@
 use std::ffi::{c_uchar, c_ulong, c_ushort};
+use crate::error::ZCanError;
 use super::constant::{ZLinCheckSumMode, ZLinDataType};
 
 #[repr(C)]
@@ -76,7 +77,11 @@ pub struct ZLinFrame {
 }
 
 impl ZLinFrame {
-    pub fn new(chl: u8, data_type: ZLinDataType, data: ZLinFrameData) -> Self {
+    pub fn new(
+        chl: u8,
+        data_type: ZLinDataType,
+        data: ZLinFrameData
+    ) -> Self {
         Self { chl, data_type: data_type as u8, data }
     }
 }
@@ -116,7 +121,7 @@ pub struct ZLinPublishEx {
 }
 
 impl ZLinPublishEx {
-    pub fn new<T>(pid: u8, data: T, cs_mode: ZLinCheckSumMode) -> Option<Self>
+    pub fn new<T>(pid: u8, data: T, cs_mode: ZLinCheckSumMode) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         let mut data = Vec::from(data.as_ref());
@@ -124,15 +129,15 @@ impl ZLinPublishEx {
         match len {
             0..=64 => {
                 data.resize(64usize, 0);
-                Some(Self {
+                Ok(Self {
                     ID: pid,
                     dataLen: len as u8,
-                    data: data.try_into().expect("ZLGCAN - couldn't convert to bytearray!"),
+                    data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
                     chkSumMode: cs_mode as c_uchar,
                     reserved: Default::default(),
                 })
             },
-            _ => None,
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }

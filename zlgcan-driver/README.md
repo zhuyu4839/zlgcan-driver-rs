@@ -1,23 +1,20 @@
 ### How to use:
 ```rust
-use zlgcan_common as common;
-use zlgcan_driver as driver;
+use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, ZCanFdFrame, CanMessage};
+use zlgcan_common::device::ZCanDeviceType;
+use zlgcan_driver::driver::{ZCanDriver, ZDevice};
+#[cfg(target_os = "windows")]
+use zlgcan_common::can::ZCanFdFrameV2;
+#[cfg(target_os = "linux")]
+use zlgcan_common::can::ZCanFdFrameV1;
 
-use common::can::{
-    CanChlCfgExt, CanChlCfgFactory,
-    ZCanChlMode, ZCanChlType,
-    ZCanFdFrame, ZCanFdFrameV2,
-    CanMessage
-};
-use common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
-use driver::ZCanDriver;
 
 fn main() {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
     let dev_idx = 0;
 
     // Create driver instance
-    let mut driver = ZCanDriver::new(dev_type, dev_idx, None).unwrap();
+    let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, None).unwrap();
 
     // Open device
     driver.open().unwrap();
@@ -29,9 +26,9 @@ fn main() {
 
     // Create channel configuration factory
     let factory = CanChlCfgFactory::new().unwrap();
-    let ch1_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000,
+    let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000,
                                           CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None)).unwrap();
-    let ch2_cfg = factory.new_can_chl_cfg(dev_type, ZCanChlType::CANFD_ISO, ZCanChlMode::Normal, 500_000,
+    let ch2_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000,
                                           CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None)).unwrap();
     let cfg = vec![ch1_cfg, ch2_cfg];
 
@@ -42,9 +39,9 @@ fn main() {
     let mut msg = CanMessage::new(0x7DF, None, [0x01, 0x02, 0x03, 0x04, 0x05], true, false, None).unwrap();
     msg.set_bitrate_switch(true);   // set canfd is bitrate switch
     #[cfg(target_os = "windows")]
-    let frame = ZCanFdFrame::from(ZCanFdFrameV2::from(msg));
+        let frame = ZCanFdFrame::from(ZCanFdFrameV2::try_from(msg).unwrap());
     #[cfg(target_os = "linux")]
-    let frame = ZCanFdFrame::from(ZCanFdFrameV1::from(frame));
+        let frame = ZCanFdFrame::from(ZCanFdFrameV1::try_from(msg).unwrap());
 
     let frames = vec![frame];
 
@@ -52,7 +49,7 @@ fn main() {
     let ret = driver.transmit_canfd(0, frames).unwrap();
     assert_eq!(ret, 1);
 
-    driver.close(dev_type, dev_idx);
+    driver.close();
 }
 ```
 

@@ -1,11 +1,11 @@
-use zlgcan_driver::{unify_recv, unify_send, ZCanDriver};
+use zlgcan_driver::utils::{unify_recv, unify_send};
 use std::ffi::{c_char, c_void, CString};
-use zlgcan_common::can::{CanChlCfg, CanChlCfgExt, ZCanChlMode, ZCanChlType, ZCanFilterType};
-use zlgcan_common::device::{ZCanDevice, ZCanDeviceType, ZlgDevice};
+use zlgcan_common::can::{CanChlCfg, CanChlCfgExt};
 
 pub use zlgcan_common::can::CanMessage;
 pub use zlgcan_common::can::CanChlCfgFactory;
 pub use zlgcan_common::device::DeriveInfo;
+use zlgcan_driver::driver::{ZDevice, ZCanDriver};
 
 #[repr(C)]
 pub struct ZCanChlCfgApi {
@@ -59,24 +59,35 @@ pub extern "C" fn zlgcan_chl_cfg_can(
     match convert(factory, error) {
         Some(v) => unsafe {
             let bitrate = cfg.bitrate;
-            let filter = if cfg.filter.is_null() { None } else { Some(ZCanFilterType::from(*cfg.filter)) };
+            let filter = if cfg.filter.is_null() { None } else { Some(*cfg.filter) };
             let dbitrate = if cfg.dbitrate.is_null() { None } else { Some(*cfg.dbitrate) };
             let resistance = if cfg.resistance.is_null() { None } else { Some(*cfg.resistance == 0) };
             let acc_code = if cfg.acc_code.is_null() { None } else { Some(*cfg.acc_code) };
             let acc_mask = if cfg.acc_mask.is_null() { None } else { Some(*cfg.acc_mask) };
             let brp = if cfg.brp.is_null() { None } else { Some(*cfg.brp) };
+            // let dev_type = ZCanDeviceType::try_from(cfg.dev_type)?;
+            // let chl_type = ZCanChlType::try_from(cfg.chl_type)?;
+            // let chl_mode = ZCanChlMode::try_from(cfg.chl_mode)?;
             match v.new_can_chl_cfg(
-                ZCanDeviceType::from(cfg.dev_type),
-                ZCanChlType::from(cfg.chl_type),
-                ZCanChlMode::from(cfg.chl_mode),
+                cfg.dev_type,
+                cfg.chl_type,
+                cfg.chl_mode,
                 bitrate,
-                CanChlCfgExt::new(filter, dbitrate, resistance, acc_code, acc_mask, brp, )) {
-                Some(v) => Box::into_raw(Box::new(v)) as *const c_void,
-                None => {
-                    match dbitrate {
-                        Some(v) => set_error(format!("Can't create configuration for bitrate: {}, dbitrate: {}", bitrate, v), &mut error),
-                        None => set_error(format!("Can't create configuration for bitrate: {}", bitrate), &mut error),
-                    }
+                CanChlCfgExt::new(
+                    filter,
+                    dbitrate,
+                    resistance,
+                    acc_code,
+                    acc_mask,
+                    brp,
+                )) {
+                Ok(v) => Box::into_raw(Box::new(v)) as *const c_void,
+                Err(e) => {
+                    // match dbitrate {
+                    //     Some(v) => set_error(format!("Can't create configuration for bitrate: {}, dbitrate: {}", bitrate, v), &mut error),
+                    //     None => set_error(format!("Can't create configuration for bitrate: {}", bitrate), &mut error),
+                    // }
+                    set_error(e.to_string(), &mut error);
                     std::ptr::null()
                 }
             }
@@ -100,7 +111,7 @@ pub extern "C" fn zlgcan_open(
         None
     };
 
-    match ZCanDriver::new(ZCanDeviceType::from(dev_type), dev_idx, derive) {
+    match ZCanDriver::new(dev_type, dev_idx, derive) {
         Ok(mut device) => {
             if let Err(e) = device.open() {
                 set_error(e.to_string(), &mut error);
@@ -158,11 +169,14 @@ pub extern "C" fn zlgcan_device_info(
     match convert(device as *const ZCanDriver, error) {
         Some(v) => {
             match v.device_info() {
-                Some(v) => {
+                Ok(v) => {
                     let val = CString::new(format!("{}", v)).unwrap();
                     val.into_raw()
                 },
-                None => std::ptr::null()
+                Err(e) => {
+                    set_error(e.to_string(), error);
+                    std::ptr::null()
+                }
             }
         },
         None => std::ptr::null()
@@ -195,7 +209,13 @@ pub extern "C" fn zlgcan_send(
     error: &mut *const c_char
 ) -> bool {
     match convert(device as *const ZCanDriver, error) {
-        Some(v) => unify_send(v, msg),
+        Some(v) => match unify_send(v, msg) {
+            Ok(r) => r > 0,
+            Err(e) => {
+                set_error(e.to_string(), error);
+                false
+            }
+        }
         None => false,
     }
 }

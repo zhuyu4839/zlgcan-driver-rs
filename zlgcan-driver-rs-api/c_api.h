@@ -26,6 +26,7 @@ struct CanMessage {
     bool is_rx;
     bool bitrate_switch;
     bool error_state_indicator;
+    uint8_t tx_mode;
 };
 
 struct ZCanChlCfg {

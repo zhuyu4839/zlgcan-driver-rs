@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::{c_uchar, c_uint, c_ushort};
 use std::mem::ManuallyDrop;
 use crate::can::frame::ZCanHeaderV1;
+use crate::error::ZCanError;
 use super::constant::{BRP, CANERR_FRAME_LENGTH, SJW, SMP, TSEG1, TSEG2, ZCanChlMode, ZCanChlType, ZCanFilterType};
 
 /// Linux USBCAN USBCAN_4E(8_E) USBCANFD_800U and windows
@@ -19,8 +20,17 @@ pub struct ZCanChlCfg {
 }
 impl ZCanChlCfg {
     #[inline(always)]
-    pub fn new(mode: ZCanChlMode, timing0: u32, timing1: u32, filter: ZCanFilterType, acc_code: Option<u32>, acc_mask: Option<u32>) -> Self {
-        Self {
+    pub fn new(
+        mode: u8,
+        timing0: u32,
+        timing1: u32,
+        filter: u8,
+        acc_code: Option<u32>,
+        acc_mask: Option<u32>
+    ) -> Result<Self, ZCanError> {
+        let mode = ZCanChlMode::try_from(mode)?;
+        let filter = ZCanFilterType::try_from(filter)?;
+        Ok(Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),
             reserved: Default::default(),
@@ -28,7 +38,7 @@ impl ZCanChlCfg {
             timing0: timing0 as u8,
             timing1: timing1 as u8,
             mode: mode as u8,
-        }
+        })
     }
 }
 
@@ -50,8 +60,18 @@ pub struct ZCanFdChlCfgV1 {
 }
 impl ZCanFdChlCfgV1 {
     #[inline(always)]
-    pub fn new(mode: ZCanChlMode, timing0: u32, timing1: u32, filter: ZCanFilterType, acc_code: Option<u32>, acc_mask: Option<u32>, brp: Option<u32>) -> Self {
-        Self {
+    pub fn new(
+        mode: u8,
+        timing0: u32,
+        timing1: u32,
+        filter: u8,
+        acc_code: Option<u32>,
+        acc_mask: Option<u32>,
+        brp: Option<u32>
+    ) -> Result<Self, ZCanError> {
+        let mode = ZCanChlMode::try_from(mode)?;
+        let filter = ZCanFilterType::try_from(filter)?;
+        Ok(Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),
             timing0,
@@ -61,7 +81,7 @@ impl ZCanFdChlCfgV1 {
             mode: mode as u8,
             pad: Default::default(),
             reserved: Default::default(),
-        }
+        })
     }
 }
 
@@ -76,15 +96,21 @@ pub struct ZCanFdChlCfgSet {
     brp: c_ushort,
 }
 
-impl From<&HashMap<String, u32>> for ZCanFdChlCfgSet {
-    fn from(value: &HashMap<String, u32>) -> Self {
-        let tseg1 = value.get(TSEG1).expect(format!("ZLGCAN - `{}` is not configured in file!", TSEG1).as_str());
-        let tseg2 = value.get(TSEG2).expect(format!("ZLGCAN - `{}` is not configured in file!", TSEG2).as_str());
-        let sjw = value.get(SJW).expect(format!("ZLGCAN - `{}` is not configured in file!", SJW).as_str());
-        let smp = value.get(SMP).expect(format!("ZLGCAN - `{}` is not configured in file!", SMP).as_str());
-        let brp = value.get(BRP).expect(format!("ZLGCAN - `{}` is not configured in file!", BRP).as_str());
+impl TryFrom<&HashMap<String, u32>> for ZCanFdChlCfgSet {
+    type Error = ZCanError;
+    fn try_from(value: &HashMap<String, u32>) -> Result<Self, Self::Error> {
+        let tseg1 = value.get(TSEG1)
+            .ok_or(ZCanError::ConfigurationError(format!("`{}` is not configured in file!", TSEG1)))?;
+        let tseg2 = value.get(TSEG2)
+            .ok_or(ZCanError::ConfigurationError(format!("ZLGCAN - `{}` is not configured in file!", TSEG2)))?;
+        let sjw = value.get(SJW)
+            .ok_or(ZCanError::ConfigurationError(format!("ZLGCAN - `{}` is not configured in file!", SJW)))?;
+        let smp = value.get(SMP)
+            .ok_or(ZCanError::ConfigurationError(format!("ZLGCAN - `{}` is not configured in file!", SMP)))?;
+        let brp = value.get(BRP)
+            .ok_or(ZCanError::ConfigurationError(format!("ZLGCAN - `{}` is not configured in file!", BRP)))?;
 
-        Self::new(*tseg1, *tseg2, *sjw, *smp, *brp)
+        Ok(Self::new(*tseg1, *tseg2, *sjw, *smp, *brp))
     }
 }
 
@@ -113,18 +139,25 @@ pub struct ZCanFdChlCfgV2 {
 }
 impl ZCanFdChlCfgV2 {
     #[inline(always)]
-    pub fn new(can_type: ZCanChlType, mode: ZCanChlMode, clock: u32, aset: ZCanFdChlCfgSet, dset: ZCanFdChlCfgSet) -> Self {
+    pub fn new(
+        can_type: u8,
+        mode: u8,
+        clock: u32, aset: ZCanFdChlCfgSet,
+        dset: ZCanFdChlCfgSet
+    ) -> Result<Self, ZCanError> {
+        let can_type = ZCanChlType::try_from(can_type)?;
+        let mode = ZCanChlMode::try_from(mode)?;
         let mut mode = mode as u32;
         match can_type {
             ZCanChlType::CANFD_NON_ISO => mode |= 2,
             _ => {},
         }
-        Self {
+        Ok(Self {
             clk: clock,
             mode,
             aset,
             dset,
-        }
+        })
     }
 }
 /// end of Linux USBCANFD
@@ -154,8 +187,16 @@ pub struct ZCanChlCfgV1 {
 }
 impl ZCanChlCfgV1 {
     #[inline(always)]
-    pub fn new(can_type: ZCanChlType, cfg: ZCanChlCfgV1Union) -> Self {
-        Self { can_type: can_type as u32, cfg }
+    pub fn new(
+        can_type: u8,
+        cfg: ZCanChlCfgV1Union
+    ) -> Result<Self, ZCanError> {
+        let can_type = ZCanChlType::try_from(can_type)?;
+        let can_type = match can_type {
+            ZCanChlType::CAN | ZCanChlType::CANFD_ISO => ZCanChlType::CANFD_ISO,
+            v => v,
+        };
+        Ok(Self { can_type: can_type as u32, cfg })
     }
 }
 

@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use crate::error::ZCanError;
 
 pub(crate) const BITRATE_CFG_FILENAME: &str = "bitrate.cfg.yaml";
 pub(crate) const TIMING0: &str = "timing0";
@@ -32,13 +33,14 @@ pub enum ZCanFrameType {
     ALL = 2,
 }
 
-impl From<u8> for ZCanFrameType {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanFrameType {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => ZCanFrameType::CAN,
-            1 => ZCanFrameType::CANFD,
-            2 => ZCanFrameType::ALL,
-            _ => panic!("value is out of range!"),
+            0 => Ok(ZCanFrameType::CAN),
+            1 => Ok(ZCanFrameType::CANFD),
+            2 => Ok(ZCanFrameType::ALL),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }
@@ -61,12 +63,13 @@ pub enum ZCanChlMode {
     ListenOnly = 1,
 }
 
-impl From<u8> for ZCanChlMode {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanChlMode {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => ZCanChlMode::Normal,
-            1 => ZCanChlMode::ListenOnly,
-            _ => panic!("value is out of range!"),
+            0 => Ok(ZCanChlMode::Normal),
+            1 => Ok(ZCanChlMode::ListenOnly),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }
@@ -78,12 +81,13 @@ pub enum ZCanFdStd {
     CANFD_NON_ISO = 1,
 }
 
-impl From<u8> for ZCanFdStd {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanFdStd {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => ZCanFdStd::CANFD_ISO,
-            1 => ZCanFdStd::CANFD_NON_ISO,
-            _ => panic!("value is out of range!"),
+            0 => Ok(ZCanFdStd::CANFD_ISO),
+            1 => Ok(ZCanFdStd::CANFD_NON_ISO),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }
@@ -98,13 +102,14 @@ pub enum ZCanChlType {
     CANFD_NON_ISO = 2,
 }
 
-impl From<u8> for ZCanChlType {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanChlType {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => ZCanChlType::CAN,
-            1 => ZCanChlType::CANFD_ISO,
-            2 => ZCanChlType::CANFD_NON_ISO,
-            _ => panic!("value is out of range!"),
+            0 => Ok(ZCanChlType::CAN),
+            1 => Ok(ZCanChlType::CANFD_ISO),
+            2 => Ok(ZCanChlType::CANFD_NON_ISO),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }
@@ -116,12 +121,13 @@ pub enum ZCanFilterType {
     Single = 1,
 }
 
-impl From<u8> for ZCanFilterType {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanFilterType {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => ZCanFilterType::Double,
-            1 => ZCanFilterType::Single,
-            _ => panic!("value is out of range!"),
+            0 => Ok(ZCanFilterType::Double),
+            1 => Ok(ZCanFilterType::Single),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }
@@ -135,14 +141,15 @@ pub enum ZCanTxMode {
     SelfReceptionOnce = 3,  //**< single-shot transmission & self reception */
 }
 
-impl From<u8> for ZCanTxMode {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanTxMode {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => ZCanTxMode::Normal,
-            1 => ZCanTxMode::Once,
-            2 => ZCanTxMode::SelfReception,
-            3 => ZCanTxMode::SelfReceptionOnce,
-            _ => panic!("value is out of range!"),
+            0 => Ok(ZCanTxMode::Normal),
+            1 => Ok(ZCanTxMode::Once),
+            2 => Ok(ZCanTxMode::SelfReception),
+            3 => Ok(ZCanTxMode::SelfReceptionOnce),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }
@@ -158,17 +165,18 @@ pub enum ZCanHdrInfoField {
     IsErrorStateIndicator = 7,
 }
 
-impl From<u8> for ZCanHdrInfoField {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for ZCanHdrInfoField {
+    type Error = ZCanError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            1 => ZCanHdrInfoField::TxMode,
-            2 => ZCanHdrInfoField::FrameType,
-            3 => ZCanHdrInfoField::IsRemoteFrame,
-            4 => ZCanHdrInfoField::IsExtendFrame,
-            5 => ZCanHdrInfoField::IsErrorFrame,
-            6 => ZCanHdrInfoField::IsBitrateSwitch,
-            7 => ZCanHdrInfoField::IsErrorStateIndicator,
-            _ => panic!("value is out of range!"),
+            1 => Ok(ZCanHdrInfoField::TxMode),
+            2 => Ok(ZCanHdrInfoField::FrameType),
+            3 => Ok(ZCanHdrInfoField::IsRemoteFrame),
+            4 => Ok(ZCanHdrInfoField::IsExtendFrame),
+            5 => Ok(ZCanHdrInfoField::IsErrorFrame),
+            6 => Ok(ZCanHdrInfoField::IsBitrateSwitch),
+            7 => Ok(ZCanHdrInfoField::IsErrorStateIndicator),
+            _ => Err(ZCanError::ParamNotSupported),
         }
     }
 }

@@ -1,8 +1,6 @@
-use zlgcan_common as common;
-
 mod utils;
 
-use common::device::{DeriveInfo, ZCanDeviceType};
+use zlgcan_common::device::{DeriveInfo, ZCanDeviceType};
 use self::utils::{can_device1, can_device2};
 
 #[test]

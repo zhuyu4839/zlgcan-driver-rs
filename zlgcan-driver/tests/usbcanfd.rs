@@ -1,8 +1,6 @@
-use zlgcan_common as common;
-
 mod utils;
 
-use common::device::ZCanDeviceType;
+use zlgcan_common::device::ZCanDeviceType;
 use self::utils::canfd_device2;
 
 #[test]

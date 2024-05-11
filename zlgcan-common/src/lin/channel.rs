@@ -1,4 +1,5 @@
 use std::ffi::{c_uchar, c_uint};
+use crate::error::ZCanError;
 use super::constant::{ZLinCheckSumMode, ZLinMode};
 
 #[allow(non_snake_case)]
@@ -15,14 +16,21 @@ pub struct ZLinChlCfg {
 impl ZLinChlCfg {
     /// Create LIN channel configuration.
     /// max_len is required only windows.
-    pub fn new(mode: ZLinMode, cs_mode: ZLinCheckSumMode, bitrate: u32, max_len: Option<u8>) -> Option<Self> {
+    pub fn new(
+        mode: u8,
+        cs_mode: u8,
+        bitrate: u32,
+        max_len: Option<u8>
+    ) -> Result<Self, ZCanError> {
+        let mode = ZLinMode::try_from(mode)?;
+        let cs_mode = ZLinCheckSumMode::try_from(cs_mode)?;
         match max_len {
             Some(v) => {
                 match v {
                     8..=64 => {
                         match bitrate {
                             1000..=20000 => {
-                                Some(Self {
+                                Ok(Self {
                                     linMode: mode as c_uchar,
                                     chkSumMode: cs_mode as c_uchar,
                                     maxLength: v,
@@ -30,14 +38,14 @@ impl ZLinChlCfg {
                                     linBaud: bitrate
                                 })
                             },
-                            _ => None,
+                            _ => Err(ZCanError::ParamNotSupported),
                         }
                     },
-                    _ => None,
+                    _ => Err(ZCanError::ParamNotSupported),
                 }
             },
             None => {
-                Some(Self {
+                Ok(Self {
                     linMode: mode as c_uchar,
                     chkSumMode: cs_mode as c_uchar,
                     maxLength: Default::default(),
