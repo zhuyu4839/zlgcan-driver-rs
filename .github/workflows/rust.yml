@@ -1,0 +1,17 @@
+name: Rust CI
+on:
+  push:
+    branches: [ master ]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Windows x86_64
+        run: cargo build --target x86_64-pc-windows-gnu --release --verbose
+      - name: Build Windows i686
+        run: cargo build --target i686-pc-windows-gnu --release --verbose
+      - name: Build Linux x86_64
+        run: cargo build --target x86_64-unknown-linux-gnu --release --verbose
