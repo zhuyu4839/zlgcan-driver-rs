@@ -61,7 +61,7 @@ pub extern "C" fn zlgcan_chl_cfg_can(
             let bitrate = cfg.bitrate;
             let filter = if cfg.filter.is_null() { None } else { Some(*cfg.filter) };
             let dbitrate = if cfg.dbitrate.is_null() { None } else { Some(*cfg.dbitrate) };
-            let resistance = if cfg.resistance.is_null() { None } else { Some(*cfg.resistance == 0) };
+            let resistance = if cfg.resistance.is_null() { None } else { Some(*cfg.resistance != 0) };
             let acc_code = if cfg.acc_code.is_null() { None } else { Some(*cfg.acc_code) };
             let acc_mask = if cfg.acc_mask.is_null() { None } else { Some(*cfg.acc_mask) };
             let brp = if cfg.brp.is_null() { None } else { Some(*cfg.brp) };
