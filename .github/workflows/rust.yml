@@ -1,17 +1,70 @@
 name: Rust CI
 on:
   push:
-    branches: [ master ]
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
 env:
   CARGO_TERM_COLOR: always
+  TARGET_X86_64: x86_64
+  TARGET_I686: i686
+  WINDOWS: -pc-windows-gnu
+  WINDOWS_EXT: .dll
+  LINUX: -unknown-linux-gnu
+  LINUX_EXT: .so
+  RELEASE: release
+  TARGET: target
+  PROJECT: zlgcan-driver-rs-api
+  API_NAME: zlgcan_driver_rs_api
+  TAG_NAME: ${{ inputs.upload-tag }}
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@master
+      - name: Install Compiler
+        run: sudo apt-get update && sudo apt-get install mingw-w64
+      - name: Install Windows x86_64 target
+        run: rustup target add ${{ env.TARGET_X86_64 }}${{ env.WINDOWS }}
       - name: Build Windows x86_64
-        run: cargo build --target x86_64-pc-windows-gnu --release --verbose
+        run: cargo build --target ${{ env.TARGET_X86_64 }}${{ env.WINDOWS }} --${{ env.RELEASE }} --verbose
+      - name: Install Windows i686 target
+        run: rustup target add ${{ env.TARGET_I686 }}${{ env.WINDOWS }}
       - name: Build Windows i686
-        run: cargo build --target i686-pc-windows-gnu --release --verbose
+        run: cargo build --target ${{ env.TARGET_I686 }}${{ env.WINDOWS }} --${{ env.RELEASE }} --verbose
+      - name: Install Linux x86_64 target
+        run: rustup target add ${{ env.TARGET_X86_64 }}${{ env.LINUX }}
       - name: Build Linux x86_64
-        run: cargo build --target x86_64-unknown-linux-gnu --release --verbose
+        run: cargo build --target ${{ env.TARGET_X86_64 }}${{ env.LINUX }} --${{ env.RELEASE }} --verbose
+      - name: Compress api library
+        run: |
+          export API_PATH=${{ env.TARGET }}/${{ env.PROJECT }}
+          mkdir -p ${API_PATH}
+          mv ${{ env.TARGET }}/${{ env.TARGET_X86_64 }}${{ env.WINDOWS }}/${{ env.RELEASE }}/${{ env.API_NAME }}.dll ${API_PATH}/${{ env.API_NAME }}.${{ env.TARGET_X86_64 }}.${{ env.WINDOWS_EXT }}
+          mv ${{ env.TARGET }}/${{ env.TARGET_I686 }}${{ env.WINDOWS }}/${{ env.RELEASE }}/${{ env.API_NAME }}.dll ${API_PATH}/${{ env.API_NAME }}.${{ env.TARGET_I686 }}.${{ env.WINDOWS_EXT }}
+          mv ${{ env.TARGET }}/${{ env.TARGET_X86_64 }}${{ env.LINUX }}/${{ env.RELEASE }}/lib${{ env.API_NAME }}.so ${API_PATH}/lib${{ env.API_NAME }}.${{ env.TARGET_X86_64 }}.${{ env.LINUX_EXT }}
+          tar -czvf ${{ env.TARGET }}/${{ env.PROJECT }}.tar.gz ${API_PATH}/
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_TOKEN1 }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.MY_TOKEN1 }}
+          file: ${{ env.TARGET }}/${{ env.PROJECT }}.tar.gz
+          asset_name: ${{ env.PROJECT }}.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: |
+            Add USBCAN-I/USBCAN-II supported
+            Add USBCANFD-100MINI/USBCANFD-200U supported
