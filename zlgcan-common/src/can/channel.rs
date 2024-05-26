@@ -125,6 +125,18 @@ impl ZCanFdChlCfgSet {
             brp: brp as u16,
         }
     }
+    /// Only used for USBCANFD-800U
+    #[inline(always)]
+    pub fn get_timing(&self) -> u32 {
+        (self.brp as u32) << 22
+            | (self.sjw as u32 & 0x7f) << 15
+            | (self.tseg2 as u32 & 0x7f) << 8
+            | (self.tseg1 as u32)
+        // (self.tseg1 as u32 & 0xff) << 24
+        //     | (self.tseg2 as u32 & 0x7f) << 17
+        //     | (self.sjw as u32 & 0x7f) << 10
+        //     | self.brp as u32 & 0x3ff
+    }
 }
 /// Linux USBCANFD
 #[repr(C)]
@@ -142,15 +154,15 @@ impl ZCanFdChlCfgV2 {
     pub fn new(
         can_type: u8,
         mode: u8,
-        clock: u32, aset: ZCanFdChlCfgSet,
+        clock: u32,
+        aset: ZCanFdChlCfgSet,
         dset: ZCanFdChlCfgSet
     ) -> Result<Self, ZCanError> {
         let can_type = ZCanChlType::try_from(can_type)?;
         let mode = ZCanChlMode::try_from(mode)?;
         let mut mode = mode as u32;
-        match can_type {
-            ZCanChlType::CANFD_NON_ISO => mode |= 2,
-            _ => {},
+        if let ZCanChlType::CANFD_NON_ISO = can_type {
+            mode |= 2;
         }
         Ok(Self {
             clk: clock,
@@ -167,11 +179,23 @@ pub union ZCanChlCfgV1Union {
     can: ZCanChlCfg,
     canfd: ZCanFdChlCfgV1,
 }
+impl From<ZCanChlCfg> for ZCanChlCfgV1Union {
+    fn from(value: ZCanChlCfg) -> Self {
+        Self { can: value }
+    }
+}
+impl From<ZCanFdChlCfgV1> for ZCanChlCfgV1Union {
+    fn from(value: ZCanFdChlCfgV1) -> Self {
+        Self { canfd: value }
+    }
+}
 impl ZCanChlCfgV1Union {
+    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_can(can: ZCanChlCfg) -> Self {
         Self { can }
     }
+    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_canfd(canfd: ZCanFdChlCfgV1) -> Self {
         Self { canfd }
@@ -207,11 +231,26 @@ pub union ZCanChlCfgV2 {
     can: ZCanChlCfg,
     canfd: ZCanFdChlCfgV2
 }
+
+impl From<ZCanChlCfg> for ZCanChlCfgV2 {
+    fn from(value: ZCanChlCfg) -> Self {
+        Self { can: value }
+    }
+}
+
+impl From<ZCanFdChlCfgV2> for ZCanChlCfgV2 {
+    fn from(value: ZCanFdChlCfgV2) -> Self {
+        Self { canfd: value }
+    }
+}
+
 impl ZCanChlCfgV2 {
+    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_can(can: ZCanChlCfg) -> Self {
         Self { can }
     }
+    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_canfd(canfd: ZCanFdChlCfgV2) -> Self {
         Self { canfd }

@@ -8,7 +8,7 @@ use super::{
     message::CanMessage
 };
 
-pub(self) fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool) -> Result<T, ZCanError> {
+fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool) -> Result<T, ZCanError> {
     let mut info: ZCanHdrInfo = Default::default();
 
     if canfd {
@@ -50,7 +50,12 @@ impl TryFrom<ZCanFrameV1> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanFrameV1) -> Result<Self, Self::Error> {
         let mut message = CanMessage::new(
-            value.can_id, None, value.data.to_owned().to_vec(), false, false, Some(value.ext_flag > 0)
+            value.can_id,
+            None,
+            value.data,
+            false,
+            false,
+            Some(value.ext_flag > 0)
         )?;
         message.set_length(value.len);
         message.set_timestamp(None);

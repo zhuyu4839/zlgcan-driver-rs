@@ -2,6 +2,23 @@ use std::ffi::{c_uchar, c_uint, c_ushort};
 use crate::error::ZCanError;
 use super::constant::{CAN_ID_FLAG, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanHdrInfoField, CAN_EFF_MASK, CAN_EFF_FLAG, CAN_RTR_FLAG, CAN_ERR_FLAG, CANFD_BRS, CANFD_ESI};
 
+#[repr(C)]
+pub struct USBCanEUAutoTransFrame {
+    pub interval: u32,
+    pub can_id: u32,
+    pub is_extend: bool,
+    pub is_remote: bool,
+    pub length: u8,
+    pub data: *const u8,
+}
+
+#[repr(C)]
+pub struct USBCanEUWhiteList {
+    pub is_extend: bool,
+    pub start: u32,
+    pub stop: u32,
+}
+
 pub trait NewZCanFrame {
     fn new<T>(
         can_id: u32,
@@ -388,7 +405,7 @@ impl ZCanFdFrame {
     }
 }
 
-pub(self) fn zcan_frame_new<T, R>(
+fn zcan_frame_new<T, R>(
     can_id: u32,
     channel: u8,
     data: T,
@@ -416,7 +433,7 @@ pub(self) fn zcan_frame_new<T, R>(
     }
 }
 
-pub(self) fn zcanfd_frame_new<T, R>(
+fn zcanfd_frame_new<T, R>(
     can_id: u32,
     channel: u8,
     data: T,
@@ -445,7 +462,7 @@ pub(self) fn zcanfd_frame_new<T, R>(
 
 // pub(self) fn zcan_frame_new2<const MAX_LEN: usize, T, R>(can_id: u32, channel: u8, data: T, mut info: ZCanHdrInfo,
 //                                    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> R) -> Option<R>
-pub(self) fn zcan_frame_new2<T, R>(
+fn zcan_frame_new2<T, R>(
     can_id: u32,
     channel: u8,
     data: T,
@@ -483,7 +500,7 @@ pub(self) fn zcan_frame_new2<T, R>(
     }
 }
 
-pub(self) fn zcanfd_frame_new2<T, R>(
+fn zcanfd_frame_new2<T, R>(
     can_id: u32,
     channel: u8,
     data: T,

@@ -4,7 +4,7 @@ use thiserror::Error;
 pub enum ZCanError {
     #[error("ZLGCAN - Invalid device type!")]
     InvalidDeviceType,
-    #[error("ZLGCAN - Library load failed!")]
+    #[error("ZLGCAN - Library load failed: {0}!")]
     LibraryLoadFailed(String),
     #[error("ZLGCAN - Device is not supported!")]
     DeviceNotSupported,

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::{c_uchar, c_ushort, CString};
 use std::fmt::{Display, Formatter};
-use crate::can::Reference;
 use crate::device::DeriveInfo;
 use crate::error::ZCanError;
 
@@ -162,10 +161,7 @@ impl Handler {
     }
     #[inline(always)]
     pub fn find_can(&self, channel: u8) -> Option<u32> {
-        match self.cans.get(&channel) {
-            Some(v) => Some(*v),
-            None => None,
-        }
+        self.cans.get(&channel).copied()
     }
     #[inline(always)]
     pub fn remove_can(&mut self, channel: u8) {
@@ -177,10 +173,7 @@ impl Handler {
     }
     #[inline(always)]
     pub fn find_lin(&self, channel: u8) -> Option<u32> {
-        match self.lins.get(&channel) {
-            Some(v) => Some(*v),
-            None => None,
-        }
+        self.lins.get(&channel).copied()
     }
     #[inline(always)]
     pub fn remove_lin(&mut self, channel: u8) {
@@ -246,8 +239,8 @@ impl<'a> CmdPath<'a> {
     }
 
     #[inline(always)]
-    pub fn new_reference(value: Reference) -> Self {
-        Self { reference: value as u32 }
+    pub fn new_reference(value: u32) -> Self {
+        Self { reference: value }
     }
 
     #[inline(always)]

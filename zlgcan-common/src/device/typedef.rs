@@ -3,7 +3,7 @@ use crate::error::ZCanError;
 
 #[allow(non_camel_case_types, dead_code)]
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ZCanDeviceType {
     Undefined                          = 0,
     ZCAN_PCI5121                       = 1,
@@ -119,8 +119,7 @@ impl ZCanDeviceType {
     pub const fn is_can_chl_cfg_v1(&self) -> bool {
         matches!(
             self,
-            ZCanDeviceType::ZCAN_USBCAN_4E_U | ZCanDeviceType::ZCAN_USBCAN_8E_U |
-            ZCanDeviceType::ZCAN_USBCANFD_800U
+            ZCanDeviceType::ZCAN_USBCAN_4E_U | ZCanDeviceType::ZCAN_USBCAN_8E_U
         )
     }
     #[cfg(target_os = "windows")]
@@ -132,7 +131,8 @@ impl ZCanDeviceType {
         matches!(
             self,
             ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 |
-            ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U | ZCanDeviceType::ZCAN_USBCANFD_MINI
+            ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U | ZCanDeviceType::ZCAN_USBCANFD_MINI |
+            ZCanDeviceType::ZCAN_USBCANFD_800U
         )
     }
 
@@ -155,7 +155,7 @@ impl ZCanDeviceType {
         matches!(
             self,
             ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U |
-            ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_800U
+            ZCanDeviceType::ZCAN_USBCANFD_MINI
         )
     }
     /// Check the device is can use frame v2
@@ -224,7 +224,7 @@ impl ZCanDeviceType {
     pub const fn lin_support(&self) -> bool{
         matches!(
             self,
-            ZCanDeviceType::ZCAN_USBCANFD_200U
+            ZCanDeviceType::ZCAN_USBCANFD_200U | ZCanDeviceType::ZCAN_USBCANFD_800U
         )
     }
     pub const fn canfd_support(&self) -> bool {
