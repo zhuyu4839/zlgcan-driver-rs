@@ -5,8 +5,11 @@ pub mod driver;
 #[allow(dead_code)]
 pub(crate) mod constant {
     pub(crate) const LOAD_LIB_FAILED: &str = "ZLGCAN - could not open library!";
+    #[deprecated(since = "1.0.0-rc2", note = "use Self::INVALID_DEVICE_HANDLE")]
     pub(crate) const INVALID_DEVICE_HANDLE: u32 = 0;
+    #[deprecated(since = "1.0.0-rc2", note = "use Self::INVALID_CHANNEL_HANDLE")]
     pub(crate) const INVALID_CHANNEL_HANDLE: u32 = 0;
+    #[deprecated(since = "1.0.0-rc2", note = "use Self::STATUS_OK")]
     pub(crate) const STATUS_OK: u32 = 1;
     pub(crate) const STATUS_ONLINE: u32 = 2;
     pub(crate) const STATUS_OFFLINE: u32 = 3;
@@ -50,4 +53,24 @@ pub(crate) mod constant {
 // "info/channel/channel_x/redirect"
 // "info/channel/channel_x/whitelisting"
 // "info/channel/channel_x/autotxobj"
+    #[inline]
+    pub(crate) fn channel_bitrate(channel: u8) -> String {
+        format!("info/channel/channel_{}/baud_rate", channel)
+    }
+    #[inline]
+    pub(crate) fn channel_work_mode(channel: u8) -> String {
+        format!("info/channel/channel_{}/work_mode", channel)
+    }
+    #[inline]
+    pub(crate) fn channel_redirect(channel: u8) -> String {
+        format!("info/channel/channel_{}/redirect", channel)
+    }
+    #[inline]
+    pub(crate) fn channel_whitelisting(channel: u8) -> String {
+        format!("info/channel/channel_{}/whitelisting", channel)
+    }
+    #[inline]
+    pub(crate) fn channel_auto_trans(channel: u8) -> String {
+        format!("info/channel/channel_{}/autotxobj", channel)
+    }
 }

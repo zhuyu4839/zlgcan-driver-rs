@@ -22,10 +22,19 @@ USBCANFD: &USBCANFD
   data_bitrate:
     500000: { tseg1: 2, tseg2: 0, sjw: 0, smp: 80, brp: 23 }
     1000000: { tseg1: 2, tseg2: 0, sjw: 0, smp: 80, brp: 11 }
+USBCANFD800U: &USBCANFD800U
+  bitrate:
+    500000: { tseg1: 31, tseg2: 8, sjw: 8, smp: 0, brp: 2 }
+    1000000: { tseg1: 5, tseg2: 4, sjw: 1, smp: 0, brp: 4 }
+  data_bitrate:
+    500000: { tseg1: 31, tseg2: 8, sjw: 8, smp: 0, brp: 2 }
+    1000000: { tseg1: 5, tseg2: 4, sjw: 1, smp: 0, brp: 4 }
 
 3: *USBCAN  # USBCAN1
 4: *USBCAN  # USBCAN2
+31: *USBCAN   # ZCAN_USBCAN_4E_U|ZCAN_USBCAN_8E_U
 33: *USBCANFD # ZCAN_CANDTU_MINI
 41: *USBCANFD # USBCANFD_200U|USBCANFD_400U
 42: *USBCANFD # USBCANFD_100U
 43: *USBCANFD # USBCANFD_MINI
+59: *USBCANFD800U

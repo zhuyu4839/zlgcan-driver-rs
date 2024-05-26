@@ -1,12 +1,11 @@
 use dlopen2::symbor::{Symbol, SymBorApi};
 use std::ffi::{c_char, c_uchar, c_uint, c_void, CString};
 
-use zlgcan_common::can::{CanChlCfg, ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanChlType, ZCanFdFrame, ZCanFrame, ZCanFrameType};
+use zlgcan_common::can::{CanChlCfg, ZCanChlCfgV1, ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanFdFrame, ZCanFrame, ZCanFrameType};
 use zlgcan_common::device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo};
 use zlgcan_common::error::ZCanError;
 use zlgcan_common::utils::c_str_to_string;
 
-use crate::constant::{STATUS_OK, INVALID_CHANNEL_HANDLE, INVALID_DEVICE_HANDLE};
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 
 #[allow(non_snake_case)]
@@ -22,7 +21,7 @@ pub(crate) struct USBCANFD800UApi<'a> {
     //ZCAN_IsDeviceOnLine: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint) -> c_uint>,
 
     /// CHANNEL_HANDLE FUNC_CALL ZCAN_InitCAN(DEVICE_HANDLE device_handle, UINT can_index, ZCAN_CHANNEL_INIT_CONFIG* pInitConfig);
-    ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, ZCanChlCfgDetail) -> c_uint>,
+    ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfgDetail) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_StartCAN(CHANNEL_HANDLE channel_handle);
     ZCAN_StartCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ResetCAN(CHANNEL_HANDLE channel_handle);
@@ -58,22 +57,101 @@ pub(crate) struct USBCANFD800UApi<'a> {
     /// UINT FUNC_CALL ReleaseIProperty(IProperty * pIProperty);
     ReleaseIProperty: Symbol<'a, unsafe extern "C" fn(p: *const IProperty) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_GetReference(UINT DeviceType, UINT nDevIndex, UINT nChnlIndex, UINT nRefType, void* pData);
-    ZCAN_GetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, cmd: c_uint, value: *mut c_void) -> c_uint>,
+    ZCAN_GetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, chl: c_uint, cmd: c_uint, value: *mut c_void) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_SetReference(UINT DeviceType, UINT nDevIndex, UINT nChnlIndex, UINT nRefType, void* pData);
-    ZCAN_SetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, cmd: c_uint, value: *const c_void) -> c_uint>,
+    ZCAN_SetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, chl: c_uint, cmd: c_uint, value: *const c_void) -> c_uint>,
+}
+
+#[allow(dead_code)]
+impl USBCANFD800UApi<'_> {
+    pub(crate) const INVALID_DEVICE_HANDLE: u32 = 0;
+    pub(crate) const INVALID_CHANNEL_HANDLE: u32 = 0;
+    pub(crate) const STATUS_OK: u32 = 1;
+    // #define MAX_DEVICE_COUNT                        32  //支持的设备数量
+    // #define DEVICE_CAN_CHNL_COUNT_MAX               8   //支持最大的CAN通道数量,实际通道数量可能小于此数值
+    // #define DEVICE_LIN_CHNL_COUNT_MAX               4   //支持最大的LIN通道数量,实际通道数量可能小于此数值
+    // #define DEVICE_TOTAL_CHNL_COUNT                 (DEVICE_CAN_CHNL_COUNT_MAX + DEVICE_LIN_CHNL_COUNT_MAX)
+    // #define FILTER_RULE_COUNT_MAX                   64  //设备允许的过滤条数
+    // #define DEV_AUTO_SEND_INDEX_MAX                 32  //定时发送索引最大值
+    pub(crate) const REF_CONTROLLER_TYPE: u32 = 1;                 // pData 指向uint32_t, 0:CAN; 1：ISO CANFD; 2:Non-ISO CANFD, 需要在StartCAN之前设置
+    pub(crate) const REF_ADD_FILTER: u32 = 2;                      // 添加通道过滤条目，pData Pointer to RefFilterItem(12 Bytes)
+    pub(crate) const REF_APPLY_FILTER: u32 = 3;                    // 应用通道过滤
+    pub(crate) const REF_CLEAR_FILTER: u32 = 4;                    // 清除通道过滤
+    pub(crate) const REF_UPDATE_FIRMWARE: u32 = 5;                 // pData Pointer to FirmwareUpdateParam结构,指示固件路径
+    pub(crate) const REF_GET_UPDATE_STATUS: u32 = 6;               // pData Pointer to FirmwareUpdateStatus
+    pub(crate) const REF_ADD_TIMER_SEND_CAN: u32 = 7;              // pData Pointer to ZCAN_AUTO_TRANSMIT_OBJ
+    pub(crate) const REF_ADD_TIMER_SEND_CANFD: u32 = 8;            // pData Pointer to ZCANFD_AUTO_TRANSMIT_OBJ
+    pub(crate) const REF_APPLY_TIMER_SEND: u32 = 9;                // Start Timer Send
+    pub(crate) const REF_APPLY_TIMER_SEND_FD: u32 = 10;            // Stop Timer Send & Clear Send List
+    pub(crate) const REF_INTERNAL_RESISTANCE: u32 = 11;            // pData 指向uint32_t, 0:断开内置终端电阻；1：使用设备内部终端电阻, 需要在StartCAN之前设置
+    pub(crate) const REF_SET_DEVICE_NAME: u32 = 12;                // 设备设备名称，pData Pointer to char*
+    pub(crate) const REF_GET_DEVICE_NAME: u32 = 13;                // 设备设备名称，pData 指向用户申请内存，大小需要足够容纳设备名字
+    pub(crate) const REF_CLEAR_DEVICE_LOG: u32 = 14;               // 清除设备日志
+    pub(crate) const REF_GET_DEVICE_LOG_SIZE: u32 = 15;            // 获取设备日志大小，pData Pointer to uint32_t
+    pub(crate) const REF_GET_DEVICE_LOG_DATA: u32 = 16;            // 设备设备日志内容，pData 指向用户申请内存，大小需要足够容纳设备日志
+    pub(crate) const REF_SET_DATA_RECV_MERGE: u32 = 17;            // 设置合并接收数据，CAN/LIN/GPS以及不同通道的数据合并接收,pData Pointer to uint32_t, 0:关闭合并接收，1：开启合并接收
+    pub(crate) const REF_GET_DATA_RECV_MERGE: u32 = 18;            // 获取合并接收数据状态，pData Pointer to uint32_t, 0:合并接收关闭，1：合并接收处于开启状态
+    pub(crate) const REF_INTERNAL_TEST: u32 = 19;
+    pub(crate) const REF_VERIFY_DEVICE_BY_PASS: u32 = 20;          // ZCANPRO验证设备，pData数据类型为指向VerifyDeviceData的指针
+    pub(crate) const REF_ENABLE_BUS_USAGE: u32 = 21;               // pData 指向uint32_t, 0:关闭总线利用率上报，1：开启总线利用率上报，需要在StartCAN之前设置
+    pub(crate) const REF_SET_BUS_USAGE_PERIOD: u32 = 22;           // pData 指向uint32_t, 表示设备上报周期，单位毫秒，范围20-2000ms, 需要在StartCAN之前设置
+    pub(crate) const REF_GET_BUS_USAGE: u32 = 23;                  // /获取总线利用率, pData指向 BusUsage
+    pub(crate) const REF_GET_DELAY_SEND_AVAILABLE_COUNT: u32 = 24; // 获取设备端延迟发送可用数量 pData Pointer to uint32_t
+    pub(crate) const REF_CLEAR_DELAY_SEND_QUEUE: u32 = 25;         // 如果队列发送中有数据因为时间未到未发送，取消设备当前的队列发送
+    pub(crate) const REF_GET_LIN_TX_FIFO_TOTAL: u32 = 26;          // 获取LIN发送缓冲区大小
+    pub(crate) const REF_GET_LIN_TX_FIFO_AVAILABLE: u32 = 27;      // 获取LIN发送缓冲区可用大小
+    pub(crate) const REF_ADD_TIMER_SEND_CAN_DIRECT: u32 = 28;
+    pub(crate) const REF_ADD_TIMER_SEND_CANFD_DIRECT: u32 = 29;    //
+    pub(crate) const REF_GET_DEV_CAN_AUTO_SEND_COUNT: u32 = 30;    // 获取设备端定时发送CAN帧的数量，pData指向uint32_t,表示设备端定时发送CAN帧数量
+    pub(crate) const REF_GET_DEV_CAN_AUTO_SEND_DATA: u32 = 31;     // 获取设备端定时发送CAN帧的数据，用户根据查询到的CAN帧数量申请内存 sizeof(ZCAN_AUTO_TRANSMIT_OBJ) * N，将申请到的内存地址填入pData
+    pub(crate) const REF_GET_DEV_CANFD_AUTO_SEND_COUNT: u32 = 32;  // 获取设备端定时发送CANFD帧的数量，pData指向uint32_t,表示设备端定时发送CANFD帧数量
+    pub(crate) const REF_GET_DEV_CANFD_AUTO_SEND_DATA: u32 = 33;   // 获取设备端定时发送CANFD帧的数据，用户根据查询到的CAN帧数量申请内存 sizeof(ZCANFD_AUTO_TRANSMIT_OBJ) * N，将申请到的内存地址填入pData
+    pub(crate) const REF_SET_TX_ECHO: u32 = 34;                    // 设置库强制发送回显,pData指向uint32_t，0表示不开启发送回显，1表示开启发送回显，开启后，普通发送也会设置发送回显请求标志
+    pub(crate) const REF_GET_TX_ECHO: u32 = 35;                    // 查询是否设置了强制发送回显,pData指向uint32_t，0表示不开启发送回显，1表示开启发送回显
+    pub(crate) const REF_SET_TX_RETRY_POLICY: u32 = 36;            // 发送失败是否重传：0：发送失败不重传；1：发送失败重传，直到总线关闭。
+    pub(crate) const REF_SET_TX_TIMEOUT: u32 = 37;                 // 发送超时时间，单位ms；设置后发送达到超时时间后，取消当前报文发送；取值范围0-2000ms。
+    pub(crate) const REF_GET_TX_TIMEOUT: u32 = 38;                 // 获取发送超时时间
+
+    pub(crate) fn self_set_reference(
+        &self,
+        dev_type: ZCanDeviceType,
+        dev_idx: u32,
+        channel: u8,
+        cmd: c_uint,
+        value: *const c_void,
+    ) -> Result<(), ZCanError> {
+        match unsafe { (self.ZCAN_SetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
+            Self::STATUS_OK => Ok(()),
+            code => Err(ZCanError::MethodExecuteFailed("ZCAN_SetReference".to_string(), code)),
+        }
+    }
+
+    pub(crate) fn self_get_reference(
+        &self,
+        dev_type: ZCanDeviceType,
+        dev_idx: u32,
+        channel: u8,
+        cmd: c_uint,
+        value: *mut c_void,
+    ) -> Result<(), ZCanError> {
+        match unsafe { (self.ZCAN_GetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
+            Self::STATUS_OK => Ok(()),
+            code => Err(ZCanError::MethodExecuteFailed("ZCAN_GetReference".to_string(), code)),
+        }
+    }
 }
 
 impl ZDeviceApi<u32, u32> for USBCANFD800UApi<'_> {
     fn open(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<u32, ZCanError> {
         match unsafe { (self.ZCAN_OpenDevice)(dev_type as u32, dev_idx, 0) } {
-            INVALID_DEVICE_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_OpenDevice".to_string(), INVALID_DEVICE_HANDLE)),
+            Self::INVALID_DEVICE_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_OpenDevice".to_string(), Self::INVALID_DEVICE_HANDLE)),
             v => Ok(v),
         }
     }
 
     fn close(&self, dev_hdl: u32) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_CloseDevice)(dev_hdl) } {
-            STATUS_OK => Ok(()),
+            Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_CloseDevice".to_string(), code)),
         }
     }
@@ -81,7 +159,7 @@ impl ZDeviceApi<u32, u32> for USBCANFD800UApi<'_> {
     fn read_device_info(&self, dev_hdl: u32) -> Result<ZDeviceInfo, ZCanError> {
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.ZCAN_GetDeviceInf)(dev_hdl, &mut info) } {
-            STATUS_OK => Ok(info),
+            Self::STATUS_OK => Ok(info),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_GetDeviceInf".to_string(), code)),
         }
     }
@@ -98,24 +176,10 @@ impl ZDeviceApi<u32, u32> for USBCANFD800UApi<'_> {
 
     fn release_property(&self, p: &IProperty) -> Result<(), ZCanError> {
         match unsafe { (self.ReleaseIProperty)(p) } {
-            STATUS_OK => Ok(()),
+            Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ReleaseIProperty".to_string(), code)),
         }
     }
-
-    // fn set_reference(&self, chl_hdl: u32, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
-    //     match unsafe { (self.ZCAN_SetReference)(dev_type as u32, dev_idx, cmd, value) } {
-    //         STATUS_OK => Ok(()),
-    //         code => Err(ZCanError::MethodExecuteFailed("ZCAN_SetReference".to_string(), code)),
-    //     }
-    // }
-
-    // fn get_reference(&self, chl_hdl: u32, cmd_path: &CmdPath, value: *mut c_void) -> Result<(), ZCanError> {
-    //     match unsafe { (self.ZCAN_GetReference)(dev_type as u32, dev_idx, cmd, value) } {
-    //         STATUS_OK => Ok(()),
-    //         code => Err(ZCanError::MethodExecuteFailed("ZCAN_GetReference".to_string(), code)),
-    //     }
-    // }
 
     fn set_values(&self, chl_hdl: u32, values: Vec<(CmdPath, *const c_char)>) -> Result<(), ZCanError> {
         unsafe {
@@ -175,59 +239,25 @@ impl ZCanApi<u32, u32> for USBCANFD800UApi<'_> {
     fn init_can_chl(&self, dev_hdl: u32, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         let dev_type = cfg.device_type()?;
         unsafe {
-            // configure the clock
-            if let Some(clock) = cfg.clock() {
-                todo!()
-                // let clock_path = CmdPath::new_path("clock");
-                // self.set_check_value(dev_hdl, &clock_path, clock.to_string().as_str(), dev_type)?;
-            }
-            // set channel resistance status
-            if dev_type.has_resistance() {
-                todo!()
-                // let state = (cfg.extra().resistance() as u32).to_string();
-                // let resistance_path = format!("{}/{}", channel, INTERNAL_RESISTANCE);
-                // let resistance_path = CmdPath::new_path(resistance_path.as_str());
-                // self.set_check_value(dev_hdl, &resistance_path, state.as_str(), dev_type)?;
-            }
-            // set channel protocol
-            let can_type = cfg.can_type()?;
-            // let protocol = (can_type as u32).to_string();
-            // let protocol_path = format!("{}/{}", channel, PROTOCOL);
-            // let protocol_path = CmdPath::new_path(protocol_path.as_str());
-            // self.set_check_value(dev_hdl, &protocol_path, protocol.as_str(), dev_type)?;
-
-            // set channel bitrate
-            // let bitrate = cfg.bitrate();
-            // let abitrate_path = format!("{}/{}", channel, CANFD_ABIT_BAUD_RATE);
-            // let abitrate_path = CmdPath::new_path(abitrate_path.as_str());
-            // self.set_check_value(dev_hdl, &abitrate_path, bitrate.to_string().as_str(), dev_type)?;
-            match can_type {
-                ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
-                    todo!()
-                    // let dbitrate = cfg.extra().dbitrate().unwrap_or(bitrate).to_string();
-                    // let dbitrate_path = format!("{}/{}", channel, CANFD_DBIT_BAUD_RATE);
-                    // let dbitrate_path = CmdPath::new_path(dbitrate_path.as_str());
-                    // self.set_check_value(dev_hdl, &dbitrate_path, dbitrate.as_str(), dev_type)?;
-                },
-                _ => {},
-            }
-
-            let cfg = ZCanChlCfgDetail::try_from(cfg)?;
-            match (self.ZCAN_InitCAN)(dev_hdl, channel as u32, cfg) {
-                INVALID_CHANNEL_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_InitCAN".to_string(), INVALID_CHANNEL_HANDLE)),
+            // init can channel
+            let cfg = ZCanChlCfgDetail::from(ZCanChlCfgV1::try_from(cfg)?);
+            let handler = match (self.ZCAN_InitCAN)(dev_hdl, channel as u32, &cfg) {
+                Self::INVALID_CHANNEL_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_InitCAN".to_string(), Self::INVALID_CHANNEL_HANDLE)),
                 handler => {
                     match (self.ZCAN_StartCAN)(handler) {
-                        STATUS_OK => Ok(handler),
+                        Self::STATUS_OK => Ok(handler),
                         code => Err(ZCanError::MethodExecuteFailed("ZCAN_InitCAN".to_string(), code)),
                     }
                 }
-            }
+            }?;
+
+            Ok(handler)
         }
     }
 
     fn reset_can_chl(&self, chl_hdl: u32) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_ResetCAN)(chl_hdl) } {
-            STATUS_OK => Ok(()),
+            Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ResetCAN".to_string(), code)),
         }
     }
@@ -235,7 +265,7 @@ impl ZCanApi<u32, u32> for USBCANFD800UApi<'_> {
     fn read_can_chl_status(&self, chl_hdl: u32) -> Result<ZCanChlStatus, ZCanError> {
         let mut status: ZCanChlStatus = Default::default();
         match unsafe { (self.ZCAN_ReadChannelStatus)(chl_hdl, &mut status) } {
-            STATUS_OK => Ok(status),
+            Self::STATUS_OK => Ok(status),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ReadChannelStatus".to_string(), code)),
         }
     }
@@ -243,14 +273,14 @@ impl ZCanApi<u32, u32> for USBCANFD800UApi<'_> {
     fn read_can_chl_error(&self, chl_hdl: u32) -> Result<ZCanChlError, ZCanError> {
         let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.ZCAN_ReadChannelErrInfo)(chl_hdl, &mut info) } {
-            STATUS_OK => Ok(info),
+            Self::STATUS_OK => Ok(info),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ReadChannelErrInfo".to_string(), code)),
         }
     }
 
     fn clear_can_buffer(&self, chl_hdl: u32) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_ClearBuffer)(chl_hdl) } {
-            STATUS_OK => Ok(()),
+            Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ClearBuffer".to_string(), code)),
         }
     }

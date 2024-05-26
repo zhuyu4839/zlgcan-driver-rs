@@ -6,7 +6,7 @@ use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZDev
 use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::api::windows::Api;
-use crate::constant::{LOAD_LIB_FAILED};
+use crate::constant::LOAD_LIB_FAILED;
 use crate::driver::ZDevice;
 
 #[cfg(target_arch = "x86")]
@@ -158,7 +158,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFrame>, ZCanError> {
-        let timeout = timeout.unwrap_or(50);
+        let timeout = timeout.unwrap_or(0xFFFFFFFF);
         self.can_handler(channel, |hdl| {
             self.api.receive_can(hdl, size, timeout, |frames, size| {
                 if self.dev_type.is_frame_v1() {
@@ -184,7 +184,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
-        let timeout = timeout.unwrap_or(50);
+        let timeout = timeout.unwrap_or(0xFFFFFFFF);
         self.can_handler(channel, |hdl| {
             self.api.receive_canfd(hdl, size, timeout, |frames, size| {
                 frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV1::default()) });
