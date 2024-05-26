@@ -259,7 +259,7 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        let timeout = timeout.unwrap_or(50);
+        let timeout = timeout.unwrap_or(0xFFFFFFFF);
         self.lin_handler(channel, |hdl| {
             self.api.receive_lin(hdl, size, timeout, |frames, size| {
                 frames.resize_with(size, || -> ZLinFrame { ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameData::from_data(Default::default())) })
@@ -372,7 +372,7 @@ impl ZDevice for ZCanDriver<'_> {
             return Err(ZCanError::MethodNotSupported);
         }
 
-        let timeout = timeout.unwrap_or(50);
+        let timeout = timeout.unwrap_or(0xFFFFFFFF);
         self.device_handler(|hdl| {
             self.api.receive_gps(hdl.device_handler(), size, timeout, |frames, size| {
                 frames.resize_with(size, Default::default)

@@ -53,6 +53,42 @@ impl USBCANEApi<'_> {
     pub(crate) const INVALID_DEVICE_HANDLE: u32 = 0;
     pub(crate) const INVALID_CHANNEL_HANDLE: u32 = 0;
     pub(crate) const STATUS_OK: u32 = 0;
+    pub(crate) fn init_can_chl_ex(
+        &self,
+        dev_hdl: &mut Handler,
+        channels: u8,
+        cfg: &Vec<CanChlCfg>
+    ) -> Result<(), ZCanError> {
+        let p = self.get_property(dev_hdl.device_handler())?;
+        let set_value_func = p.SetValue;
+        let mut error = None;
+        for (idx, cfg) in cfg.iter().enumerate() {
+            let idx = idx as u8;
+            if idx >= channels {
+                log::warn!("ZLGCAN - the length of CAN channel configuration is out of channels!");
+                break;
+            }
+
+            if let Some(chl_hdl) = dev_hdl.find_can(idx) {
+                self.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
+                dev_hdl.remove_can(idx);
+            }
+
+            match self.start_channel(dev_hdl, idx, set_value_func, cfg) {
+                Ok(()) => {},
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+            }
+        }
+        self.release_property(&p)?;
+
+        match error {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
+    }
     #[inline]
     pub(crate) fn start_channel(
         &self,

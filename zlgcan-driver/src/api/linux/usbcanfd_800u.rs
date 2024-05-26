@@ -112,6 +112,33 @@ impl USBCANFD800UApi<'_> {
     pub(crate) const REF_SET_TX_TIMEOUT: u32 = 37;                 // 发送超时时间，单位ms；设置后发送达到超时时间后，取消当前报文发送；取值范围0-2000ms。
     pub(crate) const REF_GET_TX_TIMEOUT: u32 = 38;                 // 获取发送超时时间
 
+    #[inline]
+    pub(crate) fn init_can_chl_ex(
+        &self,
+        dev_type: ZCanDeviceType,
+        dev_idx: u32,
+        channel: u8,
+        cfg: &CanChlCfg
+    ) -> Result<(), ZCanError> {
+        // set channel resistance status
+        if dev_type.has_resistance() {
+            let state = cfg.extra().resistance() as u32;
+            let cmd_path = CmdPath::new_reference(USBCANFD800UApi::REF_INTERNAL_RESISTANCE);
+            self.self_set_reference(
+                dev_type, dev_idx, channel,
+                cmd_path.get_reference(), &state as *const c_uint as *const c_void)?;
+        }
+        // set channel protocol
+        let can_type = cfg.can_type()?;
+        let cmd_path = CmdPath::new_reference(USBCANFD800UApi::REF_CONTROLLER_TYPE);
+        self.self_set_reference(
+            dev_type, dev_idx, channel,
+            cmd_path.get_reference(),
+            &(can_type as u32) as *const c_uint as *const c_void
+        )
+    }
+
+    #[inline]
     pub(crate) fn self_set_reference(
         &self,
         dev_type: ZCanDeviceType,
@@ -126,6 +153,7 @@ impl USBCANFD800UApi<'_> {
         }
     }
 
+    #[inline]
     pub(crate) fn self_get_reference(
         &self,
         dev_type: ZCanDeviceType,
