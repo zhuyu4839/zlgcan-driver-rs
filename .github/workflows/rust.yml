@@ -43,9 +43,9 @@ jobs:
         run: |
           export API_PATH=${{ env.TARGET }}/${{ env.PROJECT }}
           mkdir -p ${API_PATH}
-          mv ${{ env.TARGET }}/${{ env.TARGET_X86_64 }}${{ env.WINDOWS }}/${{ env.RELEASE }}/${{ env.API_NAME }}.dll ${API_PATH}/${{ env.API_NAME }}.${{ env.TARGET_X86_64 }}.${{ env.WINDOWS_EXT }}
-          mv ${{ env.TARGET }}/${{ env.TARGET_I686 }}${{ env.WINDOWS }}/${{ env.RELEASE }}/${{ env.API_NAME }}.dll ${API_PATH}/${{ env.API_NAME }}.${{ env.TARGET_I686 }}.${{ env.WINDOWS_EXT }}
-          mv ${{ env.TARGET }}/${{ env.TARGET_X86_64 }}${{ env.LINUX }}/${{ env.RELEASE }}/lib${{ env.API_NAME }}.so ${API_PATH}/lib${{ env.API_NAME }}.${{ env.TARGET_X86_64 }}.${{ env.LINUX_EXT }}
+          mv ${{ env.TARGET }}/${{ env.TARGET_X86_64 }}${{ env.WINDOWS }}/${{ env.RELEASE }}/${{ env.API_NAME }}.${{ env.WINDOWS_EXT }} ${API_PATH}/${{ env.API_NAME }}.${{ env.TARGET_X86_64 }}.${{ env.WINDOWS_EXT }}
+          mv ${{ env.TARGET }}/${{ env.TARGET_I686 }}${{ env.WINDOWS }}/${{ env.RELEASE }}/${{ env.API_NAME }}.${{ env.WINDOWS_EXT }} ${API_PATH}/${{ env.API_NAME }}.${{ env.TARGET_I686 }}.${{ env.WINDOWS_EXT }}
+          mv ${{ env.TARGET }}/${{ env.TARGET_X86_64 }}${{ env.LINUX }}/${{ env.RELEASE }}/lib${{ env.API_NAME }}.${{ env.LINUX_EXT }} ${API_PATH}/lib${{ env.API_NAME }}.${{ env.TARGET_X86_64 }}.${{ env.LINUX_EXT }}
           tar -czvf ${{ env.TARGET }}/${{ env.PROJECT }}.tar.gz ${API_PATH}/
       - name: Create Release
         id: create_release
