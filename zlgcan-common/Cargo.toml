@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_common"
-version = "1.0.0-rc2"
+version = "1.0.0-rc3"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license-file = "../LICENCE-GPL-V3"

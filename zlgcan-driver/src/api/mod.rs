@@ -1,4 +1,6 @@
+#[cfg(target_os = "linux")]
 pub(crate) mod linux;
+#[cfg(target_os = "windows")]
 pub(crate) mod windows;
 
 use std::ffi::{c_char, c_void};

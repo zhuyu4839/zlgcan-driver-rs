@@ -284,9 +284,9 @@ pub fn can_device2(dev_type: ZCanDeviceType, linux: bool, derive_info: Option<De
 
 pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_ch: u8, recv_ch: u8, f_ver: &str) {
     let dev_idx = 0;
-    let comm_count = 1;
-    let ext_count = 1;
-    let brs_count = 1;
+    let comm_count = 5;
+    let ext_count = 5;
+    let brs_count = 5;
 
     let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, None).unwrap();
     driver.open().unwrap();
@@ -415,6 +415,39 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
         frames3 = new_v2_fdframes(brs_count, false, true);
         frames4 = new_v2_fdframes(brs_count, true, true);
     }
+    println!("source frames:");
+    frames1.iter().for_each(|f| {
+        if f_ver == "v2" {
+            println!("{:?}", ZCanFdFrameV1::from(f))
+        }
+        else {
+            println!("{:?}", ZCanFdFrameV2::from(f))
+        }
+    });
+    frames2.iter().for_each(|f| {
+        if f_ver == "v2" {
+            println!("{:?}", ZCanFdFrameV1::from(f))
+        }
+        else {
+            println!("{:?}", ZCanFdFrameV2::from(f))
+        }
+    });
+    frames3.iter().for_each(|f| {
+        if f_ver == "v2" {
+            println!("{:?}", ZCanFdFrameV1::from(f))
+        }
+        else {
+            println!("{:?}", ZCanFdFrameV2::from(f))
+        }
+    });
+    frames4.iter().for_each(|f| {
+        if f_ver == "v2" {
+            println!("{:?}", ZCanFdFrameV1::from(f))
+        }
+        else {
+            println!("{:?}", ZCanFdFrameV2::from(f))
+        }
+    });
     // transmit CANFD frames
     driver.transmit_canfd(recv_ch, frames1).unwrap();
     driver.transmit_canfd(recv_ch, frames2).unwrap();

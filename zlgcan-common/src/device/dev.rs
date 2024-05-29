@@ -121,7 +121,8 @@ impl Display for ZDeviceInfo {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
+#[repr(C)]
 pub struct Handler {
     device: u32,
     info: ZDeviceInfo,

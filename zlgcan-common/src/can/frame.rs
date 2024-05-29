@@ -163,9 +163,16 @@ pub struct ZCanHeaderV2 {
     pub(crate) can_len: c_uchar,
     pub(crate) flag: c_uchar,
     #[allow(dead_code)]
-    pub(crate) __res0: c_uchar,  /* reserved / padding */
+    pub(crate) __res0: c_uchar,  /* reserved / padding used for channel */
     #[allow(dead_code)]
     pub(crate) __res1: c_uchar,  /* reserved / padding */
+}
+
+impl ZCanHeaderV2 {
+    #[inline]
+    pub fn update_channel(&mut self, channel: u8) {
+        self.__res0 = channel;
+    }
 }
 
 /// used by usbcanfd-800u usbcan-4-E usbcan-8-E and windows
@@ -177,18 +184,25 @@ pub struct ZCanFrameV3 {
     pub(crate) ts_or_mode: c_uint,       // timestamp when received
 }
 
+impl ZCanFrameV3 {
+    #[inline]
+    pub fn update_channel(&mut self, channel: u8) {
+        self.hdr.update_channel(channel)
+    }
+}
+
 impl NewZCanFrame for ZCanFrameV3 {
     fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         // zcan_frame_new2::<CAN_FRAME_LENGTH, T, Self>(can_id, channel, data, info,  |id, _chl, data, len, info| -> Self {
-        zcan_frame_new2(can_id, channel, data, info,  |id, _chl, data, len, info| {
+        zcan_frame_new2(can_id, channel, data, info,  |id, chl, data, len, info| {
             Ok(Self {
                 hdr: ZCanHeaderV2 {
                     can_id: id,
                     can_len: len,
                     flag: Default::default(),
-                    __res0: Default::default(),
+                    __res0: chl,
                     __res1: Default::default(),
                 },
                 data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
@@ -217,6 +231,12 @@ impl From<&ZCanFrame> for ZCanFrameV1 {
     }
 }
 
+impl From<ZCanFrame> for ZCanFrameV1 {
+    fn from(value: ZCanFrame) -> Self {
+        unsafe { value.v1 }
+    }
+}
+
 impl From<ZCanFrameV2> for ZCanFrame {
     fn from(value: ZCanFrameV2) -> Self {
         Self { v2: value }
@@ -225,6 +245,12 @@ impl From<ZCanFrameV2> for ZCanFrame {
 
 impl From<&ZCanFrame> for ZCanFrameV2 {
     fn from(value: &ZCanFrame) -> Self {
+        unsafe { value.v2 }
+    }
+}
+
+impl From<ZCanFrame> for ZCanFrameV2 {
+    fn from(value: ZCanFrame) -> Self {
         unsafe { value.v2 }
     }
 }
@@ -241,36 +267,39 @@ impl From<&ZCanFrame> for ZCanFrameV3 {
     }
 }
 
+impl From<ZCanFrame> for ZCanFrameV3 {
+    fn from(value: ZCanFrame) -> Self {
+        unsafe { value.v3 }
+    }
+}
+
 impl ZCanFrame {
     #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v1(v1: ZCanFrameV1) -> Self {
         Self { v1 }
     }
-    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
-    pub fn get_v1(&self) -> &ZCanFrameV1 {
-        unsafe { &self.v1 }
+    pub fn get_v1(&self) -> ZCanFrameV1 {
+        unsafe { self.v1 }
     }
     #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v2(v2: ZCanFrameV2) -> Self {
         Self { v2 }
     }
-    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
-    pub fn get_v2(&self) -> &ZCanFrameV2 {
-        unsafe { &self.v2 }
+    pub fn get_v2(&self) -> ZCanFrameV2 {
+        unsafe { self.v2 }
     }
     #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
     pub fn from_v3(v3: ZCanFrameV3) -> Self {
         Self { v3 }
     }
-    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
-    pub fn get_v3(&self) -> &ZCanFrameV3 {
-        unsafe { &self.v3 }
+    pub fn get_v3(&self) -> ZCanFrameV3 {
+        unsafe { self.v3 }
     }
 }
 
@@ -323,12 +352,19 @@ pub struct ZCanFdFrameV2 {
     pub(crate) ts_or_mode: c_uint,       // timestamp when received
 }
 
+impl ZCanFdFrameV2 {
+    #[inline]
+    pub fn update_channel(&mut self, channel: u8) {
+        self.hdr.update_channel(channel)
+    }
+}
+
 impl NewZCanFrame for ZCanFdFrameV2 {
     fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         // zcan_frame_new2::<CANFD_FRAME_LENGTH, T, Self>(can_id, channel, data, info, |id, _chl, data, len, info| -> Self {
-        zcanfd_frame_new2(can_id, channel, data, info, |id, _chl, data, len, info| {
+        zcanfd_frame_new2(can_id, channel, data, info, |id, chl, data, len, info| {
             let mut flag: u8 = Default::default();
             if info.get_field(ZCanHdrInfoField::IsBitrateSwitch) > 0 {
                 flag |= CANFD_BRS;
@@ -342,7 +378,7 @@ impl NewZCanFrame for ZCanFdFrameV2 {
                     can_id: id,
                     can_len: len,
                     flag,
-                    __res0: Default::default(),
+                    __res0: chl,
                     __res1: Default::default(),
                 },
                 data: CanFdData { data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)? },
@@ -393,15 +429,13 @@ impl ZCanFdFrame {
     pub fn from_v2(v2: ZCanFdFrameV2) -> Self {
         Self { v2 }
     }
-    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
-    pub fn get_v1(&self) -> &ZCanFdFrameV1 {
-        unsafe { &self.v1 }
+    pub fn get_v1(&self) -> ZCanFdFrameV1 {
+        unsafe { self.v1 }
     }
-    #[deprecated(since = "0.2.3-Beta1", note = "Please use `from` to convert!")]
     #[inline(always)]
-    pub fn get_v2(&self) -> &ZCanFdFrameV2 {
-        unsafe { &self.v2 }
+    pub fn get_v2(&self) -> ZCanFdFrameV2 {
+        unsafe { self.v2 }
     }
 }
 

@@ -159,7 +159,7 @@ impl ZDevice for ZCanDriver<'_> {
 
     fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFrame>, ZCanError> {
         let timeout = timeout.unwrap_or(0xFFFFFFFF);
-        self.can_handler(channel, |hdl| {
+        let frames = self.can_handler(channel, |hdl| {
             self.api.receive_can(hdl, size, timeout, |frames, size| {
                 if self.dev_type.is_frame_v1() {
                     frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV1::default()) });
@@ -174,7 +174,15 @@ impl ZDevice for ZCanDriver<'_> {
                     panic!("ZLGCAN - receive CAN frame is not supported!");
                 }
             })
+        })?;
+
+        let frames = frames.into_iter().map(|f| -> ZCanFrame {
+            let mut frame = f.get_v3();
+            frame.update_channel(channel);
+            ZCanFrame::from(frame)
         })
+            .collect::<Vec<_>>();
+        Ok(frames)
     }
 
     fn transmit_can(&self, channel: u8, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError> {
@@ -185,11 +193,18 @@ impl ZDevice for ZCanDriver<'_> {
 
     fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
         let timeout = timeout.unwrap_or(0xFFFFFFFF);
-        self.can_handler(channel, |hdl| {
+        let frames = self.can_handler(channel, |hdl| {
             self.api.receive_canfd(hdl, size, timeout, |frames, size| {
                 frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV1::default()) });
             })
+        })?;
+        let frames = frames.into_iter().map(|f| -> ZCanFdFrame {
+            let mut frame = f.get_v2();
+            frame.update_channel(channel);
+            ZCanFdFrame::from(frame)
         })
+            .collect::<Vec<_>>();
+        Ok(frames)
     }
 
     fn transmit_canfd(&self, channel: u8, frames: Vec<ZCanFdFrame>) -> Result<u32, ZCanError> {

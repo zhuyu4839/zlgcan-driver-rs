@@ -141,7 +141,7 @@ impl TryFrom<ZCanFrameV3> for CanMessage {
 
         let can_id = hdr.can_id;
         let mut message = CanMessage::new(
-            can_id & CAN_ID_FLAG, None, value.data, false, false, Some((can_id & CAN_EFF_FLAG) > 0)
+            can_id & CAN_ID_FLAG, Some(hdr.__res0), value.data, false, false, Some((can_id & CAN_EFF_FLAG) > 0)
         )?;
         message.set_length(hdr.can_len);
         message.set_timestamp(None);
@@ -187,7 +187,7 @@ impl TryFrom<ZCanFdFrameV1> for CanMessage {
 
         let can_id = hdr.can_id;
         let mut message = CanMessage::new(
-            can_id, None, value.data.data, true, false, Some( info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
+            can_id, Some(hdr.channel), value.data.data, true, false, Some( info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
         )?;
         message.set_length(hdr.len);
         message.set_timestamp(None);
@@ -233,7 +233,7 @@ impl TryFrom<ZCanFdFrameV2> for CanMessage {
 
         let can_id = hdr.can_id;
         let mut message = CanMessage::new(
-            can_id & CAN_ID_FLAG, None, value.data.data, true, false, Some((can_id & CAN_EFF_FLAG) > 0)
+            can_id & CAN_ID_FLAG, Some(hdr.__res0), value.data.data, true, false, Some((can_id & CAN_EFF_FLAG) > 0)
         )?;
         message.set_length(hdr.can_len);
         message.set_timestamp(None);

@@ -43,13 +43,13 @@ pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> Res
     let frames = device.receive_can(channel, count_can, timeout)?;
     for frame in frames {
         if device.device_type().is_frame_v1() {
-            results.push(CanMessage::try_from(ZCanFrameV1::from(&frame))?);
+            results.push(CanMessage::try_from(ZCanFrameV1::from(frame))?);
         }
         else if device.device_type().is_frame_v2() {
-            results.push(CanMessage::try_from(ZCanFrameV2::from(&frame))?);
+            results.push(CanMessage::try_from(ZCanFrameV2::from(frame))?);
         }
         else if device.device_type().is_frame_v3() {
-            results.push(CanMessage::try_from(ZCanFrameV3::from(&frame))?);
+            results.push(CanMessage::try_from(ZCanFrameV3::from(frame))?);
         }
         else {
             return Err(ZCanError::InvalidDeviceType);

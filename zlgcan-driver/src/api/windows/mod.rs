@@ -359,19 +359,19 @@ impl ZCanApi<u32, u32> for Api<'_> {
         // method 1
         // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
         // if ret < len {
-        //     warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        //     log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
         // }
-        // ret
+        // Ok(ret)
         // method 2
         // let mut boxed_slice: Box<[ZCanFrame]> = frames.into_boxed_slice();
         // let array: *mut ZCanFrame = boxed_slice.as_mut_ptr();
         // // let ptr = frames.as_ptr();
         // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, array, len) };
-        // mem::forget(boxed_slice);
+        // std::mem::forget(boxed_slice);
         // if ret < len {
-        //     warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        //     log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
         // }
-        // ret
+        // Ok(ret)
         // method 3: just do like this because of pointer offset TODO
         let mut count = 0;
         frames.iter().for_each(|frame| {
@@ -402,7 +402,7 @@ impl ZCanApi<u32, u32> for Api<'_> {
         // if ret < len {
         //     warn!("ZLGCAN - transmit CANFD frame expect: {}, actual: {}!", len, ret);
         // }
-        // ret
+        // Ok(ret)
         let mut count = 0;
         frames.iter().for_each(|frame| {
             let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frame, 1) };

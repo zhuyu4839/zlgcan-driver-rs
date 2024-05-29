@@ -30,5 +30,5 @@ fn usbcanfd_400u() {
 fn usbcanfd_400u_other() {
     // TODO USBCANFD-400U channel 3-4 is not supported
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
-    canfd_device2(dev_type, 4, 2, 3, false);
+    canfd_device2(dev_type, 4, 2, 3, 4, "v3");
 }

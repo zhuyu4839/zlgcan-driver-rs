@@ -360,7 +360,7 @@ mod tests {
         let recv = slice.to_vec();
         println!("{:?}", recv);
         for msg in recv {
-            println!("length: {} ({:?})", msg.length(), msg.data())
+            println!("channel: {} length: {} ({:?})", msg.channel(), msg.length(), msg.data())
         }
 
         println!("received: {}", count);
