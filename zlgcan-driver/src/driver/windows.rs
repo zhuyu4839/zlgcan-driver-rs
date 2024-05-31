@@ -18,6 +18,7 @@ lazy_static!(
     static ref LIB: Library = Library::open(LIB_PATH).expect(LOAD_LIB_FAILED);
 );
 
+#[derive(Debug)]
 pub struct ZCanDriver<'a> {
     pub(crate) handler:  Option<Handler>,
     pub(crate) api:      Api<'a>,

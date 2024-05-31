@@ -11,7 +11,7 @@ pub use message::*;
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::rc::{Rc, Weak};
+use std::sync::{Arc, Weak};
 use serde::Deserialize;
 use crate::device::ZCanDeviceType;
 use crate::error::ZCanError;
@@ -279,7 +279,7 @@ impl TryFrom<&CanChlCfg> for ZCanChlCfgDetail {
 }
 
 #[repr(C)]
-pub struct CanChlCfgFactory(Rc<HashMap<String, BitrateCfg>>);
+pub struct CanChlCfgFactory(Arc<HashMap<String, BitrateCfg>>);
 
 
 impl CanChlCfgFactory {
@@ -288,7 +288,7 @@ impl CanChlCfgFactory {
             .map_err(|e| ZCanError::ConfigurationError(format!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)))?;
         let result = serde_yaml::from_str(&data)
             .map_err(|e| ZCanError::ConfigurationError(format!("Error parsing YAML: {:?}", e)))?;
-        Ok(Self(Rc::new(result)))
+        Ok(Self(Arc::new(result)))
     }
 
     pub fn new_can_chl_cfg(
@@ -300,7 +300,7 @@ impl CanChlCfgFactory {
         extra: CanChlCfgExt
     ) -> Result<CanChlCfg, ZCanError> {
         if self.0.contains_key(&dev_type.to_string()) {
-            Ok(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Rc::downgrade(&self.0)))
+            Ok(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Arc::downgrade(&self.0)))
         }
         else {
             Err(ZCanError::ConfigurationError(format!("device: {:?} is not configured in file!", dev_type)))

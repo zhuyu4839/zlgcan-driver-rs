@@ -12,7 +12,7 @@ use zlgcan_common::error::ZCanError;
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 
 #[allow(non_snake_case)]
-#[derive(SymBorApi)]
+#[derive(Debug, SymBorApi)]
 pub(crate) struct USBCANApi<'a> {
     /// EXTERN_C DWORD VCI_OpenDevice(DWORD DeviceType,DWORD DeviceInd,DWORD Reserved);
     VCI_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, reserved: u32) -> u32>,

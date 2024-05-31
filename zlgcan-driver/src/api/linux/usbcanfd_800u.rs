@@ -9,7 +9,7 @@ use zlgcan_common::utils::c_str_to_string;
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 
 #[allow(non_snake_case)]
-#[derive(SymBorApi)]
+#[derive(Debug, SymBorApi)]
 pub(crate) struct USBCANFD800UApi<'a> {
     /// DEVICE_HANDLE FUNC_CALL ZCAN_OpenDevice(UINT device_type, UINT device_index, UINT reserved);
     ZCAN_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_index: c_uint, reserved: c_uint) -> c_uint>,
