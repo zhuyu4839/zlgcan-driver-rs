@@ -189,18 +189,6 @@ impl From<ZCanFdChlCfgV1> for ZCanChlCfgV1Union {
         Self { canfd: value }
     }
 }
-impl ZCanChlCfgV1Union {
-    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_can(can: ZCanChlCfg) -> Self {
-        Self { can }
-    }
-    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_canfd(canfd: ZCanFdChlCfgV1) -> Self {
-        Self { canfd }
-    }
-}
 
 /// CAN channel configuration v1.
 /// used windows and USBCAN_4E(8_E) or USBCANFD-800U on Linux
@@ -244,19 +232,6 @@ impl From<ZCanFdChlCfgV2> for ZCanChlCfgV2 {
     }
 }
 
-impl ZCanChlCfgV2 {
-    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_can(can: ZCanChlCfg) -> Self {
-        Self { can }
-    }
-    #[deprecated(since = "1.0.0-rc2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_canfd(canfd: ZCanFdChlCfgV2) -> Self {
-        Self { canfd }
-    }
-}
-
 #[repr(C)]
 pub union ZCanChlCfgDetail {
     v1: ManuallyDrop<ZCanChlCfgV1>,
@@ -272,19 +247,6 @@ impl From<ZCanChlCfgV1> for ZCanChlCfgDetail {
 impl From<ZCanChlCfgV2> for ZCanChlCfgDetail {
     fn from(value: ZCanChlCfgV2) -> Self {
         Self { v2: ManuallyDrop::new(value) }
-    }
-}
-
-impl ZCanChlCfgDetail {
-    #[deprecated(since = "0.2.3-Beta3", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_v1(v1: ZCanChlCfgV1) -> Self {
-        Self { v1: ManuallyDrop::new(v1) }
-    }
-    #[deprecated(since = "0.2.3-Beta3", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_v2(v2: ZCanChlCfgV2) -> Self {
-        Self { v2: ManuallyDrop::new(v2) }
     }
 }
 
@@ -348,28 +310,5 @@ impl From<ZCanChlErrorV2> for ZCanChlError {
 impl From<&ZCanChlError> for ZCanChlErrorV2 {
     fn from(value: &ZCanChlError) -> Self {
         unsafe { value.v2 }
-    }
-}
-
-impl ZCanChlError {
-    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_v1(v1: ZCanChlErrorV1) -> Self {
-        Self { v1 }
-    }
-    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn from_v2(v2: ZCanChlErrorV2) -> Self {
-        Self { v2 }
-    }
-    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn get_v1(&self) -> ZCanChlErrorV1 {
-        unsafe { self.v1 }
-    }
-    #[deprecated(since = "0.2.3-Beta2", note = "Please use `from` to convert!")]
-    #[inline(always)]
-    pub fn get_v2(&self) -> ZCanChlErrorV2 {
-        unsafe { self.v2 }
     }
 }
