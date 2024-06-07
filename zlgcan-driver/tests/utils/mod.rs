@@ -2,7 +2,7 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use rand::{Rng, thread_rng};
 use rand::prelude::ThreadRng;
-use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanFdFrame, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrame, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3, CanMessage, ZCanTxMode};
+use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFrameType, CanMessage, ZCanTxMode};
 use zlgcan_common::device::{DeriveInfo, ZCanDeviceType};
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
 
@@ -32,6 +32,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Vec<
             false,
             Some(extend)
         ).unwrap();
+        frame.set_tx_mode(ZCanTxMode::SelfReception as u8);
 
         if canfd {
             frame.set_bitrate_switch(brs.unwrap_or(false));

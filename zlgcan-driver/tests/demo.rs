@@ -1,9 +1,8 @@
-### How to use:
-```rust
 use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, CanMessage};
 use zlgcan_common::device::ZCanDeviceType;
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
 
+#[test]
 fn main() {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
     let dev_idx = 0;
@@ -40,26 +39,3 @@ fn main() {
 
     driver.close();
 }
-```
-
-### How to test
-  * Enter `driver/tests` folder. Select test file by your device type.
-  * If the channels of device is less than 2:
-    * Connect another CAN device with you device's channel for a monitor.
-    * Then run the selected testcase.
-    * When see receive frame from the monitor, then send frame by the monitor device.
-    * It means pass when the testcase exited without any panic.
-  * If the channels of device is rather than 2:
-    * Connected the channels 0 and 1.
-    * Then run the selected testcase.
-    * It means pass when the testcase exited without any panic.
-  * All testcase will output the send and received debug info.
-
-### The tested device list(include `windows` and `linux`):
-  * USBCAN1 (include office device and deriving device)
-  * USBCAN2 (only deriving device)
-  * USBCANFD-200U
-  * USBCANFD-400U (without supporting channel 3 and 4)
-
-### LICENSE
-  * GNU LESSER GENERAL PUBLIC LICENSE V3
