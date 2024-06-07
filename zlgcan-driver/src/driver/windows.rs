@@ -175,7 +175,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
-        let frames = Vec::try_from_iter(frames, ())?;
+        let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
         self.can_handler(channel, |hdl| {
             self.api.transmit_can(hdl, frames)
         })
@@ -193,7 +193,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
-        let frames = Vec::try_from_iter(frames, ())?;
+        let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
         self.can_handler(channel, |hdl| {
             self.api.transmit_canfd(hdl, frames)
         })

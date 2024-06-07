@@ -22,6 +22,7 @@ pub const CANFD_ESI: u8 = 0x02; /* error state indicator of the transmitting nod
 pub const CAN_FRAME_LENGTH: usize = 8;
 pub const CANERR_FRAME_LENGTH: usize = 8;
 pub const CANFD_FRAME_LENGTH: usize = 64;
+pub(crate) const TIME_FLAG_VALID: u8 = 1;
 
 /// Then CAN frame type used in crate.
 #[repr(C)]

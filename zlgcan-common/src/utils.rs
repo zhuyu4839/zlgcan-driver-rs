@@ -32,3 +32,8 @@ pub fn fix_system_time(frame_timestamp: u64, fix_timestamp: u64) -> u64 {
     frame_timestamp + fix_timestamp
 }
 
+#[inline]
+pub fn fix_device_time(fix_timestamp: u64) -> u64 {
+    system_timestamp() - fix_timestamp
+}
+

@@ -1,4 +1,5 @@
 use std::ffi::{c_uchar, c_uint, c_ushort};
+use crate::can::TIME_FLAG_VALID;
 use crate::error::ZCanError;
 use super::constant::{CAN_ID_FLAG, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanHdrInfoField, CAN_EFF_MASK, CAN_EFF_FLAG, CAN_RTR_FLAG, CAN_ERR_FLAG, CANFD_BRS, CANFD_ESI};
 
@@ -24,7 +25,8 @@ pub trait NewZCanFrame {
         can_id: u32,
         channel: u8,
         data: T,
-        info: ZCanHdrInfo
+        info: ZCanHdrInfo,
+        timestamp: u64,
     ) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]>,
@@ -48,14 +50,14 @@ pub struct ZCanFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, _chl, data, len, info| {
             Ok(Self {
                 can_id: id,
-                timestamp: Default::default(),
-                time_flag: Default::default(),
+                timestamp: timestamp as u32,
+                time_flag: TIME_FLAG_VALID,
                 send_type: info.get_field(ZCanHdrInfoField::TxMode),
                 rem_flag: info.get_field(ZCanHdrInfoField::IsRemoteFrame),
                 ext_flag: info.get_field(ZCanHdrInfoField::IsExtendFrame),
@@ -137,13 +139,13 @@ pub struct ZCanFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFrameV2 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
             Ok(Self {
                 hdr: ZCanHeaderV1 {
-                    timestamp: Default::default(),
+                    timestamp: timestamp as u32,
                     can_id: id,
                     info,
                     pad: Default::default(),
@@ -192,10 +194,10 @@ impl ZCanFrameV3 {
 }
 
 impl NewZCanFrame for ZCanFrameV3 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
+    #[allow(unused_variables)]  // TODO timestamp
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
-        // zcan_frame_new2::<CAN_FRAME_LENGTH, T, Self>(can_id, channel, data, info,  |id, _chl, data, len, info| -> Self {
         zcan_frame_new2(can_id, channel, data, info,  |id, chl, data, len, info| {
             Ok(Self {
                 hdr: ZCanHeaderV2 {
@@ -335,13 +337,13 @@ pub struct ZCanFdFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
         zcanfd_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
             Ok(Self {
                 hdr: ZCanHeaderV1 {
-                    timestamp: Default::default(),
+                    timestamp: timestamp as u32,
                     can_id: id,
                     info,
                     pad: Default::default(),
@@ -371,10 +373,10 @@ impl ZCanFdFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV2 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo) -> Result<Self, ZCanError>
+    #[allow(unused_variables)]  // TODO timestamp
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
         where
             T: AsRef<[u8]> {
-        // zcan_frame_new2::<CANFD_FRAME_LENGTH, T, Self>(can_id, channel, data, info, |id, _chl, data, len, info| -> Self {
         zcanfd_frame_new2(can_id, channel, data, info, |id, chl, data, len, info| {
             let mut flag: u8 = Default::default();
             if info.get_field(ZCanHdrInfoField::IsBitrateSwitch) > 0 {
