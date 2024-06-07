@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::{c_uchar, c_uint, CString};
 use dlopen2::symbor::{Symbol, SymBorApi};
-use zlgcan_common::can::{CanChlCfg, ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanFrameType, ZCanFrameV3};
+use zlgcan_common::can::{CanChlCfg, ZCanChlCfgV1, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanFrameType, ZCanFrameV3};
 use zlgcan_common::device::{Handler, IProperty, SetValueFunc, ZCanDeviceType, ZDeviceInfo};
 use zlgcan_common::error::ZCanError;
 use zlgcan_common::utils::system_timestamp;
@@ -18,7 +18,7 @@ pub(crate) struct USBCANEApi<'a> {
     /// INT ZCAN_GetDeviceInf(DEVICE_HANDLE device_handle, ZCAN_DEVICE_INFO* pInfo);
     pub(crate) ZCAN_GetDeviceInf: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, info: *mut ZDeviceInfo) -> c_uint>,
     /// CHANNEL_HANDLE ZCAN_InitCAN(DEVICE_HANDLE device_handle, UINT can_index, ZCAN_CHANNEL_INIT_CONFIG* pInitConfig);
-    pub(crate) ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfgDetail) -> c_uint>,
+    pub(crate) ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfgV1) -> c_uint>,
     /// INT ZCAN_StartCAN(CHANNEL_HANDLE channel_handle);
     pub(crate) ZCAN_StartCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// INT ZCAN_ResetCAN(CHANNEL_HANDLE channel_handle);
@@ -191,7 +191,7 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ()> for USBCANEApi<'_> {
                     }
                 },
                 ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                    let cfg = ZCanChlCfgDetail::try_from(cfg)?;
+                    let cfg = ZCanChlCfgV1::try_from(cfg)?;
                     match (self.ZCAN_InitCAN)(dev_hdl, channel as u32, &cfg) as u32 {
                         Self::INVALID_CHANNEL_HANDLE =>
                             Err(ZCanError::MethodExecuteFailed("ZCAN_InitCAN".to_string(), Self::INVALID_CHANNEL_HANDLE)),

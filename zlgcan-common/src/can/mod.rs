@@ -49,7 +49,7 @@ pub struct CanChlCfgExt {
     acc_mask: Option<u32>,
     brp: Option<u32>,
 }
-#[allow(dead_code)]
+
 impl CanChlCfgExt {
     pub fn new(
         filter: Option<u8>,
@@ -256,24 +256,6 @@ impl TryFrom<&CanChlCfg> for ZCanChlCfgV2 {
             Ok(Self::from(
                 to_chl_cfg(value.mode, value.bitrate, cfg, &value.extra)?
             ))
-        }
-    }
-}
-
-impl TryFrom<&CanChlCfg> for ZCanChlCfgDetail {
-
-    type Error = ZCanError;
-
-    fn try_from(value: &CanChlCfg) -> Result<Self, Self::Error> {
-        let dev_type = value.device_type()?;
-        if dev_type.is_can_chl_cfg_v1() {
-            Ok(ZCanChlCfgDetail::from(ZCanChlCfgV1::try_from(value)?))
-        }
-        else if dev_type.is_can_chl_cfg_v2() {
-            Ok(ZCanChlCfgDetail::from(ZCanChlCfgV2::try_from(value)?))
-        }
-        else {
-            Err(ZCanError::DeviceNotSupported)
         }
     }
 }

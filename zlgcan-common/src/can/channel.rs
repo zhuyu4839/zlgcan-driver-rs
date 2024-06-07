@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::ffi::{c_uchar, c_uint, c_ushort};
-use std::mem::ManuallyDrop;
 use crate::can::frame::ZCanHeaderV1;
 use crate::error::ZCanError;
 use super::constant::{BRP, CANERR_FRAME_LENGTH, SJW, SMP, TSEG1, TSEG2, ZCanChlMode, ZCanChlType, ZCanFilterType};
@@ -132,10 +131,6 @@ impl ZCanFdChlCfgSet {
             | (self.sjw as u32 & 0x7f) << 15
             | (self.tseg2 as u32 & 0x7f) << 8
             | (self.tseg1 as u32)
-        // (self.tseg1 as u32 & 0xff) << 24
-        //     | (self.tseg2 as u32 & 0x7f) << 17
-        //     | (self.sjw as u32 & 0x7f) << 10
-        //     | self.brp as u32 & 0x3ff
     }
 }
 /// Linux USBCANFD
@@ -229,24 +224,6 @@ impl From<ZCanChlCfg> for ZCanChlCfgV2 {
 impl From<ZCanFdChlCfgV2> for ZCanChlCfgV2 {
     fn from(value: ZCanFdChlCfgV2) -> Self {
         Self { canfd: value }
-    }
-}
-
-#[repr(C)]
-pub union ZCanChlCfgDetail {
-    v1: ManuallyDrop<ZCanChlCfgV1>,
-    v2: ManuallyDrop<ZCanChlCfgV2>,
-}
-
-impl From<ZCanChlCfgV1> for ZCanChlCfgDetail {
-    fn from(value: ZCanChlCfgV1) -> Self {
-        Self { v1: ManuallyDrop::new(value) }
-    }
-}
-
-impl From<ZCanChlCfgV2> for ZCanChlCfgDetail {
-    fn from(value: ZCanChlCfgV2) -> Self {
-        Self { v2: ManuallyDrop::new(value) }
     }
 }
 

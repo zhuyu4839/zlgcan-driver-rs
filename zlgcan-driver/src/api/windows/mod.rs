@@ -1,6 +1,6 @@
 use std::ffi::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, CString};
 use dlopen2::symbor::{Symbol, SymBorApi};
-use zlgcan_common::can::{CanChlCfg, ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanChlType, ZCanFdFrameV2, ZCanFrameV3, ZCanFrameType};
+use zlgcan_common::can::{CanChlCfg, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanChlType, ZCanFdFrameV2, ZCanFrameV3, ZCanFrameType, ZCanChlCfgV1};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use zlgcan_common::device::{CmdPath, IProperty, ZCanDeviceType, ZCanError, ZDeviceInfo};
 use zlgcan_common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
@@ -36,7 +36,7 @@ pub(crate) struct Api<'a> {
     ReleaseIProperty: Symbol<'a, unsafe extern "C" fn(p: *const IProperty) -> c_uint>,
 
     /// CHANNEL_HANDLE FUNC_CALL ZCAN_InitCAN(DEVICE_HANDLE device_handle, UINT can_index, ZCAN_CHANNEL_INIT_CONFIG* pInitConfig);
-    ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfgDetail) -> c_uint>,
+    ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfgV1) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_StartCAN(CHANNEL_HANDLE channel_handle);
     ZCAN_StartCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ResetCAN(CHANNEL_HANDLE channel_handle);
@@ -171,7 +171,7 @@ impl ZDeviceApi<u32, u32> for Api<'_> {
             if dev_type.get_value_support() {
                 let ret = (self.ZCAN_GetValue)(dev_hdl, path.as_ptr() as *const c_char);
                 if ret.is_null() {
-                    Err(ZCanError::MethodExecuteFailed("ZCAN_SetValue".to_string(), 0))
+                    Err(ZCanError::MethodExecuteFailed("ZCAN_GetValue".to_string(), 0))
                 } else {
                     Ok(ret)
                 }
@@ -296,7 +296,7 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for Api<'_> {
                 }
             }
 
-            let cfg = ZCanChlCfgDetail::try_from(cfg)?;
+            let cfg = ZCanChlCfgV1::try_from(cfg)?;
             match (self.ZCAN_InitCAN)(dev_hdl, channel as u32, &cfg) {
                 Self::INVALID_CHANNEL_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_InitCAN".to_string(), Self::INVALID_CHANNEL_HANDLE)),
                 handler => match (self.ZCAN_StartCAN)(handler) {

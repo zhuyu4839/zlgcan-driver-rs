@@ -183,7 +183,6 @@ impl TryFrom<u8> for ZCanHdrInfoField {
 }
 
 /// The reference for Linux device
-#[allow(dead_code)]
 pub enum Reference {
     Filter = 0x14,          // filter setting; @see ZCAN_Filter and ZCanFilterTable
     SkdSend = 0x16,         // timed send setting; @see ZCAN_TTX
