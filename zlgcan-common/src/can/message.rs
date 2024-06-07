@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::slice;
 use crate::error::ZCanError;
 use crate::utils::system_timestamp;
@@ -47,7 +48,55 @@ impl PartialEq for CanMessage {
 
 impl std::fmt::Display for CanMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self)   // TODO
+        let data_str = if self.is_remote_frame {
+            " ".to_owned()
+        } else {
+            self.data().iter()
+                .fold(String::new(), |mut out, &b| {
+                    let _ = write!(out, "{b:02x} ");
+                    out
+                })
+        };
+
+        if self.is_fd {
+            let mut flags = 1 << 12;
+            write!(f, "CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
+                self.channel + 1,
+                if self.is_rx { "Rx" } else { "Tx" },
+                format!("{: >8x}", self.arbitration_id),
+                if self.bitrate_switch {
+                    flags |= 1 << 13;
+                    1
+                } else { 0 },
+                if self.error_state_indicator {
+                    flags |= 1 << 14;
+                    1
+                } else { 0 },
+                format!("{: >2}", self.dlc().unwrap()),
+                format!("{: >2}", self.len),
+                data_str,
+                format!("{: >8}", 0),       // message_duration
+                format!("{: <4}", 0),       // message_length
+                format!("{: >8x}", flags),
+                format!("{: >8}", 0),       // crc
+                format!("{: >8}", 0),       // bit_timing_conf_arb
+                format!("{: >8}", 0),       // bit_timing_conf_data
+                format!("{: >8}", 0),       // bit_timing_conf_ext_arb
+                format!("{: >8}", 0),       // bit_timing_conf_ext_data
+            )
+        }
+        else {
+            write!(f, "{} {} {}{: <4} {} {} {} {}",
+                self.timestamp as f64 / 1000.,
+                self.channel + 1,
+                format!("{: >8x}", self.arbitration_id),
+                if self.is_extended_id { "x" } else { "" },
+                if self.is_rx { "Rx" } else { "Tx" },
+                if self.is_remote_frame { "r" } else { "d" },
+                format!("{: >2}", self.len),
+                data_str,
+            )
+        }
     }
 }
 
