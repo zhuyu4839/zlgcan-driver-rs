@@ -446,41 +446,33 @@ impl ZDevice for ZCanDriver<'_> {
     fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2 => {
-                let frames = frames.into_iter()
-                    .map(ZCanFrameV1::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler1(channel, |channel| {
                     self.usbcan_api.transmit_can((self.dev_type, self.dev_idx, channel), frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                let frames = frames.into_iter()
-                    .map(ZCanFrameV3::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler(channel, |chl_hdl| {
                     self.usbcan_4e_api.transmit_can(chl_hdl, frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                let frames = frames.into_iter()
-                    .map(ZCanFrameV3::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler(channel, |chl_hdl| {
                     self.usbcan_8e_api.transmit_can(chl_hdl, frames)
                 })
             },
-            ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                let frames = frames.into_iter()
-                    .map(ZCanFrameV2::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+            ZCanDeviceType::ZCAN_USBCANFD_MINI
+            | ZCanDeviceType::ZCAN_USBCANFD_100U
+            | ZCanDeviceType::ZCAN_USBCANFD_200U => {
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler1(channel, |channel| {
                     self.usbcanfd_api.transmit_can((self.dev_type, self.dev_idx, channel), frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                let frames = frames.into_iter()
-                    .map(ZCanFrameV3::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler(channel, |chl_hdl| {
                     self.usbcanfd_800u_api.transmit_can(chl_hdl, frames)
                 })
@@ -517,17 +509,13 @@ impl ZDevice for ZCanDriver<'_> {
     fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                let frames = frames.into_iter()
-                    .map(ZCanFdFrameV1::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler1(channel, |channel| {
                     self.usbcanfd_api.transmit_canfd((self.dev_type, self.dev_idx, channel), frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                let frames = frames.into_iter()
-                    .map(ZCanFdFrameV2::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                let frames = Vec::try_from_iter(frames, ())?;
                 self.can_handler(channel, |chl_hdl| {
                     self.usbcanfd_800u_api.transmit_canfd(chl_hdl, frames)
                 })

@@ -17,8 +17,8 @@ pub mod error;
 pub mod lin;
 pub mod utils;
 
-pub trait TryFromIterator<T>: Sized {
+pub trait TryFromIterator<T, P>: Sized {
     type Error;
 
-    fn try_from_iter<I: IntoIterator<Item = T>>(iter: I, timestamp: u64) -> Result<Self, Self::Error>;
+    fn try_from_iter<I: IntoIterator<Item = T>>(iter: I, value: P) -> Result<Self, Self::Error>;
 }

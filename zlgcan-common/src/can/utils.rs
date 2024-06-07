@@ -66,21 +66,16 @@ impl TryFrom<ZCanFrameV1> for CanMessage {
     }
 }
 
-// impl TryFromIterator<CanMessage> for Vec<ZCanFrameV1> {
-//     type Error = ZCanError;
-//     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
-//         let results = iter.into_iter()
-//             .map(|mut msg| {
-//                 msg.set_timestamp(None);
-//                 ZCanFrameV1::try_from(v)
-//             })
-//             .collect();
-//
-//         results
-//     }
-// }
+impl TryFromIterator<CanMessage, ()> for Vec<ZCanFrameV1> {
+    type Error = ZCanError;
+    fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, _: ()) -> Result<Self, Self::Error> {
+        iter.into_iter()
+            .map(ZCanFrameV1::try_from)
+            .collect()
+    }
+}
 
-impl TryFromIterator<ZCanFrameV1> for Vec<CanMessage> {
+impl TryFromIterator<ZCanFrameV1, u64> for Vec<CanMessage> {
     type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFrameV1>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
@@ -120,21 +115,16 @@ impl TryFrom<ZCanFrameV2> for CanMessage {
     }
 }
 
-// impl TryFromIterator<CanMessage> for Vec<ZCanFrameV2> {
-//     type Error = ZCanError;
-//     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
-//         let results = iter.into_iter()
-//             .map(|mut msg| {
-//                 msg.set_timestamp(None);
-//                 ZCanFrameV2::try_from(v)
-//             })
-//             .collect();
-//
-//         results
-//     }
-// }
+impl TryFromIterator<CanMessage, ()> for Vec<ZCanFrameV2> {
+    type Error = ZCanError;
+    fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, _: ()) -> Result<Self, Self::Error> {
+        iter.into_iter()
+            .map(ZCanFrameV2::try_from)
+            .collect()
+    }
+}
 
-impl TryFromIterator<ZCanFrameV2> for Vec<CanMessage> {
+impl TryFromIterator<ZCanFrameV2, u64> for Vec<CanMessage> {
     type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFrameV2>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
@@ -175,21 +165,16 @@ impl TryFrom<ZCanFrameV3> for CanMessage {
     }
 }
 
-// impl TryFromIterator<CanMessage> for Vec<ZCanFrameV3> {
-//     type Error = ZCanError;
-//     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
-//         let results = iter.into_iter()
-//             .map(|mut msg| {
-//                 msg.set_timestamp(None);
-//                 ZCanFrameV3::try_from(v)
-//             })
-//             .collect();
-//
-//         results
-//     }
-// }
+impl TryFromIterator<CanMessage, ()> for Vec<ZCanFrameV3> {
+    type Error = ZCanError;
+    fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, _: ()) -> Result<Self, Self::Error> {
+        iter.into_iter()
+            .map(ZCanFrameV3::try_from)
+            .collect()
+    }
+}
 
-impl TryFromIterator<ZCanFrameV3> for Vec<CanMessage> {
+impl TryFromIterator<ZCanFrameV3, u64> for Vec<CanMessage> {
     type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFrameV3>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
@@ -234,21 +219,16 @@ impl TryFrom<ZCanFdFrameV1> for CanMessage {
     }
 }
 
-// impl TryFromIterator<CanMessage> for Vec<ZCanFdFrameV1> {
-//     type Error = ZCanError;
-//     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
-//         let results = iter.into_iter()
-//             .map(|mut msg| {
-//                 msg.set_timestamp(None);
-//                 ZCanFdFrameV1::try_from(v)
-//             })
-//             .collect();
-//
-//         results
-//     }
-// }
+impl TryFromIterator<CanMessage, ()> for Vec<ZCanFdFrameV1> {
+    type Error = ZCanError;
+    fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, _: ()) -> Result<Self, Self::Error> {
+        iter.into_iter()
+            .map(ZCanFdFrameV1::try_from)
+            .collect()
+    }
+}
 
-impl TryFromIterator<ZCanFdFrameV1> for Vec<CanMessage> {
+impl TryFromIterator<ZCanFdFrameV1, u64> for Vec<CanMessage> {
     type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFdFrameV1>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
@@ -292,21 +272,16 @@ impl TryFrom<ZCanFdFrameV2> for CanMessage {
     }
 }
 
-// impl TryFromIterator<CanMessage> for Vec<ZCanFdFrameV2> {
-//     type Error = ZCanError;
-//     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
-//         let results = iter.into_iter()
-//             .map(|mut msg| {
-//                 msg.set_timestamp(None);
-//                 ZCanFdFrameV2::try_from(v)
-//             })
-//             .collect();
-//
-//         results
-//     }
-// }
+impl TryFromIterator<CanMessage, ()> for Vec<ZCanFdFrameV2> {
+    type Error = ZCanError;
+    fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, _: ()) -> Result<Self, Self::Error> {
+        iter.into_iter()
+            .map(ZCanFdFrameV2::try_from)
+            .collect()
+    }
+}
 
-impl TryFromIterator<ZCanFdFrameV2> for Vec<CanMessage> {
+impl TryFromIterator<ZCanFdFrameV2, u64> for Vec<CanMessage> {
     type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFdFrameV2>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
