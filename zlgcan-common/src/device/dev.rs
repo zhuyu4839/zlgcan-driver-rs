@@ -182,6 +182,36 @@ impl Handler {
     }
 }
 
+/// use for batch setting parameters for device.
+/// path used on windows and linux USBCANFD-4E|8E and USBCANFD-800U
+/// reference only used on Linux USBCAN USBCANFD
+pub union CmdPath<'a> {
+    path: &'a str,
+    reference: u32,
+}
+
+impl<'a> CmdPath<'a> {
+    #[inline(always)]
+    pub fn new_path(path: &'a str) -> Self {
+        Self { path }
+    }
+
+    #[inline(always)]
+    pub fn new_reference(value: u32) -> Self {
+        Self { reference: value }
+    }
+
+    #[inline(always)]
+    pub fn get_path(&self) -> &str {
+        unsafe { self.path }
+    }
+
+    #[inline(always)]
+    pub fn get_reference(&self) -> u32 {
+        unsafe { self.reference }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::device::DeriveInfo;
@@ -223,34 +253,5 @@ mod tests {
         assert_eq!(dev_info.firmware_version(), "V1.01");
         assert_eq!(dev_info.driver_version(), "V10.01");
         assert_eq!(dev_info.api_version(), "V2.37");
-    }
-}
-/// use for batch setting parameters for device.
-/// path used on windows and linux USBCANFD-4E|8E and USBCANFD-800U
-/// reference only used on Linux USBCAN USBCANFD
-pub union CmdPath<'a> {
-    path: &'a str,
-    reference: u32,
-}
-
-impl<'a> CmdPath<'a> {
-    #[inline(always)]
-    pub fn new_path(path: &'a str) -> Self {
-        Self { path }
-    }
-
-    #[inline(always)]
-    pub fn new_reference(value: u32) -> Self {
-        Self { reference: value }
-    }
-
-    #[inline(always)]
-    pub fn get_path(&self) -> &str {
-        unsafe { self.path }
-    }
-
-    #[inline(always)]
-    pub fn get_reference(&self) -> u32 {
-        unsafe { self.reference }
     }
 }

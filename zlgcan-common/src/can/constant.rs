@@ -22,6 +22,7 @@ pub const CANFD_ESI: u8 = 0x02; /* error state indicator of the transmitting nod
 pub const CAN_FRAME_LENGTH: usize = 8;
 pub const CANERR_FRAME_LENGTH: usize = 8;
 pub const CANFD_FRAME_LENGTH: usize = 64;
+pub(crate) const TIME_FLAG_VALID: u8 = 1;
 
 /// Then CAN frame type used in crate.
 #[repr(C)]
@@ -182,7 +183,6 @@ impl TryFrom<u8> for ZCanHdrInfoField {
 }
 
 /// The reference for Linux device
-#[allow(dead_code)]
 pub enum Reference {
     Filter = 0x14,          // filter setting; @see ZCAN_Filter and ZCanFilterTable
     SkdSend = 0x16,         // timed send setting; @see ZCAN_TTX

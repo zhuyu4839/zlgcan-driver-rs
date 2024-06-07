@@ -6,11 +6,7 @@ use self::utils::canfd_device2;
 #[test]
 fn usbcanfd_200u() {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
-    #[cfg(target_os = "linux")]
-    let version = "v2";
-    #[cfg(target_os = "windows")]
-    let version = "v3";
-    canfd_device2(dev_type, 2, 2, 0, 1, version);
+    canfd_device2(dev_type, 2, 2, 0, 1);
 }
 
 /// `Attention:`
@@ -18,11 +14,7 @@ fn usbcanfd_200u() {
 #[test]
 fn usbcanfd_400u() {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
-    #[cfg(target_os = "linux")]
-    let version = "v2";
-    #[cfg(target_os = "windows")]
-    let version = "v3";
-    canfd_device2(dev_type, 4, 2, 0, 1, version);
+    canfd_device2(dev_type, 4, 2, 0, 1);
 }
 
 #[cfg(target_os = "windows")]

@@ -1,6 +1,6 @@
 use std::slice;
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::error::ZCanError;
+use crate::utils::system_timestamp;
 use super::constant::{CAN_EFF_MASK, CAN_FRAME_LENGTH, CAN_ID_FLAG, CANFD_FRAME_LENGTH};
 
 #[repr(C)]
@@ -96,12 +96,7 @@ impl CanMessage {
     pub const fn timestamp(&self) -> u64 { self.timestamp }
     #[inline(always)]
     pub fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self {
-        self.timestamp = value.unwrap_or_else(|| -> u64 {
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64
-        });
+        self.timestamp = value.unwrap_or_else(system_timestamp);
         self
     }
     #[inline(always)]

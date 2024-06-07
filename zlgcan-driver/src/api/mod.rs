@@ -4,7 +4,7 @@ pub(crate) mod linux;
 pub(crate) mod windows;
 
 use std::ffi::{c_char, c_void};
-use zlgcan_common::can::{CanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFdFrame, ZCanFrame, ZCanFrameType};
+use zlgcan_common::can::{CanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use zlgcan_common::device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo};
 use zlgcan_common::error::ZCanError;
@@ -48,19 +48,19 @@ pub trait ZDeviceApi<DH, CH> {
 }
 
 #[allow(unused_variables)]
-pub trait ZCanApi<DH, CH> {
+pub trait ZCanApi<DH, CH, F, FD> {
     fn init_can_chl(&self, dev_hdl: DH, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError>;
     fn reset_can_chl(&self, chl_hdl: CH) -> Result<(), ZCanError>;
     fn read_can_chl_status(&self, chl_hdl: CH) -> Result<ZCanChlStatus, ZCanError>;
     fn read_can_chl_error(&self, chl_hdl: CH) -> Result<ZCanChlError, ZCanError>;
     fn clear_can_buffer(&self, chl_hdl: CH) -> Result<(), ZCanError>;
     fn get_can_num(&self, chl_hdl: CH, can_type: ZCanFrameType) -> Result<u32, ZCanError>;
-    fn receive_can(&self, chl_hdl: CH, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrame>, usize)) -> Result<Vec<ZCanFrame>, ZCanError>;
-    fn transmit_can(&self, chl_hdl: CH, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError>;
-    fn receive_canfd(&self, chl_hdl: CH, size: u32, timeout: u32, resize: fn(&mut Vec<ZCanFdFrame>, usize)) -> Result<Vec<ZCanFdFrame>, ZCanError> {
+    fn receive_can(&self, chl_hdl: CH, size: u32, timeout: u32, resize: impl Fn(&mut Vec<F>, usize)) -> Result<Vec<F>, ZCanError>;
+    fn transmit_can(&self, chl_hdl: CH, frames: Vec<F>) -> Result<u32, ZCanError>;
+    fn receive_canfd(&self, chl_hdl: CH, size: u32, timeout: u32, resize: fn(&mut Vec<FD>, usize)) -> Result<Vec<FD>, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    fn transmit_canfd(&self, chl_hdl: CH, frames: Vec<ZCanFdFrame>) -> Result<u32, ZCanError> {
+    fn transmit_canfd(&self, chl_hdl: CH, frames: Vec<FD>) -> Result<u32, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
 }

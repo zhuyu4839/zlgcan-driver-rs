@@ -5,12 +5,6 @@ pub mod driver;
 #[allow(dead_code)]
 pub(crate) mod constant {
     pub(crate) const LOAD_LIB_FAILED: &str = "ZLGCAN - could not open library!";
-    #[deprecated(since = "1.0.0-rc2", note = "use Self::INVALID_DEVICE_HANDLE")]
-    pub(crate) const INVALID_DEVICE_HANDLE: u32 = 0;
-    #[deprecated(since = "1.0.0-rc2", note = "use Self::INVALID_CHANNEL_HANDLE")]
-    pub(crate) const INVALID_CHANNEL_HANDLE: u32 = 0;
-    #[deprecated(since = "1.0.0-rc2", note = "use Self::STATUS_OK")]
-    pub(crate) const STATUS_OK: u32 = 1;
     pub(crate) const STATUS_ONLINE: u32 = 2;
     pub(crate) const STATUS_OFFLINE: u32 = 3;
     pub(crate) const CLOCK: &str = "clock";

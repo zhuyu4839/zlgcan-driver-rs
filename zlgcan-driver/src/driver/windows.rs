@@ -1,9 +1,12 @@
+use std::collections::HashMap;
 use dlopen2::symbor::{Library, SymBorApi};
 use lazy_static::lazy_static;
-use zlgcan_common::can::{CanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFdFrame, ZCanFdFrameV1, ZCanFrame, ZCanFrameType, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3};
+use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFdFrameV2, ZCanFrameType, ZCanFrameV3};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZDeviceInfo};
 use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
+use zlgcan_common::TryFromIterator;
+use zlgcan_common::utils::system_timestamp;
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::api::windows::Api;
 use crate::constant::LOAD_LIB_FAILED;
@@ -20,11 +23,12 @@ lazy_static!(
 
 #[derive(Debug)]
 pub struct ZCanDriver<'a> {
-    pub(crate) handler:  Option<Handler>,
-    pub(crate) api:      Api<'a>,
-    pub(crate) dev_type: ZCanDeviceType,
-    pub(crate) dev_idx:  u32,
-    pub(crate) derive:   Option<DeriveInfo>,
+    pub(crate) handler:    Option<Handler>,
+    pub(crate) api:        Api<'a>,
+    pub(crate) dev_type:   ZCanDeviceType,
+    pub(crate) dev_idx:    u32,
+    pub(crate) derive:     Option<DeriveInfo>,
+    pub(crate) timestamps: HashMap<u8, u64>,
 }
 
 impl ZDevice for ZCanDriver<'_> {
@@ -33,7 +37,7 @@ impl ZDevice for ZCanDriver<'_> {
             Api::load(&LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))
         }?;
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
-        Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive, })
+        Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive, timestamps: Default::default() })
     }
 
     fn device_type(&self) -> ZCanDeviceType {
@@ -109,6 +113,7 @@ impl ZDevice for ZCanDriver<'_> {
                     }
 
                     let chl_hdl = self.api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
+                    self.timestamps.insert(idx, system_timestamp());
 
                     dev_hdl.add_can(idx, chl_hdl);
                 }
@@ -158,57 +163,37 @@ impl ZDevice for ZCanDriver<'_> {
         })
     }
 
-    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFrame>, ZCanError> {
+    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
         let timeout = timeout.unwrap_or(0xFFFFFFFF);
         let frames = self.can_handler(channel, |hdl| {
             self.api.receive_can(hdl, size, timeout, |frames, size| {
-                if self.dev_type.is_frame_v1() {
-                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV1::default()) });
-                }
-                else if self.dev_type.is_frame_v2() {
-                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV2::default()) });
-                }
-                else if self.dev_type.is_frame_v3() {
-                    frames.resize_with(size, || -> ZCanFrame { ZCanFrame::from(ZCanFrameV3::default()) });
-                }
-                else {
-                    panic!("ZLGCAN - receive CAN frame is not supported!");
-                }
+                frames.resize_with(size, ZCanFrameV3::default);
             })
         })?;
 
-        let frames = frames.into_iter().map(|f| -> ZCanFrame {
-            let mut frame = f.get_v3();
-            frame.update_channel(channel);
-            ZCanFrame::from(frame)
-        })
-            .collect::<Vec<_>>();
-        Ok(frames)
+        Vec::try_from_iter(frames, self.timestamp(channel))
     }
 
-    fn transmit_can(&self, channel: u8, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError> {
+    fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
+        let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
         self.can_handler(channel, |hdl| {
             self.api.transmit_can(hdl, frames)
         })
     }
 
-    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
+    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
         let timeout = timeout.unwrap_or(0xFFFFFFFF);
         let frames = self.can_handler(channel, |hdl| {
             self.api.receive_canfd(hdl, size, timeout, |frames, size| {
-                frames.resize_with(size, || -> ZCanFdFrame { ZCanFdFrame::from(ZCanFdFrameV1::default()) });
+                frames.resize_with(size, ZCanFdFrameV2::default);
             })
         })?;
-        let frames = frames.into_iter().map(|f| -> ZCanFdFrame {
-            let mut frame = f.get_v2();
-            frame.update_channel(channel);
-            ZCanFdFrame::from(frame)
-        })
-            .collect::<Vec<_>>();
-        Ok(frames)
+
+        Vec::try_from_iter(frames, self.timestamp(channel))
     }
 
-    fn transmit_canfd(&self, channel: u8, frames: Vec<ZCanFdFrame>) -> Result<u32, ZCanError> {
+    fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
+        let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
         self.can_handler(channel, |hdl| {
             self.api.transmit_canfd(hdl, frames)
         })
@@ -394,6 +379,14 @@ impl ZDevice for ZCanDriver<'_> {
                 frames.resize_with(size, Default::default)
             })
         })
+    }
+
+    #[inline]
+    fn timestamp(&self, channel: u8) -> u64 {
+        match self.timestamps.get(&channel) {
+            Some(v) => *v,
+            None => 0,
+        }
     }
 }
 
