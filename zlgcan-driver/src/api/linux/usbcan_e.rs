@@ -1,13 +1,10 @@
+use std::collections::HashMap;
 use std::ffi::{c_uchar, c_uint, CString};
 use dlopen2::symbor::{Symbol, SymBorApi};
-use zlgcan_common::can::{
-    CanChlCfg,
-    ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus,
-    ZCanFrameType,
-    ZCanFrame
-};
+use zlgcan_common::can::{CanChlCfg, ZCanChlCfgDetail, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanFrameType, ZCanFrameV3};
 use zlgcan_common::device::{Handler, IProperty, SetValueFunc, ZCanDeviceType, ZDeviceInfo};
 use zlgcan_common::error::ZCanError;
+use zlgcan_common::utils::system_timestamp;
 use crate::constant::{channel_bitrate, channel_work_mode};
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 
@@ -33,11 +30,11 @@ pub(crate) struct USBCANEApi<'a> {
     /// INT ZCAN_ReadChannelStatus(CHANNEL_HANDLE channel_handle, ZCAN_CHANNEL_STATUS* pCANStatus);
     pub(crate) ZCAN_ReadChannelStatus: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, status: *mut ZCanChlStatus) -> c_uint>,
     /// INT ZCAN_Transmit(CHANNEL_HANDLE channel_handle, ZCAN_Transmit_Data* pTransmit, UINT len);
-    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrameV3, len: c_uint) -> c_uint>,
     /// INT ZCAN_GetReceiveNum(CHANNEL_HANDLE channel_handle, BYTE type);
     pub(crate) ZCAN_GetReceiveNum: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, msg: c_uchar) -> c_uint>,
     /// INT ZCAN_Receive(CHANNEL_HANDLE channel_handle, ZCAN_Receive_Data* pReceive, UINT len, INT wait_time);
-    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrameV3, size: c_uint, timeout: c_uint) -> c_uint>,
     /// INT ZCAN_TransmitFD(CHANNEL_HANDLE channel_handle, ZCAN_TransmitFD_Data* pTransmit, UINT len);
     //ZCAN_TransmitFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFdFrame, len: c_uint) -> c_uint>,
     /// INT ZCAN_ReceiveFD(CHANNEL_HANDLE channel_handle, ZCAN_ReceiveFD_Data* pReceive, UINT len, INT wait_time);
@@ -57,7 +54,8 @@ impl USBCANEApi<'_> {
         &self,
         dev_hdl: &mut Handler,
         channels: u8,
-        cfg: &Vec<CanChlCfg>
+        cfg: &Vec<CanChlCfg>,
+        timestamps: &mut HashMap<u8, u64>,
     ) -> Result<(), ZCanError> {
         let p = self.get_property(dev_hdl.device_handler())?;
         let set_value_func = p.SetValue;
@@ -75,7 +73,9 @@ impl USBCANEApi<'_> {
             }
 
             match self.start_channel(dev_hdl, idx, set_value_func, cfg) {
-                Ok(()) => {},
+                Ok(()) => {
+                    timestamps.insert(idx, system_timestamp());
+                },
                 Err(e) => {
                     error = Some(e);
                     break;
@@ -178,7 +178,7 @@ impl ZDeviceApi<u32, u32> for USBCANEApi<'_> {
     }
 }
 
-impl ZCanApi<u32, u32> for USBCANEApi<'_> {
+impl ZCanApi<u32, u32, ZCanFrameV3, ()> for USBCANEApi<'_> {
     fn init_can_chl(&self, dev_hdl: u32, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         unsafe {
             let dev_type = cfg.device_type()?;
@@ -246,7 +246,7 @@ impl ZCanApi<u32, u32> for USBCANEApi<'_> {
         Ok(ret as u32)
     }
 
-    fn receive_can(&self, chl_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrame>, usize)) -> Result<Vec<ZCanFrame>, ZCanError> {
+    fn receive_can(&self, chl_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrameV3>, usize)) -> Result<Vec<ZCanFrameV3>, ZCanError> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
@@ -258,7 +258,7 @@ impl ZCanApi<u32, u32> for USBCANEApi<'_> {
         Ok(frames)
     }
 
-    fn transmit_can(&self, chl_hdl: u32, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError> {
+    fn transmit_can(&self, chl_hdl: u32, frames: Vec<ZCanFrameV3>) -> Result<u32, ZCanError> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
         let ret = ret as u32;

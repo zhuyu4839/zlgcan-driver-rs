@@ -1,4 +1,4 @@
-use zlgcan_common::can::{CanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFdFrame, ZCanFrame, ZCanFrameType};
+use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZDeviceInfo};
 use zlgcan_common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
@@ -110,12 +110,12 @@ pub trait ZDevice {
     fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, ZCanError>;
     fn clear_can_buffer(&self, channel: u8) -> Result<(), ZCanError>;
     fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> Result<u32, ZCanError>;
-    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFrame>, ZCanError>;
-    fn transmit_can(&self, channel: u8, frames: Vec<ZCanFrame>) -> Result<u32, ZCanError>;
-    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZCanFdFrame>, ZCanError> {
+    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError>;
+    fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError>;
+    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    fn transmit_canfd(&self, channel: u8, frames: Vec<ZCanFdFrame>) -> Result<u32, ZCanError> {
+    fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
     fn init_lin_chl(&mut self, cfg: Vec<ZLinChlCfg>) -> Result<(), ZCanError> {
@@ -136,7 +136,7 @@ pub trait ZDevice {
     fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> Result<u32, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>)-> Result<(), ZCanError> {
+    fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>) -> Result<(), ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
     fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> Result<(), ZCanError> {
@@ -148,21 +148,21 @@ pub trait ZDevice {
     fn wakeup_lin(&self, channel: u8) -> Result<(), ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    #[deprecated(since="0.1.0", note="This method is deprecated!")]
+    #[deprecated(since = "0.1.0", note = "This method is deprecated!")]
     fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    #[deprecated(since="0.1.0", note="This method is deprecated!")]
+    #[deprecated(since = "0.1.0", note = "This method is deprecated!")]
     fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> Result<(), ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
     fn set_server(&self, server: ZCloudServerInfo) -> Result<(), ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    fn connect_server(&self, username: &str, password: &str) -> Result<(), ZCanError>{
+    fn connect_server(&self, username: &str, password: &str) -> Result<(), ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    fn is_connected_server(&self) -> Result<bool, ZCanError>{
+    fn is_connected_server(&self) -> Result<bool, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
     fn disconnect_server(&self) -> Result<(), ZCanError> {
@@ -174,6 +174,7 @@ pub trait ZDevice {
     fn receive_gps(&self, size: u32, timeout: Option<u32>) -> Result<Vec<ZCloudGpsFrame>, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
+    fn timestamp(&self, channel: u8) -> u64;
 }
 
 // pub trait ZDevice {
