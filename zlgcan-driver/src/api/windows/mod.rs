@@ -126,20 +126,20 @@ impl ZDeviceApi for Api<'_> {
             v => Ok(v),
         }
     }
-    fn close(&self, dev_hdl: DeviceHandler) -> Result<(), ZCanError> {
+    fn close(&self, dev_hdl: Self::DeviceHandler) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_CloseDevice)(dev_hdl) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_CloseDevice".to_string(), code)),
         }
     }
-    fn read_device_info(&self, dev_hdl: DeviceHandler) -> Result<ZDeviceInfo, ZCanError> {
+    fn read_device_info(&self, dev_hdl: Self::DeviceHandler) -> Result<ZDeviceInfo, ZCanError> {
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.ZCAN_GetDeviceInf)(dev_hdl, &mut info) } {
             Self::STATUS_OK => Ok(info),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_GetDeviceInf".to_string(), code)),
         }
     }
-    fn is_online(&self, dev_hdl: DeviceHandler) -> Result<bool, ZCanError> {
+    fn is_online(&self, dev_hdl: Self::DeviceHandler) -> Result<bool, ZCanError> {
         unsafe {
             match (self.ZCAN_IsDeviceOnLine)(dev_hdl) {
                 STATUS_ONLINE => Ok(true),
@@ -148,7 +148,7 @@ impl ZDeviceApi for Api<'_> {
             }
         }
     }
-    fn get_property(&self, dev_hdl: DeviceHandler) -> Result<IProperty, ZCanError> {
+    fn get_property(&self, dev_hdl: Self::DeviceHandler) -> Result<IProperty, ZCanError> {
         unsafe {
             let ret = (self.GetIProperty)(dev_hdl);
             if ret.is_null() {
@@ -166,7 +166,7 @@ impl ZDeviceApi for Api<'_> {
             }
         }
     }
-    fn get_value(&self, dev_type: ZCanDeviceType, dev_hdl: DeviceHandler, cmd_path: &CmdPath) -> Result<*const c_void, ZCanError> {
+    fn get_value(&self, dev_type: ZCanDeviceType, dev_hdl: Self::DeviceHandler, cmd_path: &CmdPath) -> Result<*const c_void, ZCanError> {
         unsafe {
             let path = cmd_path.get_path();
             let path = CString::new(path).map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?;
@@ -182,7 +182,7 @@ impl ZDeviceApi for Api<'_> {
             }
         }
     }
-    fn set_value(&self, dev_hdl: DeviceHandler, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
+    fn set_value(&self, dev_hdl: Self::DeviceHandler, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
         unsafe {
             let path = cmd_path.get_path();
             let _path = CString::new(path).map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?;
@@ -193,7 +193,7 @@ impl ZDeviceApi for Api<'_> {
             }
         }
     }
-    fn set_values(&self, dev_hdl: DeviceHandler, values: Vec<(CmdPath, *const c_char)>) -> Result<(), ZCanError> {
+    fn set_values(&self, dev_hdl: Self::DeviceHandler, values: Vec<(CmdPath, *const c_char)>) -> Result<(), ZCanError> {
         unsafe {
             let p = self.get_property(dev_hdl)?;
             match p.SetValue {
@@ -218,7 +218,7 @@ impl ZDeviceApi for Api<'_> {
             }
         }
     }
-    fn get_values(&self, dev_hdl: DeviceHandler, channel: u8, paths: Vec<CmdPath>) -> Result<Vec<String>, ZCanError> {
+    fn get_values(&self, dev_hdl: Self::DeviceHandler, channel: u8, paths: Vec<CmdPath>) -> Result<Vec<String>, ZCanError> {
         unsafe {
             let p = self.get_property(dev_hdl)?;
             match p.GetValue {
@@ -250,7 +250,7 @@ impl ZCanApi for Api<'_> {
     type ChannelHandler = u32;
     type Frame = ZCanFrameV3;
     type FdFrame = ZCanFdFrameV2;
-    fn init_can_chl(&self, dev_hdl: DeviceHandler, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
+    fn init_can_chl(&self, dev_hdl: Self::DeviceHandler, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         let dev_type = cfg.device_type()?;
         unsafe {
             if !matches!(dev_type, ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2) {
@@ -313,14 +313,14 @@ impl ZCanApi for Api<'_> {
         }
     }
 
-    fn reset_can_chl(&self, chl_hdl: ChannelHandler) -> Result<(), ZCanError> {
+    fn reset_can_chl(&self, chl_hdl: Self::ChannelHandler) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_ResetCAN)(chl_hdl) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ResetCAN".to_string(), code)),
         }
     }
 
-    fn read_can_chl_status(&self, chl_hdl: ChannelHandler) -> Result<ZCanChlStatus, ZCanError> {
+    fn read_can_chl_status(&self, chl_hdl: Self::ChannelHandler) -> Result<ZCanChlStatus, ZCanError> {
         let mut status: ZCanChlStatus = Default::default();
         match unsafe { (self.ZCAN_ReadChannelStatus)(chl_hdl, &mut status) } {
             Self::STATUS_OK => Ok(status),
@@ -328,7 +328,7 @@ impl ZCanApi for Api<'_> {
         }
     }
 
-    fn read_can_chl_error(&self, chl_hdl: ChannelHandler) -> Result<ZCanChlError, ZCanError> {
+    fn read_can_chl_error(&self, chl_hdl: Self::ChannelHandler) -> Result<ZCanChlError, ZCanError> {
         let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.ZCAN_ReadChannelErrInfo)(chl_hdl, &mut info) } {
             Self::STATUS_OK => Ok(info),
@@ -336,20 +336,20 @@ impl ZCanApi for Api<'_> {
         }
     }
 
-    fn clear_can_buffer(&self, chl_hdl: ChannelHandler) -> Result<(), ZCanError> {
+    fn clear_can_buffer(&self, chl_hdl: Self::ChannelHandler) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_ClearBuffer)(chl_hdl) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ClearBuffer".to_string(), code)),
         }
     }
 
-    fn get_can_num(&self, chl_hdl: ChannelHandler, can_type: ZCanFrameType) -> Result<u32, ZCanError> {
+    fn get_can_num(&self, chl_hdl: Self::ChannelHandler, can_type: ZCanFrameType) -> Result<u32, ZCanError> {
         let ret = unsafe { (self.ZCAN_GetReceiveNum)(chl_hdl, can_type as u8) };
         log::debug!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         Ok(ret)
     }
 
-    fn receive_can(&self, chl_hdl: ChannelHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> Result<Vec<Self::Frame>, ZCanError> {
+    fn receive_can(&self, chl_hdl: Self::ChannelHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> Result<Vec<Self::Frame>, ZCanError> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
@@ -360,7 +360,7 @@ impl ZCanApi for Api<'_> {
         Ok(frames)
     }
 
-    fn transmit_can(&self, chl_hdl: ChannelHandler, frames: Vec<Self::Frame>) -> Result<u32, ZCanError> {
+    fn transmit_can(&self, chl_hdl: Self::ChannelHandler, frames: Vec<Self::Frame>) -> Result<u32, ZCanError> {
         let len = frames.len() as u32;
         // method 1
         // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
@@ -390,7 +390,7 @@ impl ZCanApi for Api<'_> {
         Ok(count)
     }
 
-    fn receive_canfd(&self, chl_hdl: ChannelHandler, size: u32, timeout: u32, resize: fn(&mut Vec<Self::FdFrame>, usize)) -> Result<Vec<Self::FdFrame>, ZCanError> {
+    fn receive_canfd(&self, chl_hdl: Self::ChannelHandler, size: u32, timeout: u32, resize: fn(&mut Vec<Self::FdFrame>, usize)) -> Result<Vec<Self::FdFrame>, ZCanError> {
         let mut frames = Vec::new();
         // frames.resize_with(size as usize, Default::default);
         resize(&mut frames, size as usize);
@@ -402,7 +402,7 @@ impl ZCanApi for Api<'_> {
         Ok(frames)
     }
 
-    fn transmit_canfd(&self, chl_hdl: ChannelHandler, frames: Vec<Self::FdFrame>) -> Result<u32, ZCanError> {
+    fn transmit_canfd(&self, chl_hdl: Self::ChannelHandler, frames: Vec<Self::FdFrame>) -> Result<u32, ZCanError> {
         let len = frames.len() as u32;
         // let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frames.as_ptr(), len) };
         // if ret < len {
@@ -424,7 +424,7 @@ impl ZCanApi for Api<'_> {
 impl ZLinApi for Api<'_> {
     type DeviceHandler = u32;
     type ChannelHandler = u32;
-    fn init_lin_chl(&self, dev_hdl: DeviceHandler, channel: u8, cfg: &ZLinChlCfg) -> Result<u32, ZCanError> {
+    fn init_lin_chl(&self, dev_hdl: Self::DeviceHandler, channel: u8, cfg: &ZLinChlCfg) -> Result<u32, ZCanError> {
         unsafe {
             match (self.ZCAN_InitLIN)(dev_hdl, channel as u32, cfg) {
                 Self::INVALID_CHANNEL_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_InitLIN".to_string(), Self::INVALID_CHANNEL_HANDLE)),
@@ -435,18 +435,18 @@ impl ZLinApi for Api<'_> {
             }
         }
     }
-    fn reset_lin_chl(&self, chl_hdl: ChannelHandler) -> Result<(), ZCanError> {
+    fn reset_lin_chl(&self, chl_hdl: Self::ChannelHandler) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_ResetLIN)(chl_hdl) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_ResetLIN".to_string(), code)),
         }
     }
-    fn get_lin_num(&self, chl_hdl: ChannelHandler) -> Result<u32, ZCanError> {
+    fn get_lin_num(&self, chl_hdl: Self::ChannelHandler) -> Result<u32, ZCanError> {
         let ret = unsafe { (self.ZCAN_GetLINReceiveNum)(chl_hdl) };
         log::debug!("ZLGCAN - get receive LIN number: {}.", ret);
         Ok(ret)
     }
-    fn receive_lin(&self, chl_hdl: ChannelHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZLinFrame>, usize)) -> Result<Vec<ZLinFrame>, ZCanError> {
+    fn receive_lin(&self, chl_hdl: Self::ChannelHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZLinFrame>, usize)) -> Result<Vec<ZLinFrame>, ZCanError> {
         let mut frames = Vec::new();
 
         resize(&mut frames, size as usize);
@@ -457,7 +457,7 @@ impl ZLinApi for Api<'_> {
         }
         Ok(frames)
     }
-    fn transmit_lin(&self, chl_hdl: ChannelHandler, frames: Vec<ZLinFrame>) -> Result<u32, ZCanError> {
+    fn transmit_lin(&self, chl_hdl: Self::ChannelHandler, frames: Vec<ZLinFrame>) -> Result<u32, ZCanError> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.ZCAN_TransmitLIN)(chl_hdl, frames.as_ptr(), len) };
         if ret < len {
@@ -465,41 +465,41 @@ impl ZLinApi for Api<'_> {
         }
         Ok(ret)
     }
-    fn set_lin_subscribe(&self, chl_hdl: ChannelHandler, cfg: Vec<ZLinSubscribe>) -> Result<(), ZCanError> {
+    fn set_lin_subscribe(&self, chl_hdl: Self::ChannelHandler, cfg: Vec<ZLinSubscribe>) -> Result<(), ZCanError> {
         let len = cfg.len() as u32;
         match unsafe { (self.ZCAN_SetLINSubscribe)(chl_hdl, cfg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_SetLINSubscribe".to_string(), code)),
         }
     }
-    fn set_lin_publish(&self, chl_hdl: ChannelHandler, cfg: Vec<ZLinPublish>) -> Result<(), ZCanError> {
+    fn set_lin_publish(&self, chl_hdl: Self::ChannelHandler, cfg: Vec<ZLinPublish>) -> Result<(), ZCanError> {
         let len = cfg.len() as u32;
         match unsafe { (self.ZCAN_SetLINPublish)(chl_hdl, cfg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_SetLINPublish".to_string(), code)),
         }
     }
-    fn wakeup_lin(&self, chl_hdl: ChannelHandler) -> Result<(), ZCanError> {
+    fn wakeup_lin(&self, chl_hdl: Self::ChannelHandler) -> Result<(), ZCanError> {
         match unsafe { (self.ZCAN_WakeUpLIN)(chl_hdl) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_WakeUpLIN".to_string(), code)),
         }
     }
-    fn set_lin_publish_ex(&self, chl_hdl: ChannelHandler, cfg: Vec<ZLinPublishEx>) -> Result<(), ZCanError> {
+    fn set_lin_publish_ex(&self, chl_hdl: Self::ChannelHandler, cfg: Vec<ZLinPublishEx>) -> Result<(), ZCanError> {
         let len = cfg.len() as u32;
         match unsafe { (self.ZCAN_SetLINPublishEx)(chl_hdl, cfg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_SetLINPublishEx".to_string(), code)),
         }
     }
-    fn set_lin_slave_msg(&self, chl_hdl: ChannelHandler, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
+    fn set_lin_slave_msg(&self, chl_hdl: Self::ChannelHandler, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
         let len = msg.len() as u32;
         match unsafe { (self.ZCAN_SetLINSlaveMsg)(chl_hdl, msg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
             code => Err(ZCanError::MethodExecuteFailed("ZCAN_SetLINSlaveMsg".to_string(), code)),
         }
     }
-    fn clear_lin_slave_msg(&self, chl_hdl: ChannelHandler, pids: Vec<u8>) -> Result<(), ZCanError> {
+    fn clear_lin_slave_msg(&self, chl_hdl: Self::ChannelHandler, pids: Vec<u8>) -> Result<(), ZCanError> {
         let len = pids.len() as u32;
         match unsafe { (self.ZCAN_ClearLINSlaveMsg)(chl_hdl, pids.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
@@ -508,7 +508,9 @@ impl ZLinApi for Api<'_> {
     }
 }
 
-impl ZCloudApi<u32> for Api<'_> {
+impl ZCloudApi for Api<'_> {
+    type DeviceHandler = u32;
+    type ChannelHandler = u32;
     fn set_server(&self, server: ZCloudServerInfo) -> Result<(), ZCanError> {
         unsafe { (self.ZCLOUD_SetServerInfo)(server.http_url, server.http_port, server.mqtt_url, server.mqtt_port) }
 
@@ -542,7 +544,7 @@ impl ZCloudApi<u32> for Api<'_> {
             }
         }
     }
-    fn receive_gps(&self, dev_hdl: DeviceHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCloudGpsFrame>, usize)) -> Result<Vec<ZCloudGpsFrame>, ZCanError> {
+    fn receive_gps(&self, dev_hdl: Self::DeviceHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCloudGpsFrame>, usize)) -> Result<Vec<ZCloudGpsFrame>, ZCanError> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
