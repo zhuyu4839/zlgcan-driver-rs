@@ -46,7 +46,9 @@ impl USBCANApi<'_> {
     const STATUS_OK: u32 = 1;
 }
 
-impl ZDeviceApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8)> for USBCANApi<'_> {
+impl ZDeviceApi for USBCANApi<'_> {
+    type DeviceHandler = (ZCanDeviceType, u32);
+    type ChannelHandler = (ZCanDeviceType, u32, u8);
     fn open(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<u32, ZCanError> {
         match unsafe { (self.VCI_OpenDevice)(dev_type as u32, dev_idx, 0) } {
             Self::STATUS_OK => Ok(Self::STATUS_OK),
@@ -54,7 +56,7 @@ impl ZDeviceApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8)> for USBCANApi<
         }
     }
 
-    fn close(&self, dev_hdl: (ZCanDeviceType, u32)) -> Result<(), ZCanError> {
+    fn close(&self, dev_hdl: Self::DeviceHandler) -> Result<(), ZCanError> {
         let (dev_type, dev_idx) = dev_hdl;
         match unsafe { (self.VCI_CloseDevice)(dev_type as u32, dev_idx) } {
             Self::STATUS_OK => Ok(()),
@@ -62,7 +64,7 @@ impl ZDeviceApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8)> for USBCANApi<
         }
     }
 
-    fn read_device_info(&self, dev_hdl: (ZCanDeviceType, u32)) -> Result<ZDeviceInfo, ZCanError> {
+    fn read_device_info(&self, dev_hdl: Self::DeviceHandler) -> Result<ZDeviceInfo, ZCanError> {
         let (dev_type, dev_idx) = dev_hdl;
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.VCI_ReadBoardInfo)(dev_type as u32, dev_idx, &mut info) } {
@@ -71,7 +73,7 @@ impl ZDeviceApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8)> for USBCANApi<
         }
     }
 
-    fn set_reference(&self, chl_hdl: (ZCanDeviceType, u32, u8), cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
+    fn set_reference(&self, chl_hdl: Self::ChannelHandler, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let cmd = cmd_path.get_reference();
         // let _value = CString::new(value).map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?;
@@ -81,7 +83,7 @@ impl ZDeviceApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8)> for USBCANApi<
         }
     }
 
-    fn get_reference(&self, chl_hdl: (ZCanDeviceType, u32, u8), cmd_path: &CmdPath, value: *mut c_void) -> Result<(), ZCanError> {
+    fn get_reference(&self, chl_hdl: Self::ChannelHandler, cmd_path: &CmdPath, value: *mut c_void) -> Result<(), ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let cmd = cmd_path.get_reference();
         match unsafe { (self.VCI_GetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
@@ -91,8 +93,12 @@ impl ZDeviceApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8)> for USBCANApi<
     }
 }
 
-impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> for USBCANApi<'_> {
-    fn init_can_chl(&self, dev_hdl: (ZCanDeviceType, u32), channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
+impl ZCanApi for USBCANApi<'_> {
+    type DeviceHandler = (ZCanDeviceType, u32);
+    type ChannelHandler = (ZCanDeviceType, u32, u8);
+    type Frame = ZCanFrameV1;
+    type FdFrame = ();
+    fn init_can_chl(&self, dev_hdl: Self::DeviceHandler, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         let (dev_type, dev_idx) = dev_hdl;
         unsafe {
             let dev_type = dev_type as u32;
@@ -110,7 +116,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         }
     }
 
-    fn reset_can_chl(&self, chl_hdl: (ZCanDeviceType, u32, u8)) -> Result<(), ZCanError> {
+    fn reset_can_chl(&self, chl_hdl: Self::ChannelHandler) -> Result<(), ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         match unsafe { (self.VCI_ResetCAN)(dev_type as u32, dev_idx, channel as u32) } {
             Self::STATUS_OK => Ok(()),
@@ -118,7 +124,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         }
     }
 
-    fn read_can_chl_status(&self, chl_hdl: (ZCanDeviceType, u32, u8)) -> Result<ZCanChlStatus, ZCanError> {
+    fn read_can_chl_status(&self, chl_hdl: Self::ChannelHandler) -> Result<ZCanChlStatus, ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let mut status: ZCanChlStatus = Default::default();
         match unsafe { (self.VCI_ReadCANStatus)(dev_type as u32, dev_idx, channel as u32, &mut status) } {
@@ -127,7 +133,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         }
     }
 
-    fn read_can_chl_error(&self, chl_hdl: (ZCanDeviceType, u32, u8)) -> Result<ZCanChlError, ZCanError> {
+    fn read_can_chl_error(&self, chl_hdl: Self::ChannelHandler) -> Result<ZCanChlError, ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.VCI_ReadErrInfo)(dev_type as u32, dev_idx, channel as u32, &mut info) } {
@@ -136,7 +142,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         }
     }
 
-    fn clear_can_buffer(&self, chl_hdl: (ZCanDeviceType, u32, u8)) -> Result<(), ZCanError> {
+    fn clear_can_buffer(&self, chl_hdl: Self::ChannelHandler) -> Result<(), ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         match unsafe { (self.VCI_ClearBuffer)(dev_type as u32, dev_idx, channel as u32) } {
             Self::STATUS_OK => Ok(()),
@@ -144,7 +150,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         }
     }
 
-    fn get_can_num(&self, chl_hdl: (ZCanDeviceType, u32, u8), can_type: ZCanFrameType) -> Result<u32, ZCanError> {
+    fn get_can_num(&self, chl_hdl: Self::ChannelHandler, can_type: ZCanFrameType) -> Result<u32, ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let mut _channel = channel as u32;
         match can_type {
@@ -157,7 +163,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         Ok(ret)
     }
 
-    fn receive_can(&self, chl_hdl: (ZCanDeviceType, u32, u8), size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrameV1>, usize)) -> Result<Vec<ZCanFrameV1>, ZCanError> {
+    fn receive_can(&self, chl_hdl: Self::ChannelHandler, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> Result<Vec<Self::Frame>, ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
@@ -169,7 +175,7 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
         Ok(frames)
     }
 
-    fn transmit_can(&self, chl_hdl: (ZCanDeviceType, u32, u8), frames: Vec<ZCanFrameV1>) -> Result<u32, ZCanError> {
+    fn transmit_can(&self, chl_hdl: Self::ChannelHandler, frames: Vec<Self::Frame>) -> Result<u32, ZCanError> {
         let (dev_type, dev_idx, channel) = chl_hdl;
         let len = frames.len() as u32;
         let ret = unsafe { (self.VCI_Transmit)(dev_type as u32, dev_idx, channel as u32, frames.as_ptr(), len) };
@@ -180,8 +186,14 @@ impl ZCanApi<(ZCanDeviceType, u32), (ZCanDeviceType, u32, u8), ZCanFrameV1, ()> 
     }
 }
 
-impl<DH, CH> ZLinApi<DH, CH> for USBCANApi<'_> {}
-impl<DH> ZCloudApi<DH> for USBCANApi<'_> {}
+impl ZLinApi for USBCANApi<'_> {
+    type DeviceHandler = (ZCanDeviceType, u32);
+    type ChannelHandler = (ZCanDeviceType, u32, u8);
+}
+impl ZCloudApi for USBCANApi<'_> {
+    type DeviceHandler = (ZCanDeviceType, u32);
+    type ChannelHandler = (ZCanDeviceType, u32, u8);
+}
 
 #[cfg(test)]
 mod tests {

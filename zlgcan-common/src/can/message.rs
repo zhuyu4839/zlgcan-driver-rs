@@ -60,7 +60,8 @@ impl std::fmt::Display for CanMessage {
 
         if self.is_fd {
             let mut flags = 1 << 12;
-            write!(f, "CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
+            write!(f, "{:.3} CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
+                self.timestamp as f64 / 1000.,
                 self.channel + 1,
                 if self.is_rx { "Rx" } else { "Tx" },
                 format!("{: >8x}", self.arbitration_id),
@@ -86,7 +87,7 @@ impl std::fmt::Display for CanMessage {
             )
         }
         else {
-            write!(f, "{} {} {}{: <4} {} {} {} {}",
+            write!(f, "{:.3} {} {}{: <4} {} {} {} {}",
                 self.timestamp as f64 / 1000.,
                 self.channel + 1,
                 format!("{: >8x}", self.arbitration_id),
