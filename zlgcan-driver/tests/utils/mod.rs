@@ -226,7 +226,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
     let frames1 = new_messages(comm_count, true, false, None);
     let frames2 = new_messages(ext_count, true, true, None);
     let frames3 = new_messages(brs_count, true, false, Some(true));
-    let frames4  = new_messages(comm_count, true, true, Some(true));
+    let frames4 = new_messages(comm_count, true, true, Some(true));
 
     println!("source frames:");
     frames1.iter().for_each(|f| println!("{}", f));
@@ -246,7 +246,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
     let start_time = SystemTime::now();
     loop {
         // get CANFD receive count
-        let cnt = driver.get_can_num(recv_ch, ZCanFrameType::CAN).unwrap();
+        let cnt = driver.get_can_num(trans_ch, ZCanFrameType::CAN).unwrap();
         let cnt_fd = driver.get_can_num(trans_ch, ZCanFrameType::CANFD).unwrap();
         println!("CAN Frames: {}, CANFD Frames: {}", cnt, cnt_fd);
 

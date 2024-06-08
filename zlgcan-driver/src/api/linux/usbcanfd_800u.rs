@@ -169,7 +169,9 @@ impl USBCANFD800UApi<'_> {
     }
 }
 
-impl ZDeviceApi<u32, u32> for USBCANFD800UApi<'_> {
+impl ZDeviceApi for USBCANFD800UApi<'_> {
+    type DeviceHandler = u32;
+    type ChannelHandler = u32;
     fn open(&self, dev_type: ZCanDeviceType, dev_idx: u32) -> Result<u32, ZCanError> {
         match unsafe { (self.ZCAN_OpenDevice)(dev_type as u32, dev_idx, 0) } {
             Self::INVALID_DEVICE_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_OpenDevice".to_string(), Self::INVALID_DEVICE_HANDLE)),
@@ -262,7 +264,11 @@ impl ZDeviceApi<u32, u32> for USBCANFD800UApi<'_> {
     }
 }
 
-impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for USBCANFD800UApi<'_> {
+impl ZCanApi for USBCANFD800UApi<'_> {
+    type DeviceHandler = u32;
+    type ChannelHandler = u32;
+    type Frame = ZCanFrameV3;
+    type FdFrame = ZCanFdFrameV2;
     fn init_can_chl(&self, dev_hdl: u32, channel: u8, cfg: &CanChlCfg) -> Result<u32, ZCanError> {
         unsafe {
             // init can channel
@@ -317,7 +323,7 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for USBCANFD800UApi<'_> {
         Ok(ret)
     }
 
-    fn receive_can(&self, chl_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<ZCanFrameV3>, usize)) -> Result<Vec<ZCanFrameV3>, ZCanError> {
+    fn receive_can(&self, chl_hdl: u32, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> Result<Vec<Self::Frame>, ZCanError> {
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
 
@@ -328,7 +334,7 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for USBCANFD800UApi<'_> {
         Ok(frames)
     }
 
-    fn transmit_can(&self, chl_hdl: u32, frames: Vec<ZCanFrameV3>) -> Result<u32, ZCanError> {
+    fn transmit_can(&self, chl_hdl: u32, frames: Vec<Self::Frame>) -> Result<u32, ZCanError> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
         if ret < len {
@@ -337,7 +343,7 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for USBCANFD800UApi<'_> {
         Ok(ret)
     }
 
-    fn receive_canfd(&self, chl_hdl: u32, size: u32, timeout: u32, resize: fn(&mut Vec<ZCanFdFrameV2>, usize)) -> Result<Vec<ZCanFdFrameV2>, ZCanError> {
+    fn receive_canfd(&self, chl_hdl: u32, size: u32, timeout: u32, resize: fn(&mut Vec<Self::FdFrame>, usize)) -> Result<Vec<Self::FdFrame>, ZCanError> {
         let mut frames = Vec::new();
         // frames.resize_with(size as usize, Default::default);
         resize(&mut frames, size as usize);
@@ -349,7 +355,7 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for USBCANFD800UApi<'_> {
         Ok(frames)
     }
 
-    fn transmit_canfd(&self, chl_hdl: u32, frames: Vec<ZCanFdFrameV2>) -> Result<u32, ZCanError> {
+    fn transmit_canfd(&self, chl_hdl: u32, frames: Vec<Self::FdFrame>) -> Result<u32, ZCanError> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frames.as_ptr(), len) };
         if ret < len {
@@ -359,7 +365,11 @@ impl ZCanApi<u32, u32, ZCanFrameV3, ZCanFdFrameV2> for USBCANFD800UApi<'_> {
     }
 }
 
-impl<DH, CH> ZLinApi<DH, CH> for USBCANFD800UApi<'_> {
-
+impl ZLinApi for USBCANFD800UApi<'_> {
+    type DeviceHandler = u32;
+    type ChannelHandler = u32;
 }
-impl<DH> ZCloudApi<DH> for USBCANFD800UApi<'_> {}
+impl ZCloudApi for USBCANFD800UApi<'_> {
+    type DeviceHandler = u32;
+    type ChannelHandler = u32;
+}
