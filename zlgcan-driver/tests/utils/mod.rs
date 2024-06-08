@@ -32,6 +32,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Vec<
             false,
             Some(extend)
         ).unwrap();
+        frame.set_timestamp(None);
         frame.set_tx_mode(ZCanTxMode::SelfReception as u8);
 
         if canfd {
@@ -67,7 +68,9 @@ pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     let frames1 = new_messages(comm_count, false, false, None);
     let frames2 = new_messages(ext_count, false, true, None);
     // create CAN frames
-    println!("source frames: {:?}\n{:?}", frames1, frames2);
+    println!("source frames:");
+    frames1.iter().for_each(|f| println!("{}", f));
+    frames2.iter().for_each(|f| println!("{}", f));
 
     // transmit CAN frames
     let ret = driver.transmit_can(trans_ch, frames1).unwrap();
@@ -84,7 +87,8 @@ pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
         if cnt > 0 {
             let frames = driver.receive_can(recv_ch, cnt, None).unwrap();
             assert_eq!(frames.len() as u32, cnt);
-            println!("receive frames: {:?}", frames);
+            println!("receive frames:");
+            frames.iter().for_each(|f| println!("{}", f));
 
             driver.close();
             break;
@@ -117,7 +121,9 @@ pub fn can_device2(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     // create CAN frames
     let frames1 = new_messages(comm_count, false, false, None);
     let frames2 = new_messages(ext_count, false, true, None);
-    println!("source frame: {:?}\n{:?}", frames1, frames2);
+    println!("source frame:");
+    frames1.iter().for_each(|f| println!("{}", f));
+    frames1.iter().for_each(|f| println!("{}", f));
 
     // transmit CAN frames
     let ret = driver.transmit_can(trans_ch, frames1).unwrap();
@@ -135,7 +141,8 @@ pub fn can_device2(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) {
     let frames = driver.receive_can(recv_ch, cnt, None).unwrap();
     assert_eq!(frames.len() as u32, cnt);
 
-    println!("received frame: {:?}", frames);
+    println!("received frame:");
+    frames.iter().for_each(|f| println!("{}", f));
 }
 
 pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_ch: u8, recv_ch: u8) {
@@ -161,7 +168,9 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
     let frames2 = new_messages(ext_count, false, true, None);
     // create CAN frames
     // transmit CAN frames
-    println!("source frames: {:?}\n{:?}", frames1, frames2);
+    println!("source frames:");
+    frames1.iter().for_each(|f| println!("{}", f));
+    frames2.iter().for_each(|f| println!("{}", f));
 
     let ret = driver.transmit_can(trans_ch, frames1).unwrap();
     assert_eq!(ret, comm_count);
@@ -179,7 +188,8 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
 
         if cnt_tr > 0 || cnt_fd_tr > 0 {
             let frames = driver.receive_can(trans_ch, cnt_tr + cnt_fd_tr, None).unwrap();
-            println!("self received frames: {:?}", frames);
+            println!("self received frames:");
+            frames.iter().for_each(|f| println!("{}", f));
         }
 
         // get CAN receive count
@@ -193,7 +203,8 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
             // receive CAN frames
             let frames = driver.receive_can(recv_ch, cnt + cnt_fd, None).unwrap();
             assert_eq!(frames.len() as u32, cnt + cnt_fd);
-            println!("received frames: {:?}", frames);
+            println!("received frames:");
+            frames.iter().for_each(|f| println!("{}", f));
             break
         }
 
@@ -217,7 +228,11 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
     let frames3 = new_messages(brs_count, true, false, Some(true));
     let frames4  = new_messages(comm_count, true, true, Some(true));
 
-    println!("source frames: {:?}\n{:?}\n{:?}\n{:?}", frames1, frames2, frames3, frames4);
+    println!("source frames:");
+    frames1.iter().for_each(|f| println!("{}", f));
+    frames2.iter().for_each(|f| println!("{}", f));
+    frames3.iter().for_each(|f| println!("{}", f));
+    frames4.iter().for_each(|f| println!("{}", f));
 
     // transmit CANFD frames
     driver.transmit_canfd(recv_ch, frames1).unwrap();
@@ -241,7 +256,8 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
             // receive CANFD frames
             let frames = driver.receive_canfd(trans_ch, cnt_fd, None).unwrap();
             assert_eq!(frames.len() as u32, cnt_fd);
-            println!("received frame: {:?}", frames);
+            println!("received frame:");
+            frames.iter().for_each(|f| println!("{}", f));
             break;
         }
 
@@ -264,18 +280,36 @@ mod tests {
     fn test_utils() {
         let size = 2;
         let messages = new_messages(size, false, false, None);
-        println!("{:?}", messages);
+        messages.iter()
+            .for_each(|msg| {
+                println!("{}", msg);
+            });
         let _ = new_messages(size, false, true, None);
-        println!("{:?}", messages);
+        messages.iter()
+            .for_each(|msg| {
+                println!("{}", msg);
+            });
 
         let messages = new_messages(size, true, false, Some(false));
-        println!("{:?}", messages);
+        messages.iter()
+            .for_each(|msg| {
+                println!("{}", msg);
+            });
         let messages = new_messages(size, true, true, Some(false));
-        println!("{:?}", messages);
+        messages.iter()
+            .for_each(|msg| {
+                println!("{}", msg);
+            });
         let messages = new_messages(size, true, false, Some(true));
-        println!("{:?}", messages);
+        messages.iter()
+            .for_each(|msg| {
+                println!("{}", msg);
+            });
         let messages = new_messages(size, true, true, Some(true));
-        println!("{:?}", messages);
+        messages.iter()
+            .for_each(|msg| {
+                println!("{}", msg);
+            });
     }
 }
 
