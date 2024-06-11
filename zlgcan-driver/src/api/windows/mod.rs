@@ -436,7 +436,7 @@ impl ZLinApi for Api<'_> {
                 Self::INVALID_CHANNEL_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_InitLIN".to_string(), Self::INVALID_CHANNEL_HANDLE)),
                 handler => match (self.ZCAN_StartLIN)(dev_hdl) {
                     Self::STATUS_OK => {
-                        context.set_channel_handler(handler);
+                        context.set_channel_handler(Some(handler));
                         Ok(())
                     },
                     code => Err(ZCanError::MethodExecuteFailed("ZCAN_StartLIN".to_string(), code)),
