@@ -190,9 +190,9 @@ impl ZChannelContext {
         self.chl_hdl.ok_or(ZCanError::InvalidChannelContext)
     }
     #[inline]
-    pub fn set_channel_handler(&mut self, handler: u32) {
+    pub fn set_channel_handler(&mut self, handler: Option<u32>) {
         self.timestamp = system_timestamp();
-        self.chl_hdl = Some(handler);
+        self.chl_hdl = handler;
     }
     #[inline]
     pub fn timestamp(&self) -> u64 {

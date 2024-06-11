@@ -308,7 +308,7 @@ impl ZCanApi for Api<'_> {
                 Self::INVALID_CHANNEL_HANDLE => Err(ZCanError::MethodExecuteFailed("ZCAN_InitCAN".to_string(), Self::INVALID_CHANNEL_HANDLE)),
                 handler => match (self.ZCAN_StartCAN)(handler) {
                     Self::STATUS_OK => {
-                        context.set_channel_handler(handler);
+                        context.set_channel_handler(Some(handler));
                         Ok(())
                     },
                     code => Err(ZCanError::MethodExecuteFailed("ZCAN_StartCAN".to_string(), code)),

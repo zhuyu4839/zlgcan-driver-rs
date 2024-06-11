@@ -283,7 +283,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
                 }
             }?;
 
-            context.set_channel_handler(handler);
+            context.set_channel_handler(Some(handler));
             Ok(())
         }
     }

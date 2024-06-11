@@ -419,7 +419,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
@@ -513,7 +513,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
@@ -638,7 +638,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_lin(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZLinFrame>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {

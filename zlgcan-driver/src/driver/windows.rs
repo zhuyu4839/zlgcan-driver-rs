@@ -162,7 +162,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         let frames = self.can_handler(channel, |context| {
             self.api.receive_can(context, size, timeout, |frames, size| {
                 frames.resize_with(size, ZCanFrameV3::default);
@@ -180,7 +180,7 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         let frames = self.can_handler(channel, |context| {
             self.api.receive_canfd(context, size, timeout, |frames, size| {
                 frames.resize_with(size, ZCanFdFrameV2::default);
@@ -259,7 +259,7 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         self.lin_handler(channel, |context| {
             self.api.receive_lin(context, size, timeout, |frames, size| {
                 frames.resize_with(size, || -> ZLinFrame { ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameData::from_data(Default::default())) })
@@ -372,7 +372,7 @@ impl ZDevice for ZCanDriver<'_> {
             return Err(ZCanError::MethodNotSupported);
         }
 
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         self.device_handler(|hdl| {
             self.api.receive_gps(hdl.device_context(), size, timeout, |frames, size| {
                 frames.resize_with(size, Default::default)

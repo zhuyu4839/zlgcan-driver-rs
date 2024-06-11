@@ -216,7 +216,7 @@ impl ZCanApi for USBCANEApi<'_> {
                 _ => Err(ZCanError::DeviceNotSupported),
             }?;
 
-            context.set_channel_handler(handler);
+            context.set_channel_handler(Some(handler));
             Ok(())
         }
     }

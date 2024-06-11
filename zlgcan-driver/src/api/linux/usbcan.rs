@@ -104,7 +104,10 @@ impl ZCanApi for USBCANApi<'_> {
             match (self.VCI_InitCAN)(dev_type, dev_idx, channel, &cfg) {
                 Self::STATUS_OK => {
                     match (self.VCI_StartCAN)(dev_type, dev_idx, channel) {
-                        Self::STATUS_OK => Ok(()),
+                        Self::STATUS_OK => {
+                            context.set_channel_handler(None);
+                            Ok(())
+                        },
                         code => Err(ZCanError::MethodExecuteFailed("VCI_StartCAN".to_string(), code)),
                     }
                 },
