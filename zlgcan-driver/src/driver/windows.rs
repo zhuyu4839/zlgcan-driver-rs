@@ -1,12 +1,10 @@
-use std::collections::HashMap;
 use dlopen2::symbor::{Library, SymBorApi};
 use lazy_static::lazy_static;
 use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFdFrameV2, ZCanFrameType, ZCanFrameV3};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
-use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZDeviceInfo};
+use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceContext, ZDeviceInfo};
 use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 use zlgcan_common::TryFromIterator;
-use zlgcan_common::utils::system_timestamp;
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::api::windows::Api;
 use crate::constant::LOAD_LIB_FAILED;
@@ -28,7 +26,6 @@ pub struct ZCanDriver<'a> {
     pub(crate) dev_type:   ZCanDeviceType,
     pub(crate) dev_idx:    u32,
     pub(crate) derive:     Option<DeriveInfo>,
-    pub(crate) timestamps: HashMap<u8, u64>,
 }
 
 impl ZDevice for ZCanDriver<'_> {
@@ -37,7 +34,7 @@ impl ZDevice for ZCanDriver<'_> {
             Api::load(&LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))
         }?;
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
-        Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive, timestamps: Default::default() })
+        Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive })
     }
 
     fn device_type(&self) -> ZCanDeviceType {
@@ -49,13 +46,14 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn open(&mut self) -> Result<(), ZCanError> {
-        let value = self.api.open(self.dev_type, self.dev_idx)?;
+        let mut context = ZDeviceContext::new(self.dev_type, self.dev_idx, None);
+        self.api.open(&mut context)?;
         let dev_info = match &self.derive {
             Some(v) => ZDeviceInfo::try_from(v)?,
-            None => self.api.read_device_info(value)?,
+            None => self.api.read_device_info(&context)?,
         };
 
-        self.handler = Some(Handler::new(value, dev_info));
+        self.handler = Some(Handler::new(context, dev_info));
         Ok(())
     }
 
@@ -63,16 +61,16 @@ impl ZDevice for ZCanDriver<'_> {
         if let Some(handler) = &mut self.handler {
             for (idx, hdl) in handler.can_channels() {
                 log::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                let hdl = *hdl;
+                // let hdl = *hdl;
                 self.api.reset_can_chl(hdl).unwrap_or_else(|e| log::warn!("{}", e));
             }
             for (idx, hdl) in handler.lin_channels() {
                 log::info!("ZLGCAN - closing LIN channel: {}", *idx);
-                let hdl = *hdl;
+                // let hdl = *hdl;
                 self.api.reset_lin_chl(hdl).unwrap_or_else(|e| log::warn!("{}", e));
             }
 
-            self.api.close(handler.device_handler()).unwrap_or_else(|e| log::warn!("{}", e));
+            self.api.close(handler.device_context()).unwrap_or_else(|e| log::warn!("{}", e));
             self.handler = None
         }
 
@@ -91,7 +89,7 @@ impl ZDevice for ZCanDriver<'_> {
 
     fn is_online(&self) -> Result<bool, ZCanError> {
         self.device_handler(|hdl| -> Result<bool, ZCanError> {
-            self.api.is_online(hdl.device_handler())
+            self.api.is_online(hdl.device_context())
         })
     }
 
@@ -108,14 +106,14 @@ impl ZDevice for ZCanDriver<'_> {
                     }
 
                     if let Some(v) = dev_hdl.find_can(idx) {
-                        self.api.reset_can_chl(v).unwrap_or_else(|e| log::warn!("{}", e));
+                        self.api.reset_can_chl(&v).unwrap_or_else(|e| log::warn!("{}", e));
                         dev_hdl.remove_can(idx);
                     }
 
-                    let chl_hdl = self.api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
-                    self.timestamps.insert(idx, system_timestamp());
+                    let mut context =  ZChannelContext::new(dev_hdl.device_context().clone(), idx, None);
+                    self.api.init_can_chl(&mut context, cfg)?;
 
-                    dev_hdl.add_can(idx, chl_hdl);
+                    dev_hdl.add_can(idx, context);
                 }
                 Ok(())
             },
@@ -128,7 +126,7 @@ impl ZDevice for ZCanDriver<'_> {
             Some(dev_hdl) => {
                 match dev_hdl.find_can(channel) {
                     Some(v) => {
-                        self.api.reset_can_chl(v)?;
+                        self.api.reset_can_chl(&v)?;
                         dev_hdl.remove_can(channel);
                         Ok(())
                     },
@@ -140,62 +138,62 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn read_can_chl_status(&self, channel: u8) -> Result<ZCanChlStatus, ZCanError> {
-        self.can_handler(channel, |hdl| {
-            self.api.read_can_chl_status(hdl)
+        self.can_handler(channel, |context| {
+            self.api.read_can_chl_status(context)
         })
     }
 
     fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, ZCanError> {
-        self.can_handler(channel, |hdl| {
-            self.api.read_can_chl_error(hdl)
+        self.can_handler(channel, |context| {
+            self.api.read_can_chl_error(context)
         })
     }
 
     fn clear_can_buffer(&self, channel: u8) -> Result<(), ZCanError> {
-        self.can_handler(channel, |hdl| {
-            self.api.clear_can_buffer(hdl)
+        self.can_handler(channel, |context| {
+            self.api.clear_can_buffer(context)
         })
     }
 
     fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> Result<u32, ZCanError> {
-        self.can_handler(channel, |hdl| {
-            self.api.get_can_num(hdl, can_type)
+        self.can_handler(channel, |context| {
+            self.api.get_can_num(context, can_type)
         })
     }
 
     fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
-        let frames = self.can_handler(channel, |hdl| {
-            self.api.receive_can(hdl, size, timeout, |frames, size| {
+        let timeout = timeout.unwrap_or(u32::MAX);
+        let frames = self.can_handler(channel, |context| {
+            self.api.receive_can(context, size, timeout, |frames, size| {
                 frames.resize_with(size, ZCanFrameV3::default);
             })
         })?;
 
-        Vec::try_from_iter(frames, self.timestamp(channel))
+        Vec::try_from_iter(frames, self.timestamp(channel)?)
     }
 
     fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
-        let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-        self.can_handler(channel, |hdl| {
-            self.api.transmit_can(hdl, frames)
+        let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+        self.can_handler(channel, |context| {
+            self.api.transmit_can(context, frames)
         })
     }
 
     fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
-        let frames = self.can_handler(channel, |hdl| {
-            self.api.receive_canfd(hdl, size, timeout, |frames, size| {
+        let timeout = timeout.unwrap_or(u32::MAX);
+        let frames = self.can_handler(channel, |context| {
+            self.api.receive_canfd(context, size, timeout, |frames, size| {
                 frames.resize_with(size, ZCanFdFrameV2::default);
             })
         })?;
 
-        Vec::try_from_iter(frames, self.timestamp(channel))
+        Vec::try_from_iter(frames, self.timestamp(channel)?)
     }
 
     fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
-        let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-        self.can_handler(channel, |hdl| {
-            self.api.transmit_canfd(hdl, frames)
+        let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+        self.can_handler(channel, |context| {
+            self.api.transmit_canfd(context, frames)
         })
     }
 
@@ -214,12 +212,13 @@ impl ZDevice for ZCanDriver<'_> {
                     }
 
                     if let Some(v) = dev_hdl.find_lin(idx) {
-                        self.api.reset_lin_chl(v).unwrap_or_else(|e| log::warn!("{}", e));
+                        self.api.reset_lin_chl(&v).unwrap_or_else(|e| log::warn!("{}", e));
                         dev_hdl.remove_lin(idx);
                     }
 
-                    let chl_hdl = self.api.init_lin_chl(dev_hdl.device_handler(), idx, cfg)?;
-                    dev_hdl.add_lin(idx, chl_hdl);
+                    let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), idx, None);
+                    self.api.init_lin_chl(&mut context, cfg)?;
+                    dev_hdl.add_lin(idx, context);
                 }
 
                 Ok(())
@@ -236,7 +235,7 @@ impl ZDevice for ZCanDriver<'_> {
             Some(dev_hdl) => {
                 match dev_hdl.find_lin(channel) {
                     Some(v) => {
-                        self.api.reset_lin_chl(v)?;
+                        self.api.reset_lin_chl(&v)?;
                         dev_hdl.remove_lin(channel);
                         Ok(())
                     },
@@ -251,8 +250,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.get_lin_num(hdl)
+        self.lin_handler(channel, |context| {
+            self.api.get_lin_num(context)
         })
     }
 
@@ -260,9 +259,9 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
-        self.lin_handler(channel, |hdl| {
-            self.api.receive_lin(hdl, size, timeout, |frames, size| {
+        let timeout = timeout.unwrap_or(u32::MAX);
+        self.lin_handler(channel, |context| {
+            self.api.receive_lin(context, size, timeout, |frames, size| {
                 frames.resize_with(size, || -> ZLinFrame { ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameData::from_data(Default::default())) })
             })
         })
@@ -272,8 +271,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.transmit_lin(hdl, frames)
+        self.lin_handler(channel, |context| {
+            self.api.transmit_lin(context, frames)
         })
     }
 
@@ -281,8 +280,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.set_lin_subscribe(hdl, cfg)
+        self.lin_handler(channel, |context| {
+            self.api.set_lin_subscribe(context, cfg)
         })
     }
 
@@ -290,8 +289,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.set_lin_publish(hdl, cfg)
+        self.lin_handler(channel, |context| {
+            self.api.set_lin_publish(context, cfg)
         })
     }
 
@@ -299,8 +298,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.set_lin_publish_ex(hdl, cfg)
+        self.lin_handler(channel, |context| {
+            self.api.set_lin_publish_ex(context, cfg)
         })
     }
 
@@ -308,8 +307,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.wakeup_lin(hdl)
+        self.lin_handler(channel, |context| {
+            self.api.wakeup_lin(context)
         })
     }
 
@@ -318,8 +317,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.set_lin_slave_msg(hdl, msg)
+        self.lin_handler(channel, |context| {
+            self.api.set_lin_slave_msg(context, msg)
         })
     }
 
@@ -328,8 +327,8 @@ impl ZDevice for ZCanDriver<'_> {
         if !self.dev_type.lin_support() {
             return Err(ZCanError::MethodNotSupported);
         }
-        self.lin_handler(channel, |hdl| {
-            self.api.clear_lin_slave_msg(hdl, pids)
+        self.lin_handler(channel, |context| {
+            self.api.clear_lin_slave_msg(context, pids)
         })
     }
 
@@ -373,19 +372,25 @@ impl ZDevice for ZCanDriver<'_> {
             return Err(ZCanError::MethodNotSupported);
         }
 
-        let timeout = timeout.unwrap_or(0xFFFFFFFF);
+        let timeout = timeout.unwrap_or(u32::MAX);
         self.device_handler(|hdl| {
-            self.api.receive_gps(hdl.device_handler(), size, timeout, |frames, size| {
+            self.api.receive_gps(hdl.device_context(), size, timeout, |frames, size| {
                 frames.resize_with(size, Default::default)
             })
         })
     }
 
     #[inline]
-    fn timestamp(&self, channel: u8) -> u64 {
-        match self.timestamps.get(&channel) {
-            Some(v) => *v,
-            None => 0,
+    fn timestamp(&self, channel: u8) -> Result<u64, ZCanError> {
+        self.can_handler(channel, |context| Ok(context.timestamp()))
+    }
+
+    fn device_handler<C, T>(&self, callback: C) -> Result<T, ZCanError>
+        where
+            C: FnOnce(&Handler) -> Result<T, ZCanError> {
+        match &self.handler {
+            Some(v) => callback(v),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 }

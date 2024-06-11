@@ -39,30 +39,27 @@ pub(crate) mod constant {
     pub(crate) const SET_BUS_USAGE_PERIOD: &str = "set_bus_usage_period";
     pub(crate) const GET_BUS_USAGE: &str = "get_bus_usage/1";
     pub(crate) const SET_TX_RETRY_POLICY: &str = "set_tx_retry_policy";
-// USBCAN-8E-U 支持属性列表
-// "info/channel/channel_x/redirect"
-// USBCAN-4E-U 支持属性列表
-// "info/channel/channel_x/baud_rate"
-// "info/channel/channel_x/work_mode"
-// "info/channel/channel_x/redirect"
-// "info/channel/channel_x/whitelisting"
-// "info/channel/channel_x/autotxobj"
+    /// USBCAN-4E-U
     #[inline]
     pub(crate) fn channel_bitrate(channel: u8) -> String {
         format!("info/channel/channel_{}/baud_rate", channel)
     }
+    /// USBCAN-4E-U
     #[inline]
     pub(crate) fn channel_work_mode(channel: u8) -> String {
         format!("info/channel/channel_{}/work_mode", channel)
     }
+    /// USBCAN-8E-U and USBCAN-4E-U
     #[inline]
     pub(crate) fn channel_redirect(channel: u8) -> String {
         format!("info/channel/channel_{}/redirect", channel)
     }
+    /// USBCAN-4E-U
     #[inline]
     pub(crate) fn channel_whitelisting(channel: u8) -> String {
         format!("info/channel/channel_{}/whitelisting", channel)
     }
+    /// USBCAN-4E-U
     #[inline]
     pub(crate) fn channel_auto_trans(channel: u8) -> String {
         format!("info/channel/channel_{}/autotxobj", channel)
