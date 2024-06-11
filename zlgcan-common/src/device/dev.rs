@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::ffi::{c_uchar, c_ushort, CString};
 use std::fmt::{Display, Formatter};
-use crate::device::DeriveInfo;
+use crate::device::{DeriveInfo, ZCanDeviceType};
 use crate::error::ZCanError;
+use crate::utils::system_timestamp;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -121,18 +122,96 @@ impl Display for ZDeviceInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
+pub struct ZDeviceContext {
+    pub(crate) dev_type: ZCanDeviceType,
+    pub(crate) dev_idx: u32,
+    pub(crate) dev_hdl: Option<u32>,
+}
+
+impl ZDeviceContext {
+    #[inline]
+    pub fn new(dev_type: ZCanDeviceType, dev_idx: u32, dev_hdl: Option<u32>) -> Self {
+        Self { dev_type, dev_idx, dev_hdl }
+    }
+    #[inline]
+    pub fn device_type(&self) -> ZCanDeviceType {
+        self.dev_type
+    }
+    #[inline]
+    pub fn device_index(&self) -> u32 {
+        self.dev_idx
+    }
+    #[inline]
+    pub fn device_handler(&self) -> Result<u32, ZCanError> {
+        self.dev_hdl.ok_or(ZCanError::InvalidDeviceContext)
+    }
+    #[inline]
+    pub fn set_device_handler(&mut self, handler: u32) {
+        self.dev_hdl = Some(handler);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ZChannelContext {
+    device: ZDeviceContext,
+    channel: u8,
+    chl_hdl: Option<u32>,
+    timestamp: u64,
+}
+
+impl ZChannelContext {
+    #[inline]
+    pub fn new(device: ZDeviceContext, channel: u8, chl_hdl: Option<u32>) -> Self {
+        Self { device, channel, chl_hdl, timestamp: Default::default() }
+    }
+    #[inline]
+    pub fn device_context(&self) -> &ZDeviceContext {
+        &self.device
+    }
+    #[inline]
+    pub fn device_type(&self) -> ZCanDeviceType {
+        self.device.dev_type
+    }
+    #[inline]
+    pub fn device_index(&self) -> u32 {
+        self.device.dev_idx
+    }
+    #[inline]
+    pub fn device_handler(&self) -> Result<u32, ZCanError> {
+        self.device.device_handler()
+    }
+    #[inline]
+    pub fn channel(&self) -> u8 {
+        self.channel
+    }
+    #[inline]
+    pub fn channel_handler(&self) -> Result<u32, ZCanError> {
+        self.chl_hdl.ok_or(ZCanError::InvalidChannelContext)
+    }
+    #[inline]
+    pub fn set_channel_handler(&mut self, handler: u32) {
+        self.timestamp = system_timestamp();
+        self.chl_hdl = Some(handler);
+    }
+    #[inline]
+    pub fn timestamp(&self) -> u64 {
+        self.timestamp
+    }
+}
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct Handler {
-    device: u32,
+    device: ZDeviceContext,
     info: ZDeviceInfo,
-    cans: HashMap<u8, u32>,
-    lins: HashMap<u8, u32>,
+    cans: HashMap<u8, ZChannelContext>,
+    lins: HashMap<u8, ZChannelContext>,
 }
 
 impl Handler {
     #[inline(always)]
-    pub fn new(device: u32, info: ZDeviceInfo) -> Self {
+    pub fn new(device: ZDeviceContext, info: ZDeviceInfo) -> Self {
         Self {
             device,
             info,
@@ -141,40 +220,40 @@ impl Handler {
         }
     }
     #[inline(always)]
-    pub fn device_handler(&self) -> u32 {
-        self.device
+    pub fn device_context(&self) -> &ZDeviceContext {
+        &self.device
     }
     #[inline(always)]
     pub fn device_info(&self) -> &ZDeviceInfo {
         &self.info
     }
     #[inline(always)]
-    pub fn can_channels(&self) -> &HashMap<u8, u32> {
+    pub fn can_channels(&self) -> &HashMap<u8, ZChannelContext> {
         &self.cans
     }
     #[inline(always)]
-    pub fn lin_channels(&self) -> &HashMap<u8, u32> {
+    pub fn lin_channels(&self) -> &HashMap<u8, ZChannelContext> {
         &self.lins
     }
     #[inline(always)]
-    pub fn add_can(&mut self, channel: u8, handler: u32) {
-        self.cans.insert(channel, handler);
+    pub fn add_can(&mut self, channel: u8, context: ZChannelContext) {
+        self.cans.insert(channel, context);
     }
     #[inline(always)]
-    pub fn find_can(&self, channel: u8) -> Option<u32> {
-        self.cans.get(&channel).copied()
+    pub fn find_can(&self, channel: u8) -> Option<&ZChannelContext> {
+        self.cans.get(&channel)
     }
     #[inline(always)]
     pub fn remove_can(&mut self, channel: u8) {
         self.cans.remove(&channel);
     }
     #[inline(always)]
-    pub fn add_lin(&mut self, channel: u8, handler: u32) {
+    pub fn add_lin(&mut self, channel: u8, handler: ZChannelContext) {
         self.lins.insert(channel, handler);
     }
     #[inline(always)]
-    pub fn find_lin(&self, channel: u8) -> Option<u32> {
-        self.lins.get(&channel).copied()
+    pub fn find_lin(&self, channel: u8) -> Option<&ZChannelContext> {
+        self.lins.get(&channel)
     }
     #[inline(always)]
     pub fn remove_lin(&mut self, channel: u8) {

@@ -1,11 +1,9 @@
-use std::collections::HashMap;
 use dlopen2::symbor::{Library, SymBorApi};
 use lazy_static::lazy_static;
 use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrameType, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3};
-use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZDeviceInfo};
+use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceContext, ZDeviceInfo};
 use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinSubscribe};
 use zlgcan_common::TryFromIterator;
-use zlgcan_common::utils::system_timestamp;
 use crate::api::linux::usbcan::USBCANApi;
 use crate::api::linux::usbcan_e::USBCANEApi;
 use crate::api::linux::usbcanfd::USBCANFDApi;
@@ -33,7 +31,6 @@ pub struct ZCanDriver<'a> {
     pub(crate) dev_type:          ZCanDeviceType,
     pub(crate) dev_idx:           u32,
     pub(crate) derive:            Option<DeriveInfo>,
-    pub(crate) timestamps:        HashMap<u8, u64>,
 }
 
 impl ZDevice for ZCanDriver<'_> {
@@ -49,7 +46,6 @@ impl ZDevice for ZCanDriver<'_> {
                 handler: Default::default(),
                 usbcan_api, usbcan_4e_api, usbcan_8e_api, usbcanfd_api, usbcanfd_800u_api,
                 dev_type, dev_idx, derive,
-                timestamps: Default::default(),
             })
         }
     }
@@ -63,40 +59,40 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     fn open(&mut self) -> Result<(), ZCanError> {
-        let dev_hdl: u32;
+        let mut context = ZDeviceContext::new(self.dev_type, self.dev_idx, None);
         let dev_info: ZDeviceInfo;
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                dev_hdl = self.usbcan_api.open(self.dev_type, self.dev_idx)?;
+                self.usbcan_api.open(&mut context)?;
                 match self.derive {
                     Some(v) => {
                         dev_info = ZDeviceInfo::try_from(&v)?;
                     },
-                    None => dev_info = self.usbcan_api.read_device_info((self.dev_type, self.dev_idx))?,
+                    None => dev_info = self.usbcan_api.read_device_info(&context)?,
                 }
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                dev_hdl = self.usbcan_4e_api.open(self.dev_type, self.dev_idx)?;
-                dev_info = self.usbcan_4e_api.read_device_info(dev_hdl)?;
+                self.usbcan_4e_api.open(&mut context)?;
+                dev_info = self.usbcan_4e_api.read_device_info(&context)?;
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                dev_hdl = self.usbcan_8e_api.open(self.dev_type, self.dev_idx)?;
-                dev_info = self.usbcan_8e_api.read_device_info(dev_hdl)?;
+                self.usbcan_8e_api.open(&mut context)?;
+                dev_info = self.usbcan_8e_api.read_device_info(&context)?;
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                dev_hdl = self.usbcanfd_api.open(self.dev_type, self.dev_idx)?;
-                dev_info = self.usbcanfd_api.read_device_info((self.dev_type, self.dev_idx))?;
+                self.usbcanfd_api.open(&mut context)?;
+                dev_info = self.usbcanfd_api.read_device_info(&context)?;
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                dev_hdl = self.usbcanfd_800u_api.open(self.dev_type, self.dev_idx)?;
-                dev_info = self.usbcanfd_800u_api.read_device_info(dev_hdl)?;
+                self.usbcanfd_800u_api.open(&mut context)?;
+                dev_info = self.usbcanfd_800u_api.read_device_info(&context)?;
             },
             _ => return Err(ZCanError::DeviceNotSupported),
         };
-        self.handler = Some(Handler::new(dev_hdl, dev_info));
+        self.handler = Some(Handler::new(context, dev_info));
         Ok(())
     }
 
@@ -108,60 +104,60 @@ impl ZDevice for ZCanDriver<'_> {
             match self.dev_type {
                 ZCanDeviceType::ZCAN_USBCAN1
                 | ZCanDeviceType::ZCAN_USBCAN2 => {
-                    for (idx, _hdl) in cans {
+                    for (idx, context) in cans {
                         log::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcan_api.reset_can_chl((self.dev_type, self.dev_idx, *idx))
+                        self.usbcan_api.reset_can_chl(context)
                             .unwrap_or_else(|e| log::warn!("{}", e));
                     }
 
-                    self.usbcan_api.close((self.dev_type, self.dev_idx))
+                    self.usbcan_api.close(dev_hdl.device_context())
                         .unwrap_or_else(|e| log::warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                    for (idx, hdl) in cans {
+                    for (idx, context) in cans {
                         log::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcan_4e_api.reset_can_chl(*hdl)
+                        self.usbcan_4e_api.reset_can_chl(context)
                             .unwrap_or_else(|e| log::warn!("{}", e));
                     }
 
-                    self.usbcan_4e_api.close(dev_hdl.device_handler())
+                    self.usbcan_4e_api.close(dev_hdl.device_context())
                         .unwrap_or_else(|e| log::warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                    for (idx, hdl) in cans {
+                    for (idx, context) in cans {
                         log::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcan_8e_api.reset_can_chl(*hdl)
+                        self.usbcan_8e_api.reset_can_chl(context)
                             .unwrap_or_else(|e| log::warn!("{}", e));
                     }
-                    self.usbcan_8e_api.close(dev_hdl.device_handler())
+                    self.usbcan_8e_api.close(dev_hdl.device_context())
                         .unwrap_or_else(|e| log::warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCANFD_MINI
                 | ZCanDeviceType::ZCAN_USBCANFD_100U
                 | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                    for (idx, _hdl) in cans {
+                    for (idx, context) in cans {
                         log::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcanfd_api.reset_can_chl((self.dev_type, self.dev_idx, *idx))
+                        self.usbcanfd_api.reset_can_chl(context)
                             .unwrap_or_else(|e| log::warn!("{}", e));
                     }
 
-                    for (idx, _hdl) in lins {
+                    for (idx, context) in lins {
                         log::info!("ZLGCAN - closing LIN channel: {}", *idx);
-                        self.usbcanfd_api.reset_lin_chl((self.dev_type, self.dev_idx, *idx))
+                        self.usbcanfd_api.reset_lin_chl(context)
                             .unwrap_or_else(|e| log::warn!("{}", e));
                     }
 
-                    self.usbcanfd_api.close((self.dev_type, self.dev_idx))
+                    self.usbcanfd_api.close(dev_hdl.device_context())
                         .unwrap_or_else(|e| log::warn!("{}", e))
                 },
                 ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                    for (idx, hdl) in cans {
+                    for (idx, context) in cans {
                         log::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                        self.usbcanfd_800u_api.reset_can_chl(*hdl)
+                        self.usbcanfd_800u_api.reset_can_chl(context)
                             .unwrap_or_else(|e| log::warn!("{}", e));
                     }
 
-                    self.usbcanfd_800u_api.close(dev_hdl.device_handler())
+                    self.usbcanfd_800u_api.close(dev_hdl.device_context())
                         .unwrap_or_else(|e| log::warn!("{}", e));
                 },
                 _ => log::warn!("{:?}", ZCanError::DeviceNotSupported),
@@ -188,7 +184,7 @@ impl ZDevice for ZCanDriver<'_> {
                 let channels = dev_info.can_channels();
 
                 if self.dev_type == ZCanDeviceType::ZCAN_USBCAN_4E_U {
-                    return self.usbcan_4e_api.init_can_chl_ex(dev_hdl, channels, &cfg, &mut self.timestamps);
+                    return self.usbcan_4e_api.init_can_chl_ex(dev_hdl, channels, &cfg);
                 }
 
                 for (idx, cfg) in cfg.iter().enumerate() {
@@ -198,15 +194,15 @@ impl ZDevice for ZCanDriver<'_> {
                         break;
                     }
 
-                    let  chl_hdl: u32;
+                    let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), idx, None);
                     match self.dev_type {
                         ZCanDeviceType::ZCAN_USBCAN1
                         | ZCanDeviceType::ZCAN_USBCAN2 => {
-                            if let Some(_) = dev_hdl.find_can(idx) {
-                                self.usbcan_api.reset_can_chl((self.dev_type, self.dev_idx, idx)).unwrap_or_else(|e| log::warn!("{}", e));
+                            if let Some(context) = dev_hdl.find_can(idx) {
+                                self.usbcan_api.reset_can_chl(context).unwrap_or_else(|e| log::warn!("{}", e));
                                 dev_hdl.remove_can(idx);
                             }
-                            chl_hdl = self.usbcan_api.init_can_chl((self.dev_type, self.dev_idx), idx, cfg)?;
+                            self.usbcan_api.init_can_chl(&mut context, cfg)?;
                         },
                         // ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                         //     if let Some(chl_hdl) = dev_hdl.find_can(idx) {
@@ -220,16 +216,16 @@ impl ZDevice for ZCanDriver<'_> {
                                 self.usbcan_8e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
                                 dev_hdl.remove_can(idx);
                             }
-                            chl_hdl = self.usbcan_8e_api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
+                            self.usbcan_8e_api.init_can_chl(&mut context, cfg)?;
                         },
                         ZCanDeviceType::ZCAN_USBCANFD_MINI
                         | ZCanDeviceType::ZCAN_USBCANFD_100U
                         | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                            if let Some(_) = dev_hdl.find_can(idx) {
-                                self.usbcanfd_api.reset_can_chl((self.dev_type, self.dev_idx, idx))?;
+                            if let Some(context) = dev_hdl.find_can(idx) {
+                                self.usbcanfd_api.reset_can_chl(context)?;
                                 dev_hdl.remove_can(idx);
                             }
-                            chl_hdl = self.usbcanfd_api.init_can_chl((self.dev_type, self.dev_idx), idx, cfg)?;
+                            self.usbcanfd_api.init_can_chl(&mut context, cfg)?;
                         },
                         ZCanDeviceType::ZCAN_USBCANFD_800U => {
                             if let Some(chl_hdl) = dev_hdl.find_can(idx) {
@@ -237,13 +233,12 @@ impl ZDevice for ZCanDriver<'_> {
                                 dev_hdl.remove_can(idx);
                             }
                             self.usbcanfd_800u_api.init_can_chl_ex(self.dev_type, self.dev_idx, idx, cfg)?;
-                            chl_hdl = self.usbcanfd_800u_api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
+                            self.usbcanfd_800u_api.init_can_chl(&mut context, cfg)?;
                         },
                         _ => return Err(ZCanError::DeviceNotSupported),
                     }
 
-                    self.timestamps.insert(idx, system_timestamp());
-                    dev_hdl.add_can(idx, chl_hdl);
+                    dev_hdl.add_can(idx, context);
                 }
                 Ok(())
             },
@@ -255,25 +250,25 @@ impl ZDevice for ZCanDriver<'_> {
         match &mut self.handler {
             Some(dev_hdl) => {
                 match dev_hdl.find_can(channel) {
-                    Some(v) => {
+                    Some(context) => {
                         match self.dev_type {
                             ZCanDeviceType::ZCAN_USBCAN1
                             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                                self.usbcan_api.reset_can_chl((self.dev_type, self.dev_idx, channel))?;
+                                self.usbcan_api.reset_can_chl(context)?;
                             },
                             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                                self.usbcan_4e_api.reset_can_chl(v)?;
+                                self.usbcan_4e_api.reset_can_chl(context)?;
                             },
                             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                                self.usbcan_8e_api.reset_can_chl(v)?;
+                                self.usbcan_8e_api.reset_can_chl(context)?;
                             },
                             ZCanDeviceType::ZCAN_USBCANFD_MINI
                             | ZCanDeviceType::ZCAN_USBCANFD_100U
                             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                                self.usbcanfd_api.reset_can_chl((self.dev_type, self.dev_idx, channel))?;
+                                self.usbcanfd_api.reset_can_chl(context)?;
                             },
                             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                                self.usbcanfd_800u_api.reset_can_chl(v)?;
+                                self.usbcanfd_800u_api.reset_can_chl(context)?;
                             },
                             _ => return Err(ZCanError::DeviceNotSupported),
                         }
@@ -291,25 +286,25 @@ impl ZDevice for ZCanDriver<'_> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcan_api.read_can_chl_status((self.dev_type, self.dev_idx, channel))
+                self.can_handler(channel, |context| {
+                    self.usbcan_api.read_can_chl_status(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_4e_api.read_can_chl_status(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.read_can_chl_status(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_8e_api.read_can_chl_status(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.read_can_chl_status(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.read_can_chl_status((self.dev_type, self.dev_idx, channel))
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_api.read_can_chl_status(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
@@ -325,30 +320,30 @@ impl ZDevice for ZCanDriver<'_> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcan_api.read_can_chl_error((self.dev_type, self.dev_idx, channel))
+                self.can_handler(channel, |context| {
+                    self.usbcan_api.read_can_chl_error(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_4e_api.read_can_chl_error(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.read_can_chl_error(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_8e_api.read_can_chl_error(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.read_can_chl_error(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.read_can_chl_error((self.dev_type, self.dev_idx, channel))
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_api.read_can_chl_error(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.read_can_chl_error(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.read_can_chl_error(context)
                 })
             },
             _ => Err(ZCanError::DeviceNotOpened),
@@ -359,30 +354,30 @@ impl ZDevice for ZCanDriver<'_> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcan_api.clear_can_buffer((self.dev_type, self.dev_idx, channel))
+                self.can_handler(channel, |context| {
+                    self.usbcan_api.clear_can_buffer(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_4e_api.clear_can_buffer(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.clear_can_buffer(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_8e_api.clear_can_buffer(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.clear_can_buffer(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.clear_can_buffer((self.dev_type, self.dev_idx, channel))
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_api.clear_can_buffer(context)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.clear_can_buffer(chl_hdl)
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.clear_can_buffer(context)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -393,30 +388,30 @@ impl ZDevice for ZCanDriver<'_> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcan_api.get_can_num((self.dev_type, self.dev_idx, channel), can_type)
+                self.can_handler(channel, |context| {
+                    self.usbcan_api.get_can_num(context, can_type)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_4e_api.get_can_num(chl_hdl, can_type)
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.get_can_num(context, can_type)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_8e_api.get_can_num(chl_hdl, can_type)
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.get_can_num(context, can_type)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.get_can_num((self.dev_type, self.dev_idx, channel), can_type)
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_api.get_can_num(context, can_type)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.get_can_num(chl_hdl, can_type)
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.get_can_num(context, can_type)
                 })
             },
             _ => Err(ZCanError::DeviceNotOpened),
@@ -428,51 +423,51 @@ impl ZDevice for ZCanDriver<'_> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                let results = self.can_handler1(channel, |channel| {
-                    self.usbcan_api.receive_can((self.dev_type, self.dev_idx, channel), size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcan_api.receive_can(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFrameV1::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                let results = self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_4e_api.receive_can(chl_hdl, size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.receive_can(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFrameV3::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                let results = self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_8e_api.receive_can(chl_hdl, size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.receive_can(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFrameV3::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                let results = self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.receive_can((self.dev_type, self.dev_idx, channel), size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcanfd_api.receive_can(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFrameV2::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                let results = self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.receive_can(chl_hdl, size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.receive_can(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFrameV3::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             _ => Err(ZCanError::DeviceNotSupported),
         }
@@ -482,35 +477,35 @@ impl ZDevice for ZCanDriver<'_> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler1(channel, |channel| {
-                    self.usbcan_api.transmit_can((self.dev_type, self.dev_idx, channel), frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcan_api.transmit_can(context, frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_4E_U => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_4e_api.transmit_can(chl_hdl, frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.transmit_can(context, frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcan_8e_api.transmit_can(chl_hdl, frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.transmit_can(context, frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.transmit_can((self.dev_type, self.dev_idx, channel), frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_api.transmit_can(context, frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.transmit_can(chl_hdl, frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.transmit_can(context, frames)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -523,22 +518,22 @@ impl ZDevice for ZCanDriver<'_> {
             ZCanDeviceType::ZCAN_USBCANFD_MINI
             | ZCanDeviceType::ZCAN_USBCANFD_100U
             | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                let results = self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.receive_canfd((self.dev_type, self.dev_idx, channel), size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcanfd_api.receive_canfd(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFdFrameV1::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                let results = self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.receive_canfd(chl_hdl, size, timeout, |frames, size| {
+                let results = self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.receive_canfd(context, size, timeout, |frames, size| {
                         frames.resize_with(size, ZCanFdFrameV2::default);
                     })
                 })?;
 
-                Vec::try_from_iter(results, self.timestamp(channel))
+                Vec::try_from_iter(results, self.timestamp(channel)?)
             },
             _ => Err(ZCanError::DeviceNotSupported),
         }
@@ -547,15 +542,15 @@ impl ZDevice for ZCanDriver<'_> {
     fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler1(channel, |channel| {
-                    self.usbcanfd_api.transmit_canfd((self.dev_type, self.dev_idx, channel), frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_api.transmit_canfd(context, frames)
                 })
             },
             ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                let frames = Vec::try_from_iter(frames, self.timestamp(channel))?;
-                self.can_handler(channel, |chl_hdl| {
-                    self.usbcanfd_800u_api.transmit_canfd(chl_hdl, frames)
+                let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.transmit_canfd(context, frames)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -576,21 +571,20 @@ impl ZDevice for ZCanDriver<'_> {
                         break;
                     }
 
-                    let chl_hdl: u32;
-
+                    let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), idx, None);
                     match self.dev_type {
                         ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                            if let Some(_) = dev_hdl.find_lin(idx) {
-                                self.usbcanfd_api.reset_lin_chl((self.dev_type, self.dev_idx, idx))?;
+                            if let Some(context) = dev_hdl.find_lin(idx) {
+                                self.usbcanfd_api.reset_lin_chl(context)?;
                                 dev_hdl.remove_lin(idx);
                             }
 
-                            chl_hdl = self.usbcanfd_api.init_lin_chl((self.dev_type, self.dev_idx), idx, cfg)?;
+                            self.usbcanfd_api.init_lin_chl(&mut context, cfg)?;
                         },
                         _ => return Err(ZCanError::DeviceNotSupported),
                     }
 
-                    dev_hdl.add_lin(idx, chl_hdl);
+                    dev_hdl.add_lin(idx, context);
                 }
 
                 Ok(())
@@ -606,10 +600,10 @@ impl ZDevice for ZCanDriver<'_> {
         match &mut self.handler {
             Some(dev_hdl) => {
                 match dev_hdl.find_lin(channel) {
-                    Some(_v) => {
+                    Some(context) => {
                         match self.dev_type {
                             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                                self.usbcanfd_api.reset_lin_chl((self.dev_type, self.dev_idx, channel))
+                                self.usbcanfd_api.reset_lin_chl(context)
                             },
                             _ => Err(ZCanError::DeviceNotSupported),
                         }
@@ -624,8 +618,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn clear_lin_buffer(&self, channel: u8) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.clear_lin_buffer((self.dev_type, self.dev_idx, channel))
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.clear_lin_buffer(context)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -635,8 +629,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn get_lin_num(&self, channel: u8) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.get_lin_num((self.dev_type, self.dev_idx, channel))
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.get_lin_num(context)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -647,9 +641,9 @@ impl ZDevice for ZCanDriver<'_> {
         let timeout = timeout.unwrap_or(0xFFFFFFFF);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
+                self.lin_handler(channel, |context| {
                     self.usbcanfd_api.receive_lin(
-                        (self.dev_type, self.dev_idx, channel),
+                        context,
                         size,
                         timeout,
                         |frames, size| {
@@ -664,8 +658,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.transmit_lin((self.dev_type, self.dev_idx, channel), frames)
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.transmit_lin(context, frames)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -675,8 +669,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.set_lin_subscribe((self.dev_type, self.dev_idx, channel), cfg)
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.set_lin_subscribe(context, cfg)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -686,8 +680,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.set_lin_publish((self.dev_type, self.dev_idx, channel), cfg)
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.set_lin_publish(context, cfg)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -697,8 +691,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn wakeup_lin(&self, channel: u8) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.wakeup_lin((self.dev_type, self.dev_idx, channel))
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.wakeup_lin(context)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -709,8 +703,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.set_lin_slave_msg((self.dev_type, self.dev_idx, channel), msg)
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.set_lin_slave_msg(context, msg)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -721,8 +715,8 @@ impl ZDevice for ZCanDriver<'_> {
     fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
-                self.lin_handler1(channel, |channel| {
-                    self.usbcanfd_api.clear_lin_slave_msg((self.dev_type, self.dev_idx, channel), pids)
+                self.lin_handler(channel, |context| {
+                    self.usbcanfd_api.clear_lin_slave_msg(context, pids)
                 })
             },
             _ => Err(ZCanError::DeviceNotSupported),
@@ -730,10 +724,16 @@ impl ZDevice for ZCanDriver<'_> {
     }
 
     #[inline]
-    fn timestamp(&self, channel: u8) -> u64 {
-        match self.timestamps.get(&channel) {
-            Some(v) => *v,
-            None => 0,
+    fn timestamp(&self, channel: u8) -> Result<u64, ZCanError> {
+        self.can_handler(channel, |context| Ok(context.timestamp()))
+    }
+
+    fn device_handler<C, T>(&self, callback: C) -> Result<T, ZCanError>
+        where
+            C: FnOnce(&Handler) -> Result<T, ZCanError> {
+        match &self.handler {
+            Some(v) => callback(v),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 }

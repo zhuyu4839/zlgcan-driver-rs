@@ -1,6 +1,6 @@
 use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
-use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZDeviceInfo};
+use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceInfo};
 use zlgcan_common::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 
 #[cfg(target_os = "windows")]
@@ -12,76 +12,6 @@ pub use windows::ZCanDriver;
 mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::ZCanDriver;
-
-#[allow(dead_code)]
-impl ZCanDriver<'_> {
-    #[inline(always)]
-    pub(crate) fn device_handler<C, T>(&self, callback: C) -> Result<T, ZCanError>
-        where
-            C: FnOnce(&Handler) -> Result<T, ZCanError> {
-        match &self.handler {
-            Some(v) => callback(v),
-            None => Err(ZCanError::DeviceNotOpened),
-        }
-    }
-    #[cfg(target_os = "linux")]
-    #[inline(always)]
-    pub(crate) fn device_handler1<C, T>(&self, callback: C) -> Result<T, ZCanError>
-        where
-            C: FnOnce() -> Result<T, ZCanError> {
-        match self.handler {
-            Some(_) => callback(),
-            None => Err(ZCanError::DeviceNotOpened),
-        }
-    }
-    #[inline(always)]
-    pub(self) fn can_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
-        where
-            C: FnOnce(u32) -> Result<T, ZCanError> {
-        self.device_handler(|hdl| -> Result<T, ZCanError> {
-            match hdl.find_can(channel) {
-                Some(chl) => callback(chl),
-                None => Err(ZCanError::ChannelNotOpened),
-            }
-        })
-    }
-    #[cfg(target_os = "linux")]
-    #[inline(always)]
-    pub(self) fn can_handler1<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
-        where
-            C: FnOnce(u8) -> Result<T, ZCanError> {
-        self.device_handler(|hdl| -> Result<T, ZCanError> {
-            match hdl.find_can(channel) {
-                Some(_) => callback(channel),
-                None => Err(ZCanError::ChannelNotOpened),
-            }
-        })
-    }
-
-    #[inline(always)]
-    pub(self) fn lin_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
-        where
-            C: FnOnce(u32) -> Result<T, ZCanError> {
-        self.device_handler(|hdl| -> Result<T, ZCanError> {
-            match hdl.lin_channels().get(&channel) {
-                Some(chl) => callback(*chl),
-                None => Err(ZCanError::ChannelNotOpened),
-            }
-        })
-    }
-    #[cfg(target_os = "linux")]
-    #[inline(always)]
-    pub(self) fn lin_handler1<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
-        where
-            C: FnOnce(u8) -> Result<T, ZCanError> {
-        self.device_handler(|hdl| -> Result<T, ZCanError> {
-            match hdl.lin_channels().get(&channel) {
-                Some(_) => callback(channel),
-                None => Err(ZCanError::ChannelNotOpened),
-            }
-        })
-    }
-}
 
 #[allow(unused_variables)]
 pub trait ZDevice {
@@ -95,9 +25,6 @@ pub trait ZDevice {
     fn is_derive_device(&self) -> bool;
     fn is_online(&self) -> Result<bool, ZCanError> {
         Err(ZCanError::MethodNotSupported)
-    }
-    fn device_name(dev_type: ZCanDeviceType, dev_idx: u32) -> String {
-        format!("{}_{}", dev_type, dev_idx)
     }
     fn init_can_chl(&mut self, cfg: Vec<CanChlCfg>) -> Result<(), ZCanError>;
     fn reset_can_chl(&mut self, channel: u8) -> Result<(), ZCanError>;
@@ -170,6 +97,32 @@ pub trait ZDevice {
     fn receive_gps(&self, size: u32, timeout: Option<u32>) -> Result<Vec<ZCloudGpsFrame>, ZCanError> {
         Err(ZCanError::MethodNotSupported)
     }
-    fn timestamp(&self, channel: u8) -> u64;
+    fn timestamp(&self, channel: u8) -> Result<u64, ZCanError>;
+    fn device_handler<C, T>(&self, callback: C) -> Result<T, ZCanError>
+        where
+            C: FnOnce(&Handler) -> Result<T, ZCanError>;
+    #[inline(always)]
+    fn can_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
+        where
+            C: FnOnce(&ZChannelContext) -> Result<T, ZCanError> {
+        self.device_handler(|hdl| -> Result<T, ZCanError> {
+            match hdl.find_can(channel) {
+                Some(context) => callback(context),
+                None => Err(ZCanError::ChannelNotOpened),
+            }
+        })
+    }
+
+    #[inline(always)]
+    fn lin_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, ZCanError>
+        where
+            C: FnOnce(&ZChannelContext) -> Result<T, ZCanError> {
+        self.device_handler(|hdl| -> Result<T, ZCanError> {
+            match hdl.lin_channels().get(&channel) {
+                Some(chl) => callback(chl),
+                None => Err(ZCanError::ChannelNotOpened),
+            }
+        })
+    }
 }
 

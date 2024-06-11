@@ -20,6 +20,10 @@ pub enum ZCanError {
     MethodExecuteFailed(String, u32),
     #[error("ZLGCAN - The configuration error: {0}!")]
     ConfigurationError(String),
+    #[error("ZLGCAN - Invalid device context!")]
+    InvalidDeviceContext,
+    #[error("ZLGCAN - Invalid channel context!")]
+    InvalidChannelContext,
     #[error("ZLGCAN - {0}")]
     Other(String),
     #[error("ZLGCAN - Error: {0} when convert to CString!")]
