@@ -30,4 +30,6 @@ pub enum ZCanError {
     CStringConvertFailed(String),
     #[error("ZLGCAN - Message convert failed!")]
     MessageConvertFailed,
+    #[error("ZLGCAN - No message received!")]
+    NoMessageReceived,
 }

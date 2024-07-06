@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_driver"
-version = "2.0.0-rc3"
+version = "3.0.0-rc0"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license-file = "../LICENCE-GPL-V3"
@@ -17,6 +17,7 @@ rand = "0.8.5"
 log = { workspace = true }
 lazy_static = { workspace = true }
 dlopen2 = { workspace = true }
+can-type-rs = { workspace = true }
 zlgcan_common = { workspace = true }
 
 #[lib]

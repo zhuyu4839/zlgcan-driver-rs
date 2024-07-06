@@ -1,3 +1,4 @@
+use embedded_can::{Frame, Id, StandardId};
 use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, CanMessage};
 use zlgcan_common::device::ZCanDeviceType;
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
@@ -30,7 +31,10 @@ fn main() {
     driver.init_can_chl(cfg).unwrap();
 
     // Create CANFD frame
-    let msg = CanMessage::new(0x7DF, None, [0x01, 0x02, 0x03, 0x04, 0x05], true, false, None).unwrap();
+    let mut msg = CanMessage::new(
+        Id::Standard(StandardId::new(0x7df).unwrap()), [0x01, 0x02, 0x03, 0x04, 0x05].as_slice()
+    ).unwrap();
+    msg.set_is_fd(true);
     let frames = vec![msg];
 
     // Transmit frame

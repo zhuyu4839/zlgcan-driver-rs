@@ -1,5 +1,6 @@
 use std::thread;
 use std::time::{Duration, SystemTime};
+use embedded_can::{ExtendedId, Frame, Id, StandardId};
 use rand::{Rng, thread_rng};
 use rand::prelude::ThreadRng;
 use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFrameType, CanMessage, ZCanTxMode};
@@ -25,14 +26,15 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Resu
     let mut rng = thread_rng();
     let  mut frames = Vec::new();
     for _ in 0..size {
-        let mut frame = CanMessage::new(
-            generate_can_id(&mut rng, extend),
-            None,
-            generate_data(&mut rng, if canfd { CANFD_FRAME_LENGTH } else { CAN_FRAME_LENGTH}),
-            canfd,
-            false,
-            Some(extend)
-        )?;
+        let id = if extend {
+            Id::Extended(ExtendedId::new(generate_can_id(&mut rng, extend)).unwrap())
+        }
+        else {
+            Id::Standard(StandardId::new(generate_can_id(&mut rng, extend) as u16).unwrap())
+        };
+
+        let data = generate_data(&mut rng, if canfd { CANFD_FRAME_LENGTH } else { CAN_FRAME_LENGTH});
+        let mut frame = CanMessage::new(id, data.as_slice()).unwrap();
         frame.set_timestamp(None);
         frame.set_tx_mode(ZCanTxMode::SelfReception as u8);
 

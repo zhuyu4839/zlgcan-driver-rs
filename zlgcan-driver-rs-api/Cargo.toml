@@ -8,5 +8,6 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+can-type-rs = { workspace = true }
 zlgcan_common = { workspace = true }
 zlgcan_driver = { workspace = true }

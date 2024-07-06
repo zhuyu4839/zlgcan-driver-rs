@@ -351,6 +351,8 @@ impl ZCloudApi for USBCANFDApi<'_> {}
 #[cfg(test)]
 mod tests {
     use dlopen2::symbor::{Library, SymBorApi};
+    use can_type_rs::frame::Frame;
+    use can_type_rs::identifier::Id;
     use zlgcan_common::TryFrom;
     use zlgcan_common::can::{
         ZCanChlMode, ZCanChlType,
@@ -393,8 +395,14 @@ mod tests {
 
         let mut context = ZChannelContext::new(context, channel, None);
         api.init_can_chl(&mut context, &cfg).unwrap();
-        let frame = CanMessage::new(0x7E0, Some(0), [0x01, 0x02, 0x03], false, false, None).unwrap();
-        let frame1 = CanMessage::new(0x1888FF00, Some(0), [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], false, false, None).unwrap();
+        let frame = CanMessage::new(
+            Id::new(0x7E0, None).unwrap(),
+            [0x01, 0x02, 0x03].as_slice()
+        ).unwrap();
+        let frame1 = CanMessage::new(
+            Id::new(0x1888FF00, None).unwrap(),
+            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice()
+        ).unwrap();
         let timestamp = system_timestamp();
         let frames = vec![
             <ZCanFrameV2 as TryFrom<CanMessage, u64>>::try_from(frame, timestamp).unwrap(),

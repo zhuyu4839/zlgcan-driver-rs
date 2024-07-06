@@ -1,10 +1,11 @@
+use can_type_rs::frame::Frame;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
 use zlgcan_common::error::ZCanError;
 use crate::driver::{ZDevice, ZCanDriver};
 
 pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> Result<u32, ZCanError> {
     let channel = msg.channel();
-    if msg.is_fd() {
+    if msg.is_can_fd() {
         let frames = vec![msg];
         device.transmit_canfd(channel, frames)
     }
