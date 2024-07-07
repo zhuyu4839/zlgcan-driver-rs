@@ -1,5 +1,5 @@
 use can_type_rs::{Direct, constant::{IdentifierFlags, SFF_MASK}, frame::Frame, identifier::Id};
-use can_type_rs::identifier::Can2B;
+use can_type_rs::constant::EFF_MASK;
 use crate::can::constant::{CANFD_BRS, CANFD_ESI, ZCanFrameType};
 use crate::can::frame::NewZCanFrame;
 use crate::error::ZCanError;
@@ -40,9 +40,9 @@ fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool, timestamp: u64) -> R
         info.set_field(ZCanHdrInfoField::IsErrorFrame, 1);
     }
 
-    T::new(match msg.id(Default::default()) {
-        Id::Can2A(v) => v.into_bits() as u32,
-        Id::Can2B(v) => v.into_bits(),
+    T::new(match msg.id() {
+        Id::Standard(v) => v as u32,
+        Id::Extended(v) => v,
         Id::J1939(v) => v.into_bits(),
     },
            msg.channel(),
@@ -62,7 +62,12 @@ impl TryFrom<CanMessage, u64> for ZCanFrameV1 {
 impl TryFrom<ZCanFrameV1, u64> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanFrameV1, timestamp: u64) -> Result<Self, Self::Error> {
-        let id = Id::Can2B(Can2B::from_bits(value.can_id));
+        let id = if value.ext_flag > 0 {
+            Id::Extended(value.can_id)
+        }
+        else {
+            Id::Standard(value.can_id as u16)
+        };
         let mut message = if value.rem_flag > 0 {
             CanMessage::new_remote(id, value.len as usize)
                 .ok_or(Self::Error::MessageConvertFailed)
@@ -113,7 +118,12 @@ impl TryFrom<ZCanFrameV2, u64> for CanMessage {
         let hdr = value.hdr;
         let info = hdr.info;
 
-        let id = Id::Can2B(Can2B::from_bits(hdr.can_id));
+        let id = if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
+            Id::Extended(hdr.can_id)
+        }
+        else {
+            Id::Standard(hdr.can_id as u16)
+        };
         let mut message = if info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0 {
             CanMessage::new_remote(id, hdr.len as usize)
                 .ok_or(Self::Error::MessageConvertFailed)
@@ -164,7 +174,12 @@ impl TryFrom<ZCanFrameV3, u64> for CanMessage {
         let hdr = value.hdr;
         let can_id = hdr.can_id;
 
-        let id = Id::Can2B(Can2B::from_bits(can_id));
+        let id = if (can_id & IdentifierFlags::EXTENDED.bits()) > 0 {
+            Id::Extended(hdr.can_id)
+        }
+        else {
+            Id::Standard(hdr.can_id as u16)
+        };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.can_len as usize)
                 .ok_or(Self::Error::MessageConvertFailed)
@@ -217,7 +232,12 @@ impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
         let info = hdr.info;
         let can_id = hdr.can_id;
 
-        let id = Id::Can2B(Can2B::from_bits(can_id));
+        let id = if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
+            Id::Extended(can_id)
+        }
+        else {
+            Id::Standard(can_id as u16)
+        };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.len as usize)
                 .ok_or(Self::Error::MessageConvertFailed)
@@ -272,7 +292,12 @@ impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
         let can_id = hdr.can_id;
         let flag = hdr.flag;
 
-        let id = Id::Can2B(Can2B::from_bits(can_id & SFF_MASK));
+        let id = if (can_id & IdentifierFlags::EXTENDED.bits()) > 0 {
+            Id::Extended(can_id & EFF_MASK)
+        }
+        else {
+            Id::Standard((can_id & SFF_MASK) as u16)
+        };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.can_len as usize)
                 .ok_or(Self::Error::MessageConvertFailed)
@@ -317,9 +342,14 @@ impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanChlErrorV1, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
-        // let info = hdr.info;
+        let info = hdr.info;
 
-        let id = Id::Can2B(Can2B::from_bits(hdr.can_id));
+        let id = if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
+            Id::Extended(hdr.can_id)
+        }
+        else {
+            Id::Standard(hdr.can_id  as u16)
+        };
         let mut data = value.data.to_vec();
         data.resize(hdr.len as usize, Default::default());
         let mut message = CanMessage::new(id, data.as_slice())

@@ -14,6 +14,6 @@ serde_yaml = "0.9"
 lazy_static = "1.4.0"
 dlopen2 = "0.7"
 
-can-type-rs = "0.2.0"
+can-type-rs = { version = "1" }
 zlgcan_common = { version = "3.0.0-rc0", path = "zlgcan-common" }
 zlgcan_driver = { version = "3.0.0-rc0", path = "zlgcan-driver" }

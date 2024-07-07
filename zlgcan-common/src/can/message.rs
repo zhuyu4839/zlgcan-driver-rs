@@ -1,6 +1,5 @@
 use std::slice;
-use can_type_rs::{Direct, constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::Frame, identifier::Id, Protocol};
-use can_type_rs::identifier::{Can2A, Can2B, J1939};
+use can_type_rs::{Direct, constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::Frame, identifier::Id};
 use crate::utils::system_timestamp;
 
 #[repr(C)]
@@ -95,12 +94,8 @@ impl Frame<u8> for CanMessage {
     }
 
     #[inline]
-    fn id(&self, protocol: Protocol) -> Id {
-        match protocol {
-            Protocol::Can2a => Id::Can2A(Can2A::from_bits(self.arbitration_id as u16)),
-            Protocol::Can2b => Id::Can2B(Can2B::from_bits(self.arbitration_id)),
-            Protocol::J1939 => Id::J1939(J1939::from_bits(self.arbitration_id)),
-        }
+    fn id(&self) -> Id {
+        Id::from_bits(self.arbitration_id, self.is_extended_id)
     }
 
     #[inline]
