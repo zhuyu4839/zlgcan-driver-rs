@@ -266,6 +266,9 @@ impl ZCanApi for USBCANEApi<'_> {
         if ret < size {
             log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }
+        else {
+            log::debug!("ZLGCAN - receive CAN frame: {}", ret);
+        }
         Ok(frames)
     }
 
@@ -275,6 +278,9 @@ impl ZCanApi for USBCANEApi<'_> {
         let ret = ret as u32;
         if ret < len {
             log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit CAN frame: {}", ret);
         }
         Ok(ret)
     }

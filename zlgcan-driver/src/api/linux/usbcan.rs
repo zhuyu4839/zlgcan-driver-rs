@@ -1,6 +1,5 @@
 use std::ffi::c_void;
 use dlopen2::symbor::{Symbol, SymBorApi};
-use log::{debug, warn};
 use zlgcan_common::can::{CanChlCfg, ZCanChlCfgV2, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanFrameType, ZCanFrameV1};
 use zlgcan_common::device::{CmdPath, ZChannelContext, ZDeviceContext, ZDeviceInfo};
 use zlgcan_common::error::ZCanError;
@@ -159,7 +158,7 @@ impl ZCanApi for USBCANApi<'_> {
             ZCanFrameType::ALL => return Err(ZCanError::MethodNotSupported),
         }
         let ret = unsafe { (self.VCI_GetReceiveNum)(dev_type as u32, dev_idx, _channel) };
-        debug!("ZLGCAN - get receive {} number: {}.", can_type, ret);
+        log::debug!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         Ok(ret)
     }
 
@@ -170,7 +169,10 @@ impl ZCanApi for USBCANApi<'_> {
 
         let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - receive CAN frame: {}", ret);
         }
         Ok(frames)
     }
@@ -180,7 +182,10 @@ impl ZCanApi for USBCANApi<'_> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.VCI_Transmit)(dev_type as u32, dev_idx, channel as u32, frames.as_ptr(), len) };
         if ret < len {
-            warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+            log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit CAN frame: {}", ret);
         }
         Ok(ret)
     }

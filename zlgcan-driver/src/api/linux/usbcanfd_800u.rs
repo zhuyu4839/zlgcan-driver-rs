@@ -332,6 +332,9 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         if ret < size {
             log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }
+        else {
+            log::debug!("ZLGCAN - receive CAN frame: {}", ret);
+        }
         Ok(frames)
     }
 
@@ -340,6 +343,9 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         let ret = unsafe { (self.ZCAN_Transmit)(context.channel_handler()?, frames.as_ptr(), len) };
         if ret < len {
             log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit CAN frame: {}", ret);
         }
         Ok(ret)
     }
@@ -351,7 +357,10 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
         let ret = unsafe { (self.ZCAN_ReceiveFD)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            log::warn!("ZLGCAN - receive CANFD frame expect: {}, actual: {}!", size, ret);
+            log::warn!("ZLGCAN - receive CAN-FD frame expect: {}, actual: {}!", size, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - receive CAN-FD frame: {}", ret);
         }
         Ok(frames)
     }
@@ -361,6 +370,9 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         let ret = unsafe { (self.ZCAN_TransmitFD)(context.channel_handler()?, frames.as_ptr(), len) };
         if ret < len {
             log::warn!("ZLGCAN - transmit CANFD frame expect: {}, actual: {}!", len, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit CAN-FD frame: {}", ret);
         }
         Ok(ret)
     }
