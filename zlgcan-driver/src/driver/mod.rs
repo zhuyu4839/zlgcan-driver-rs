@@ -1,5 +1,3 @@
-use std::future::Future;
-use can_type_rs::{CanDeviceAsync, CanDeviceSync};
 use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceInfo};
@@ -14,69 +12,6 @@ pub use windows::ZCanDriver;
 mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::ZCanDriver;
-
-impl CanDeviceSync for ZCanDriver<'_> {
-    type Error = ZCanError;
-    type Frame = Vec<CanMessage>;
-    type Channel = u8;
-
-    fn transmit_sync(&self, channel: Self::Channel, frames: Self::Frame, canfd: bool, _: Option<usize>) -> Result<usize, Self::Error> {
-        let size = if canfd {
-            self.transmit_canfd(channel, frames)
-        }
-        else {
-            self.transmit_can(channel, frames)
-        }?;
-
-        log::info!("Can device transmit frame: {}", size);
-        Ok(size as usize)
-    }
-
-    fn receive_sync(&self, channel: Self::Channel, canfd: bool, timeout: Option<usize>) -> Result<Self::Frame, Self::Error> {
-        let timeout = match timeout {
-            Some(v) => Some(v as u32),
-            None => None
-        };
-
-        if canfd {
-            if self.dev_type.canfd_support() {
-                let count_fd = self.get_can_num(channel, ZCanFrameType::CANFD)?;
-                if count_fd > 0 {
-                    return self.receive_canfd(channel, count_fd, timeout);
-                }
-            }
-        }
-
-        let count_can = self.get_can_num(channel, ZCanFrameType::CAN)?;
-        if count_can > 0 {
-            return self.receive_can(channel, count_can, timeout)
-        }
-
-        Err(Self::Error::NoMessageReceived)
-    }
-}
-
-impl CanDeviceAsync for ZCanDriver<'_> {
-    type Error = ZCanError;
-    type Frame = Vec<CanMessage>;
-    type Channel = u8;
-
-    #[inline]
-    fn transmit_async(&self, channel: Self::Channel, frame: Self::Frame, canfd: bool, timeout: Option<usize>)
-        -> impl Future<Output=Result<usize, Self::Error>> {
-        async move {
-            self.transmit_sync(channel, frame, canfd, timeout)
-        }
-    }
-
-    #[inline]
-    fn receive_async(&self, channel: Self::Channel, canfd: bool, timeout: Option<usize>)
-        -> impl Future<Output=Result<Self::Frame, Self::Error>> {
-        async move {
-            self.receive_sync(channel, canfd, timeout)
-        }
-    }
-}
 
 #[allow(unused_variables)]
 pub trait ZDevice {
@@ -195,7 +130,6 @@ pub trait ZDevice {
 mod tests {
     use std::thread;
     use std::time::Duration;
-    use can_type_rs::CanDeviceSync;
     use can_type_rs::frame::Frame;
     use can_type_rs::identifier::Id;
     use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CanMessage, ZCanChlMode, ZCanChlType};
@@ -209,39 +143,39 @@ mod tests {
         let mut device = ZCanDriver::new(dev_type as u32, 0, None)?;
         device.open()?;
 
-        let factory = CanChlCfgFactory::new().unwrap();
+        let factory = CanChlCfgFactory::new()?;
         let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000,
-                                              CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None)).unwrap();
+                                              CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None))?;
         let ch2_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000,
-                                              CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None)).unwrap();
+                                              CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None))?;
         let cfg = vec![ch1_cfg, ch2_cfg];
-        device.init_can_chl(cfg).unwrap();
+        device.init_can_chl(cfg)?;
 
         let data = vec![0x02, 0x10, 0x01];
         let message = CanMessage::new(
-            Id::new(0x7DF, None).unwrap(),
+            Id::from_bits(0x7DF, false),
             data.as_slice()
-        ).unwrap();
-        device.transmit_sync(0, vec![message, ], false, None)?;
+        ).ok_or(ZCanError::Other("new message error".to_string()))?;
+        device.transmit_can(0, vec![message, ])?;
 
         let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
         let mut message = CanMessage::new(
-            Id::new(0x7DF, None).unwrap(),
+            Id::from_bits(0x7DF, false),
             data.as_slice()
-        ).unwrap();
+        ).ok_or(ZCanError::Other("new message error".to_string()))?;
         message.set_can_fd(true);
         message.set_bitrate_switch(true);
-        device.transmit_sync(0, vec![message, ], true, None)?;
+        device.transmit_canfd(0, vec![message, ])?;
 
         thread::sleep(Duration::from_millis(100));
 
-        let messages = device.receive_sync(1, false, None)?;
+        let messages = device.receive_can(1, 1, None)?;
         messages.into_iter()
-            .for_each(|message| println!("{:?}", message));
+            .for_each(|message| println!("{}", message));
 
-        let messages = device.receive_sync(1, true, None)?;
+        let messages = device.receive_canfd(1, 1, None)?;
         messages.into_iter()
-            .for_each(|message| println!("{:?}", message));
+            .for_each(|message| println!("{}", message));
 
         Ok(())
     }

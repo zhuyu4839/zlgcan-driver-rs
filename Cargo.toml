@@ -14,6 +14,9 @@ serde_yaml = "0.9"
 lazy_static = "1.4.0"
 dlopen2 = "0.7"
 
-can-type-rs = { version = "1" }
+isotp = { path = "../ecu-proto-rs/ecu-isotp" }
+uds = { path = "../ecu-proto-rs/ecu-uds" }
+can-type-rs = { version = "1", path = "../can-type-rs" }
+
 zlgcan_common = { version = "3.0.0-rc0", path = "zlgcan-common" }
 zlgcan_driver = { version = "3.0.0-rc0", path = "zlgcan-driver" }

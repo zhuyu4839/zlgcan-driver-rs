@@ -10,7 +10,7 @@ use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::constant::{STATUS_OFFLINE, STATUS_ONLINE, INTERNAL_RESISTANCE, PROTOCOL, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, BAUD_RATE, CLOCK};
 
 #[allow(non_snake_case)]
-#[derive(Debug, SymBorApi)]
+#[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct Api<'a> {
     /// DEVICE_HANDLE FUNC_CALL ZCAN_OpenDevice(UINT device_type, UINT device_index, UINT reserved);
     ZCAN_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_index: c_uint, reserved: c_uint) -> c_uint>,

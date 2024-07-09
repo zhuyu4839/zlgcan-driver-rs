@@ -1,53 +1,51 @@
-use dlopen2::symbor::{Library, SymBorApi};
-use lazy_static::lazy_static;
+use std::sync::Arc;
+use dlopen2::symbor::{Container};
 use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFdFrameV1, ZCanFdFrameV2, ZCanFrameType, ZCanFrameV1, ZCanFrameV2, ZCanFrameV3};
 use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceContext, ZDeviceInfo};
-use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinSubscribe};
+use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameDataUnion, ZLinPublish, ZLinSubscribe};
 use zlgcan_common::TryFromIterator;
 use crate::api::linux::usbcan::USBCANApi;
 use crate::api::linux::usbcan_e::USBCANEApi;
 use crate::api::linux::usbcanfd::USBCANFDApi;
 use crate::api::linux::usbcanfd_800u::USBCANFD800UApi;
 use crate::api::{ZCanApi, ZDeviceApi, ZLinApi};
-use crate::constant::LOAD_LIB_FAILED;
 use crate::driver::ZDevice;
 
-#[cfg(target_arch = "x86_64")]
-lazy_static!(
-    static ref USBCAN_LIB:       Library = Library::open("library/linux/x86_64/libusbcan.so"      ).expect(LOAD_LIB_FAILED);
-    static ref USBCAN4E_LIB:     Library = Library::open("library/linux/x86_64/libusbcan-4e.so"   ).expect(LOAD_LIB_FAILED);
-    static ref USBCAN8E_LIB:     Library = Library::open("library/linux/x86_64/libusbcan-8e.so"   ).expect(LOAD_LIB_FAILED);
-    static ref USBCANFD_LIB:     Library = Library::open("library/linux/x86_64/libusbcanfd.so"    ).expect(LOAD_LIB_FAILED);
-    static ref USBCANFD800U_LIB: Library = Library::open("library/linux/x86_64/libusbcanfd800u.so").expect(LOAD_LIB_FAILED);
-);
+// lazy_static!(
+//     static ref usbcan_api: Arc<Container<USBCANApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan.so") }.expect(LOAD_LIB_FAILED));
+//     static ref usbcan_4e_api: Arc<Container<USBCANEApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-4e.so") }.expect(LOAD_LIB_FAILED));
+//     static ref usbcan_8e_api: Arc<Container<USBCANEApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-8e.so") }.expect(LOAD_LIB_FAILED));
+//     static ref usbcanfd_api: Arc<Container<USBCANFDApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd.so") }.expect(LOAD_LIB_FAILED));
+//     static ref usbcanfd_800u_api: Arc<Container<USBCANFD800UApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd800u.so") }.expect(LOAD_LIB_FAILED));
+// );
 
-pub struct ZCanDriver<'a> {
+#[derive(Clone)]
+pub struct ZCanDriver {
     pub(crate) handler:           Option<Handler>,
-    pub(crate) usbcan_api:        USBCANApi<'a>,
-    pub(crate) usbcan_4e_api:     USBCANEApi<'a>,
-    pub(crate) usbcan_8e_api:     USBCANEApi<'a>,
-    pub(crate) usbcanfd_api:      USBCANFDApi<'a>,
-    pub(crate) usbcanfd_800u_api: USBCANFD800UApi<'a>,
+    pub(crate) usbcan_api:        Arc<Container<USBCANApi<'static>>>,
+    pub(crate) usbcan_4e_api:     Arc<Container<USBCANEApi<'static>>>,
+    pub(crate) usbcan_8e_api:     Arc<Container<USBCANEApi<'static>>>,
+    pub(crate) usbcanfd_api:      Arc<Container<USBCANFDApi<'static>>>,
+    pub(crate) usbcanfd_800u_api: Arc<Container<USBCANFD800UApi<'static>>>,
     pub(crate) dev_type:          ZCanDeviceType,
     pub(crate) dev_idx:           u32,
     pub(crate) derive:            Option<DeriveInfo>,
 }
 
-impl ZDevice for ZCanDriver<'_> {
+impl ZDevice for ZCanDriver {
     fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError> where Self: Sized {
-        unsafe {
-            let usbcan_api     = USBCANApi::load(&USBCAN_LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?;
-            let usbcan_4e_api = USBCANEApi::load(&USBCAN4E_LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?;
-            let usbcan_8e_api = USBCANEApi::load(&USBCAN8E_LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?;
-            let usbcanfd_api = USBCANFDApi::load(&USBCANFD_LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?;
-            let usbcanfd_800u_api = USBCANFD800UApi::load(&USBCANFD800U_LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?;
-            let dev_type = ZCanDeviceType::try_from(dev_type)?;
-            Ok(Self {
-                handler: Default::default(),
-                usbcan_api, usbcan_4e_api, usbcan_8e_api, usbcanfd_api, usbcanfd_800u_api,
-                dev_type, dev_idx, derive,
-            })
-        }
+        let dev_type = ZCanDeviceType::try_from(dev_type)?;
+        Ok(Self {
+            handler: Default::default(),
+            usbcan_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcan_4e_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-4e.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcan_8e_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-8e.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcanfd_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcanfd_800u_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd800u.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            dev_type,
+            dev_idx,
+            derive,
+        })
     }
 
     fn device_type(&self) -> ZCanDeviceType {
@@ -647,7 +645,7 @@ impl ZDevice for ZCanDriver<'_> {
                         size,
                         timeout,
                         |frames, size| {
-                            frames.resize_with(size, || ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameData::from_data(Default::default())))
+                            frames.resize_with(size, || ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameDataUnion::from_data(Default::default())))
                         })
                 })
             },

@@ -261,6 +261,7 @@ impl TryFrom<&CanChlCfg> for ZCanChlCfgV2 {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone)]
 pub struct CanChlCfgFactory(Arc<HashMap<String, BitrateCfg>>);
 
 

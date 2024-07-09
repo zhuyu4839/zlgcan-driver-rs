@@ -1,13 +1,12 @@
-use dlopen2::symbor::{Library, SymBorApi};
-use lazy_static::lazy_static;
+use std::sync::Arc;
+use dlopen2::symbor::Container;
 use zlgcan_common::can::{CanChlCfg, CanMessage, ZCanChlError, ZCanChlStatus, ZCanFdFrameV2, ZCanFrameType, ZCanFrameV3};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use zlgcan_common::device::{DeriveInfo, Handler, ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceContext, ZDeviceInfo};
-use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameData, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
+use zlgcan_common::lin::{ZLinChlCfg, ZLinDataType, ZLinFrame, ZLinFrameDataUnion, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 use zlgcan_common::TryFromIterator;
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::api::windows::Api;
-use crate::constant::LOAD_LIB_FAILED;
 use crate::driver::ZDevice;
 
 #[cfg(target_arch = "x86")]
@@ -15,24 +14,20 @@ const LIB_PATH: &str = "library/windows/x86/zlgcan.dll";
 #[cfg(target_arch = "x86_64")]
 const LIB_PATH: &str = "library/windows/x86_64/zlgcan.dll";
 
-lazy_static!(
-    static ref LIB: Library = Library::open(LIB_PATH).expect(LOAD_LIB_FAILED);
-);
-
-#[derive(Debug)]
-pub struct ZCanDriver<'a> {
+#[derive(Clone)]
+pub struct ZCanDriver {
     pub(crate) handler:    Option<Handler>,
-    pub(crate) api:        Api<'a>,
+    pub(crate) api:        Arc<Container<Api<'static>>>,
     pub(crate) dev_type:   ZCanDeviceType,
     pub(crate) dev_idx:    u32,
     pub(crate) derive:     Option<DeriveInfo>,
 }
 
-impl ZDevice for ZCanDriver<'_> {
+impl ZDevice for ZCanDriver {
     fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError> where Self: Sized {
-        let api =  unsafe {
-            Api::load(&LIB).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))
-        }?;
+        let api =  Arc::new(unsafe {
+            Container::load(LIB_PATH).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))
+        }?);
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
         Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive })
     }
@@ -262,7 +257,7 @@ impl ZDevice for ZCanDriver<'_> {
         let timeout = timeout.unwrap_or(u32::MAX);
         self.lin_handler(channel, |context| {
             self.api.receive_lin(context, size, timeout, |frames, size| {
-                frames.resize_with(size, || -> ZLinFrame { ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameData::from_data(Default::default())) })
+                frames.resize_with(size, || -> ZLinFrame { ZLinFrame::new(channel, ZLinDataType::TypeData, ZLinFrameDataUnion::from_data(Default::default())) })
             })
         })
     }

@@ -1,9 +1,11 @@
+use std::fmt::{Display, Formatter};
 use std::slice;
 use can_type_rs::{Direct, constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::Frame, identifier::Id};
+use can_type_rs::j1939::J1939Id;
 use crate::utils::system_timestamp;
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct CanMessage {
     timestamp: u64,
     arbitration_id: u32,
@@ -20,7 +22,11 @@ pub struct CanMessage {
     tx_mode: u8,
 }
 
-impl Frame<u8> for CanMessage {
+unsafe impl Send for CanMessage {}
+unsafe impl Sync for CanMessage {}
+
+impl Frame for CanMessage {
+    type Channel = u8;
     #[inline]
     fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self> where Self: Sized {
         let length = data.len();
@@ -94,8 +100,13 @@ impl Frame<u8> for CanMessage {
     }
 
     #[inline]
-    fn id(&self) -> Id {
-        Id::from_bits(self.arbitration_id, self.is_extended_id)
+    fn id(&self, j1939: bool) -> Id {
+        if self.is_extended_id && j1939 {
+            Id::J1939(J1939Id::from_bits(self.arbitration_id))
+        }
+        else {
+            Id::from_bits(self.arbitration_id, self.is_extended_id)
+        }
     }
 
     #[inline]
@@ -173,12 +184,12 @@ impl Frame<u8> for CanMessage {
     }
 
     #[inline]
-    fn channel(&self) -> u8 {
+    fn channel(&self) -> Self::Channel {
         self.channel + 1
     }
 
     #[inline]
-    fn set_channel(&mut self, value: u8) -> &mut Self where Self: Sized {
+    fn set_channel(&mut self, value: Self::Channel) -> &mut Self where Self: Sized {
         self.channel = value;
         self
     }
@@ -252,3 +263,8 @@ impl CanMessage {
     }
 }
 
+impl Display for CanMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        <dyn Frame<Channel=u8> as Display>::fmt(self, f)
+    }
+}

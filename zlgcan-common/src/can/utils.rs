@@ -40,7 +40,7 @@ fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool, timestamp: u64) -> R
         info.set_field(ZCanHdrInfoField::IsErrorFrame, 1);
     }
 
-    T::new(match msg.id() {
+    T::new(match msg.id(false) {
         Id::Standard(v) => v as u32,
         Id::Extended(v) => v,
         Id::J1939(v) => v.into_bits(),

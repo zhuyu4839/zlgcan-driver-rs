@@ -343,7 +343,7 @@ mod tests {
         for _ in 0..1 {
             let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
             let mut send = CanMessage::new(
-                Id::new(0x7DF, None).unwrap(),
+                Id::from_bits(0x7DF, false),
                 data.as_slice()
             ).unwrap();
             send.set_tx_mode(ZCanTxMode::SelfReception as u8);
@@ -360,11 +360,9 @@ mod tests {
         assert!(!recv.is_null());
         let slice = unsafe { std::slice::from_raw_parts(recv, count as usize) };
         let recv = slice.to_vec();
-        println!("{:?}", recv);
         for msg in recv {
-            println!("channel: {} length: {} ({:?})", msg.channel(), msg.length(), msg.data())
+            println!("{}", msg);
         }
-        println!("received: {}", count);
 
         let mut error = std::ptr::null();
         let mut recv = std::ptr::null();
@@ -372,11 +370,9 @@ mod tests {
         assert!(!recv.is_null());
         let slice = unsafe { std::slice::from_raw_parts(recv, count as usize) };
         let recv = slice.to_vec();
-        println!("{:?}", recv);
         for msg in recv {
-            println!("channel: {} length: {} ({:?})", msg.channel(), msg.length(), msg.data())
+            println!("{}", msg);
         }
-        println!("received: {}", count);
 
         zlgcan_close(device);
     }

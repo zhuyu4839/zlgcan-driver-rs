@@ -3,7 +3,7 @@ name = "zlgcan_driver"
 version = "3.0.0-rc0"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
-license-file = "../LICENCE-GPL-V3"
+license = "GPL-3.0"
 description = "A ZLGCAN driver with rust."
 homepage = "https://github.com/zhuyu4839/zlgcan-driver-rs"
 repository = "https://github.com/zhuyu4839/zlgcan-driver-rs"
@@ -15,10 +15,18 @@ rand = "0.8.5"
 
 [dependencies]
 log = { workspace = true }
-lazy_static = { workspace = true }
 dlopen2 = { workspace = true }
 can-type-rs = { workspace = true }
+isotp = { workspace = true }
 zlgcan_common = { workspace = true }
+
+[dependencies.tokio]
+version = "1"
+optional = true
+features = ["rt-multi-thread", "macros", "time"]
+
+[features]
+default = ["tokio", ]
 
 #[lib]
 #crate-type = ["cdylib"]

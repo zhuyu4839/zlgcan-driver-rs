@@ -5,6 +5,7 @@ use crate::error::ZCanError;
 use super::constant::{ZCanHdrInfoField, CANFD_BRS, CANFD_ESI};
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct USBCanEUAutoTransFrame {
     pub interval: u32,
     pub can_id: u32,
@@ -15,6 +16,7 @@ pub struct USBCanEUAutoTransFrame {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct USBCanEUWhiteList {
     pub is_extend: bool,
     pub start: u32,

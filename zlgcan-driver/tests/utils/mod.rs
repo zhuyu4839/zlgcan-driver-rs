@@ -1,9 +1,11 @@
 use std::thread;
 use std::time::{Duration, SystemTime};
-use embedded_can::{ExtendedId, Frame, Id, StandardId};
 use rand::{Rng, thread_rng};
 use rand::prelude::ThreadRng;
-use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanChlMode, ZCanChlType, ZCanFrameType, CanMessage, ZCanTxMode};
+use can_type_rs::constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE};
+use can_type_rs::frame::Frame;
+use can_type_rs::identifier::Id;
+use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, ZCanFrameType, CanMessage, ZCanTxMode};
 use zlgcan_common::device::{DeriveInfo, ZCanDeviceType};
 use zlgcan_common::error::ZCanError;
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
@@ -26,15 +28,11 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Resu
     let mut rng = thread_rng();
     let  mut frames = Vec::new();
     for _ in 0..size {
-        let id = if extend {
-            Id::Extended(ExtendedId::new(generate_can_id(&mut rng, extend)).unwrap())
-        }
-        else {
-            Id::Standard(StandardId::new(generate_can_id(&mut rng, extend) as u16).unwrap())
-        };
+        let id = Id::from_bits(generate_can_id(&mut rng, extend), extend);
 
-        let data = generate_data(&mut rng, if canfd { CANFD_FRAME_LENGTH } else { CAN_FRAME_LENGTH});
-        let mut frame = CanMessage::new(id, data.as_slice()).unwrap();
+        let data = generate_data(&mut rng, if canfd { CANFD_FRAME_MAX_SIZE } else { CAN_FRAME_MAX_SIZE});
+        let mut frame = CanMessage::new(id, data.as_slice())
+            .ok_or(ZCanError::Other("new message error".to_string()))?;
         frame.set_timestamp(None);
         frame.set_tx_mode(ZCanTxMode::SelfReception as u8);
 
@@ -48,7 +46,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Resu
     Ok(frames)
 }
 
-fn device_open(dev_type: ZCanDeviceType, dev_idx: u32, derive_info: Option<DeriveInfo>, channels: u8, canfd: bool) -> Result<ZCanDriver<'static>, ZCanError> {
+fn device_open(dev_type: ZCanDeviceType, dev_idx: u32, derive_info: Option<DeriveInfo>, channels: u8, canfd: bool) -> Result<ZCanDriver, ZCanError> {
     let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, derive_info)?;
     driver.open()?;
     let dev_info = driver.device_info()?;
@@ -215,42 +213,45 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
 
 #[cfg(test)]
 mod tests {
+    use zlgcan_common::error::ZCanError;
     use super::new_messages;
 
     #[test]
-    fn test_utils() {
+    fn test_utils() -> Result<(), ZCanError> {
         let size = 2;
-        let messages = new_messages(size, false, false, None).unwrap();
+        let messages = new_messages(size, false, false, None)?;
         messages.iter()
             .for_each(|msg| {
                 println!("{}", msg);
             });
-        let messages = new_messages(size, false, true, None).unwrap();
+        let messages = new_messages(size, false, true, None)?;
         messages.iter()
             .for_each(|msg| {
                 println!("{}", msg);
             });
 
-        let messages = new_messages(size, true, false, Some(false)).unwrap();
+        let messages = new_messages(size, true, false, Some(false))?;
         messages.iter()
             .for_each(|msg| {
                 println!("{}", msg);
             });
-        let messages = new_messages(size, true, true, Some(false)).unwrap();
+        let messages = new_messages(size, true, true, Some(false))?;
         messages.iter()
             .for_each(|msg| {
                 println!("{}", msg);
             });
-        let messages = new_messages(size, true, false, Some(true)).unwrap();
+        let messages = new_messages(size, true, false, Some(true))?;
         messages.iter()
             .for_each(|msg| {
                 println!("{}", msg);
             });
-        let messages = new_messages(size, true, true, Some(true)).unwrap();
+        let messages = new_messages(size, true, true, Some(true))?;
         messages.iter()
             .for_each(|msg| {
                 println!("{}", msg);
             });
+
+        Ok(())
     }
 }
 
