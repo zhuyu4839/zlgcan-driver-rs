@@ -2,7 +2,6 @@ use can_type_rs::{Direct, constant::{IdentifierFlags, SFF_MASK}, frame::Frame, i
 use can_type_rs::constant::EFF_MASK;
 use crate::can::constant::{CANFD_BRS, CANFD_ESI, ZCanFrameType};
 use crate::can::frame::NewZCanFrame;
-use crate::error::ZCanError;
 use crate::{TryFrom, TryFromIterator};
 use crate::utils::{fix_device_time, fix_system_time};
 use super::{
@@ -70,13 +69,11 @@ impl TryFrom<ZCanFrameV1, u64> for CanMessage {
         };
         let mut message = if value.rem_flag > 0 {
             CanMessage::new_remote(id, value.len as usize)
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }
         else {
             let mut data = value.data.to_vec();
             data.resize(value.len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -126,13 +123,11 @@ impl TryFrom<ZCanFrameV2, u64> for CanMessage {
         };
         let mut message = if info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0 {
             CanMessage::new_remote(id, hdr.len as usize)
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }
         else {
             let mut data = value.data.to_vec();
             data.resize(hdr.len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -183,13 +178,11 @@ impl TryFrom<ZCanFrameV3, u64> for CanMessage {
         };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.can_len as usize)
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }
         else {
             let mut data = value.data.to_vec();
             data.resize(hdr.can_len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -242,13 +235,11 @@ impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
         };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.len as usize)
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }
         else {
             let mut data = value.data.data.to_vec();
             data.resize(hdr.len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -303,13 +294,11 @@ impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
         };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.can_len as usize)
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }
         else {
             let mut data = value.data.data.to_vec();
             data.resize(hdr.can_len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
-                .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -356,8 +345,7 @@ impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
         };
         let mut data = value.data.to_vec();
         data.resize(hdr.len as usize, Default::default());
-        let mut message = CanMessage::new(id, data.as_slice())
-            .ok_or(anyhow::anyhow!(ZCanError::MessageConvertFailed))?;
+        let mut message = CanMessage::new(id, data.as_slice())?;
 
         message.set_direct(Direct::Receive)
             .set_timestamp(Some(fix_system_time(hdr.timestamp as u64, timestamp)))

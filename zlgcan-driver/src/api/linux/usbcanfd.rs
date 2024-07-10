@@ -452,11 +452,11 @@ mod tests {
         let frame = CanMessage::new(
             Id::from_bits(0x7E0, false),
             [0x01, 0x02, 0x03].as_slice()
-        ).ok_or(ZCanError::Other("new message error".to_string()))?;
+        )?;
         let frame1 = CanMessage::new(
             Id::from_bits(0x1888FF00, true),
             [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice()
-        ).ok_or(ZCanError::Other("new message error".to_string()))?;
+        )?;
         let timestamp = system_timestamp();
         let frames = vec![
             <ZCanFrameV2 as TryFrom<CanMessage, u64>>::try_from(frame, timestamp)?,

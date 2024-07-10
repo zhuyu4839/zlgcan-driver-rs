@@ -28,64 +28,58 @@ unsafe impl Sync for CanMessage {}
 impl Frame for CanMessage {
     type Channel = u8;
     #[inline]
-    fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self> where Self: Sized {
+    fn new(id: impl Into<Id>, data: &[u8]) -> anyhow::Result<Self> {
         let length = data.len();
-        match match length {
-            ..=CAN_FRAME_MAX_SIZE => Some(false),
-            ..=CANFD_FRAME_MAX_SIZE => Some(true),
-            _ => None,
-        } {
-            Some(v) => {
-                let id: Id = id.into();
-                Some(Self {
-                    timestamp: 0,
-                    arbitration_id: id.as_raw(),
-                    is_extended_id: id.is_extended(),
-                    is_remote_frame: false,
-                    is_error_frame: false,
-                    channel: Default::default(),
-                    length,
-                    data: Box::leak(data.to_vec().into_boxed_slice()).as_ptr(),
-                    is_fd: v,
-                    direct: Default::default(),
-                    bitrate_switch: false,
-                    error_state_indicator: false,
-                    tx_mode: 0,
-                })
-            },
-            None => None,
-        }
+        let is_fd = match length {
+            ..=CAN_FRAME_MAX_SIZE => Ok(false),
+            ..=CANFD_FRAME_MAX_SIZE => Ok(true),
+            _ => Err(anyhow::anyhow!("Invalid data length: {}", length)),
+        }?;
+
+        let id: Id = id.into();
+        Ok(Self {
+            timestamp: 0,
+            arbitration_id: id.as_raw(),
+            is_extended_id: id.is_extended(),
+            is_remote_frame: false,
+            is_error_frame: false,
+            channel: Default::default(),
+            length,
+            data: Box::leak(data.to_vec().into_boxed_slice()).as_ptr(),
+            is_fd,
+            direct: Default::default(),
+            bitrate_switch: false,
+            error_state_indicator: false,
+            tx_mode: 0,
+        })
     }
 
     #[inline]
-    fn new_remote(id: impl Into<Id>, len: usize) -> Option<Self> where Self: Sized {
-        match match len {
-            ..=CAN_FRAME_MAX_SIZE => Some(false),
-            ..=CANFD_FRAME_MAX_SIZE => Some(true),
-            _ => None,
-        } {
-            Some(v) => {
-                let id = id.into();
-                let mut data = Vec::new();
-                data.resize(len, Default::default());
-                Some(Self {
-                    timestamp: 0,
-                    arbitration_id: id.as_raw(),
-                    is_extended_id: id.is_extended(),
-                    is_remote_frame: true,
-                    is_error_frame: false,
-                    channel: Default::default(),
-                    length: len,
-                    data: Box::leak(data.into_boxed_slice()).as_ptr(),
-                    is_fd: v,
-                    direct: Default::default(),
-                    bitrate_switch: false,
-                    error_state_indicator: false,
-                    tx_mode: 0,
-                })
-            },
-            None => None,
-        }
+    fn new_remote(id: impl Into<Id>, len: usize) -> anyhow::Result<Self> {
+        let is_fd = match len {
+            ..=CAN_FRAME_MAX_SIZE => Ok(false),
+            ..=CANFD_FRAME_MAX_SIZE => Ok(true),
+            _ => Err(anyhow::anyhow!("Invalid data length: {}", len)),
+        }?;
+
+        let id = id.into();
+        let mut data = Vec::new();
+        data.resize(len, Default::default());
+        Ok(Self {
+            timestamp: 0,
+            arbitration_id: id.as_raw(),
+            is_extended_id: id.is_extended(),
+            is_remote_frame: true,
+            is_error_frame: false,
+            channel: Default::default(),
+            length: len,
+            data: Box::leak(data.into_boxed_slice()).as_ptr(),
+            is_fd,
+            direct: Default::default(),
+            bitrate_switch: false,
+            error_state_indicator: false,
+            tx_mode: 0,
+        })
     }
 
     #[inline]

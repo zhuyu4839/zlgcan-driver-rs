@@ -7,7 +7,6 @@ use can_type_rs::frame::Frame;
 use can_type_rs::identifier::Id;
 use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, ZCanFrameType, CanMessage, ZCanTxMode};
 use zlgcan_common::device::{DeriveInfo, ZCanDeviceType};
-use zlgcan_common::error::ZCanError;
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
 
 fn generate_can_id(rng: &mut ThreadRng, extend: bool) -> u32 {
@@ -31,8 +30,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> anyh
         let id = Id::from_bits(generate_can_id(&mut rng, extend), extend);
 
         let data = generate_data(&mut rng, if canfd { CANFD_FRAME_MAX_SIZE } else { CAN_FRAME_MAX_SIZE});
-        let mut frame = CanMessage::new(id, data.as_slice())
-            .ok_or(ZCanError::Other("new message error".to_string()))?;
+        let mut frame = CanMessage::new(id, data.as_slice())?;
         frame.set_timestamp(None);
         frame.set_tx_mode(ZCanTxMode::SelfReception as u8);
 
@@ -213,7 +211,6 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
 
 #[cfg(test)]
 mod tests {
-    use zlgcan_common::error::ZCanError;
     use super::new_messages;
 
     #[test]

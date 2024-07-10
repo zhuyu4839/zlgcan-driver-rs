@@ -226,14 +226,14 @@ mod tests {
         let message = CanMessage::new(
             Id::from_bits(0x7DF, false),
             data.as_slice()
-        ).ok_or(ZCanError::Other("new message error".to_string()))?;
+        )?;
         tmp_send.send(message).unwrap();
 
         let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
         let mut message = CanMessage::new(
             Id::from_bits(0x7DF, false),
             data.as_slice()
-        ).ok_or(ZCanError::Other("new message error".to_string()))?;
+        )?;
         message.set_can_fd(true);
         message.set_bitrate_switch(true);
         tmp_send.send(message).unwrap();
