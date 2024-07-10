@@ -104,13 +104,13 @@ pub enum ZCanChlType {
 }
 
 impl TryFrom<u8> for ZCanChlType {
-    type Error = ZCanError;
+    type Error = anyhow::Error;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(ZCanChlType::CAN),
             1 => Ok(ZCanChlType::CANFD_ISO),
             2 => Ok(ZCanChlType::CANFD_NON_ISO),
-            _ => Err(ZCanError::ParamNotSupported),
+            _ => Err(anyhow::anyhow!(ZCanError::ParamNotSupported)),
         }
     }
 }
@@ -123,12 +123,12 @@ pub enum ZCanFilterType {
 }
 
 impl TryFrom<u8> for ZCanFilterType {
-    type Error = ZCanError;
+    type Error = anyhow::Error;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(ZCanFilterType::Double),
             1 => Ok(ZCanFilterType::Single),
-            _ => Err(ZCanError::ParamNotSupported),
+            _ => Err(anyhow::anyhow!(ZCanError::ParamNotSupported)),
         }
     }
 }

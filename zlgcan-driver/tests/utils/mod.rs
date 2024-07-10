@@ -24,7 +24,7 @@ fn generate_data(rng: &mut ThreadRng, size: usize) -> Vec<u8> {
     (1..len).map(|i| (i + 1) as u8).collect()
 }
 
-fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Result<Vec<CanMessage>, ZCanError> {
+fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> anyhow::Result<Vec<CanMessage>> {
     let mut rng = thread_rng();
     let  mut frames = Vec::new();
     for _ in 0..size {
@@ -46,7 +46,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> Resu
     Ok(frames)
 }
 
-fn device_open(dev_type: ZCanDeviceType, dev_idx: u32, derive_info: Option<DeriveInfo>, channels: u8, canfd: bool) -> Result<ZCanDriver, ZCanError> {
+fn device_open(dev_type: ZCanDeviceType, dev_idx: u32, derive_info: Option<DeriveInfo>, channels: u8, canfd: bool) -> anyhow::Result<ZCanDriver> {
     let mut driver = ZCanDriver::new(dev_type as u32, dev_idx, derive_info)?;
     driver.open()?;
     let dev_info = driver.device_info()?;
@@ -55,7 +55,7 @@ fn device_open(dev_type: ZCanDeviceType, dev_idx: u32, derive_info: Option<Deriv
     Ok(driver)
 }
 
-fn can_init(driver: &mut ZCanDriver, available: u8, cfg_ext: CanChlCfgExt) -> Result<(), ZCanError> {
+fn can_init(driver: &mut ZCanDriver, available: u8, cfg_ext: CanChlCfgExt) -> anyhow::Result<()> {
     let factory = CanChlCfgFactory::new()?;
     let mut cfg = Vec::new();
     for _ in 0..available {
@@ -65,7 +65,7 @@ fn can_init(driver: &mut ZCanDriver, available: u8, cfg_ext: CanChlCfgExt) -> Re
     Ok(())
 }
 
-fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: u8, recv_ch: u8) -> Result<(), ZCanError> {
+fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, false, false, None)?;
     let frames2 = new_messages(ext_count, false, true, None)?;
     // create CAN frames
@@ -102,7 +102,7 @@ fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: 
     Ok(())
 }
 
-fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_count: u32, recv_ch: u8, trans_ch: u8) -> Result<(), ZCanError> {
+fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_count: u32, recv_ch: u8, trans_ch: u8) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, true, false, None)?;
     let frames2 = new_messages(ext_count, true, true, None)?;
     let frames3 = new_messages(brs_count, true, false, Some(true))?;
@@ -160,7 +160,7 @@ fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_coun
     Ok(())
 }
 
-pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) -> Result<(), ZCanError> {
+pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) -> anyhow::Result<()> {
     let dev_idx = 0;
     let channels = 1;
     let trans_ch = 0;
@@ -177,7 +177,7 @@ pub fn can_device1(dev_type: ZCanDeviceType, derive_info: Option<DeriveInfo>) ->
     Ok(())
 }
 
-pub fn can_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_ch: u8, recv_ch: u8, derive_info: Option<DeriveInfo>) -> Result<(), ZCanError> {
+pub fn can_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_ch: u8, recv_ch: u8, derive_info: Option<DeriveInfo>) -> anyhow::Result<()> {
     let dev_idx = 0;
     let comm_count = 5;
     let ext_count = 5;
@@ -191,7 +191,7 @@ pub fn can_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_
     Ok(())
 }
 
-pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_ch: u8, recv_ch: u8) -> Result<(), ZCanError> {
+pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let dev_idx = 0;
     let comm_count = 5;
     let ext_count = 5;
@@ -217,7 +217,7 @@ mod tests {
     use super::new_messages;
 
     #[test]
-    fn test_utils() -> Result<(), ZCanError> {
+    fn test_utils() -> anyhow::Result<()> {
         let size = 2;
         let messages = new_messages(size, false, false, None)?;
         messages.iter()

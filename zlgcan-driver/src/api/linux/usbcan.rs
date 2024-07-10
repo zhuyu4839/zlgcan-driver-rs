@@ -46,47 +46,57 @@ impl USBCANApi<'_> {
 }
 
 impl ZDeviceApi for USBCANApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), ZCanError> {
+    fn open(&self, context: &mut ZDeviceContext) -> anyhow::Result<()> {
         let (dev_type, dev_idx) = (context.device_type(), context.device_index());
         match unsafe { (self.VCI_OpenDevice)(dev_type as u32, dev_idx, 0) } {
             Self::STATUS_OK => Ok(()),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_OpenDevice".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_OpenDevice".to_string(), code)
+            )),
         }
     }
 
-    fn close(&self, context: &ZDeviceContext) -> Result<(), ZCanError> {
+    fn close(&self, context: &ZDeviceContext) -> anyhow::Result<()> {
         let (dev_type, dev_idx) = (context.device_type(), context.device_index());
         match unsafe { (self.VCI_CloseDevice)(dev_type as u32, dev_idx) } {
             Self::STATUS_OK => Ok(()),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_CloseDevice".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_CloseDevice".to_string(), code)
+            )),
         }
     }
 
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, ZCanError> {
+    fn read_device_info(&self, context: &ZDeviceContext) -> anyhow::Result<ZDeviceInfo> {
         let mut info = ZDeviceInfo::default();
         let (dev_type, dev_idx) = (context.device_type(), context.device_index());
         match unsafe { (self.VCI_ReadBoardInfo)(dev_type as u32, dev_idx, &mut info) } {
             Self::STATUS_OK => Ok(info),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_ReadBoardInfo".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_ReadBoardInfo".to_string(), code)
+            )),
         }
     }
 
-    fn set_reference(&self, context: &ZChannelContext, cmd_path: &CmdPath, value: *const c_void) -> Result<(), ZCanError> {
+    fn set_reference(&self, context: &ZChannelContext, cmd_path: &CmdPath, value: *const c_void) -> anyhow::Result<()> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let cmd = cmd_path.get_reference();
         // let _value = CString::new(value).map_err(|e| ZCanError::CStringConvertFailed(e.to_string()))?;
         match unsafe { (self.VCI_SetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
             Self::STATUS_OK => Ok(()),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_SetReference".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_SetReference".to_string(), code)
+            )),
         }
     }
 
-    fn get_reference(&self, context: &ZChannelContext, cmd_path: &CmdPath, value: *mut c_void) -> Result<(), ZCanError> {
+    fn get_reference(&self, context: &ZChannelContext, cmd_path: &CmdPath, value: *mut c_void) -> anyhow::Result<()> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let cmd = cmd_path.get_reference();
         match unsafe { (self.VCI_GetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value) } {
             Self::STATUS_OK => Ok(()),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_GetReference".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_GetReference".to_string(), code)
+            )),
         }
     }
 }
@@ -94,7 +104,7 @@ impl ZDeviceApi for USBCANApi<'_> {
 impl ZCanApi for USBCANApi<'_> {
     type Frame = ZCanFrameV1;
     type FdFrame = ();
-    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &CanChlCfg) -> Result<(), ZCanError> {
+    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &CanChlCfg) -> anyhow::Result<()> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         unsafe {
             let dev_type = dev_type as u32;
@@ -107,62 +117,76 @@ impl ZCanApi for USBCANApi<'_> {
                             context.set_channel_handler(None);
                             Ok(())
                         },
-                        code => Err(ZCanError::MethodExecuteFailed("VCI_StartCAN".to_string(), code)),
+                        code => Err(anyhow::anyhow!(
+                            ZCanError::MethodExecuteFailed("VCI_StartCAN".to_string(), code)
+                        )),
                     }
                 },
-                code => Err(ZCanError::MethodExecuteFailed("VCI_InitCAN".to_string(), code)),
+                code => Err(anyhow::anyhow!(
+                    ZCanError::MethodExecuteFailed("VCI_InitCAN".to_string(), code)
+                )),
             }
         }
     }
 
-    fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), ZCanError> {
+    fn reset_can_chl(&self, context: &ZChannelContext) -> anyhow::Result<()> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         match unsafe { (self.VCI_ResetCAN)(dev_type as u32, dev_idx, channel as u32) } {
             Self::STATUS_OK => Ok(()),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_ResetCAN".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_ResetCAN".to_string(), code)
+            )),
         }
     }
 
-    fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, ZCanError> {
+    fn read_can_chl_status(&self, context: &ZChannelContext) -> anyhow::Result<ZCanChlStatus> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let mut status: ZCanChlStatus = Default::default();
         match unsafe { (self.VCI_ReadCANStatus)(dev_type as u32, dev_idx, channel as u32, &mut status) } {
             Self::STATUS_OK => Ok(status),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_ReadCANStatus".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_ReadCANStatus".to_string(), code)
+            )),
         }
     }
 
-    fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, ZCanError> {
+    fn read_can_chl_error(&self, context: &ZChannelContext) -> anyhow::Result<ZCanChlError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let mut info: ZCanChlError = ZCanChlError::from(ZCanChlErrorV2::default());
         match unsafe { (self.VCI_ReadErrInfo)(dev_type as u32, dev_idx, channel as u32, &mut info) } {
             Self::STATUS_OK => Ok(info),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_ReadErrInfo".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_ReadErrInfo".to_string(), code)
+            )),
         }
     }
 
-    fn clear_can_buffer(&self, context: &ZChannelContext) -> Result<(), ZCanError> {
+    fn clear_can_buffer(&self, context: &ZChannelContext) -> anyhow::Result<()> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         match unsafe { (self.VCI_ClearBuffer)(dev_type as u32, dev_idx, channel as u32) } {
             Self::STATUS_OK => Ok(()),
-            code => Err(ZCanError::MethodExecuteFailed("VCI_ClearBuffer".to_string(), code)),
+            code => Err(anyhow::anyhow!(
+                ZCanError::MethodExecuteFailed("VCI_ClearBuffer".to_string(), code)
+            )),
         }
     }
 
-    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> Result<u32, ZCanError> {
+    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> anyhow::Result<u32> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let mut _channel = channel as u32;
         match can_type {
             ZCanFrameType::CAN => {},
             ZCanFrameType::CANFD => _channel |= 0x8000_0000,
-            ZCanFrameType::ALL => return Err(ZCanError::MethodNotSupported),
+            ZCanFrameType::ALL => return Err(anyhow::anyhow!(
+                ZCanError::MethodNotSupported
+            )),
         }
         let ret = unsafe { (self.VCI_GetReceiveNum)(dev_type as u32, dev_idx, _channel) };
         log::debug!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         Ok(ret)
     }
 
-    fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> Result<Vec<Self::Frame>, ZCanError> {
+    fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> anyhow::Result<Vec<Self::Frame>> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let mut frames = Vec::new();
         resize(&mut frames, size as usize);
@@ -177,7 +201,7 @@ impl ZCanApi for USBCANApi<'_> {
         Ok(frames)
     }
 
-    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<Self::Frame>) -> Result<u32, ZCanError> {
+    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<Self::Frame>) -> anyhow::Result<u32> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let len = frames.len() as u32;
         let ret = unsafe { (self.VCI_Transmit)(dev_type as u32, dev_idx, channel as u32, frames.as_ptr(), len) };
@@ -212,7 +236,7 @@ mod tests {
     use crate::api::{ZCanApi, ZDeviceApi};
 
     #[test]
-    fn test_init_channel() -> Result<(), ZCanError> {
+    fn test_init_channel() -> anyhow::Result<()> {
         let dev_type = ZCanDeviceType::ZCAN_USBCAN1;
         let dev_idx = 0;
         let channel = 0;

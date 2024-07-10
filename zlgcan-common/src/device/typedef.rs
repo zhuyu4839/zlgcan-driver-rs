@@ -163,13 +163,13 @@ impl From<ZCanDeviceType> for u32 {
 impl TryFrom<u32> for ZCanDeviceType {
     /// Attention!!!
     /// This method is unsafe if the value is too large
-    type Error = ZCanError;
+    type Error = anyhow::Error;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         let layout = std::alloc::Layout::new::<ZCanDeviceType>();
         unsafe {
             let vk: *mut ZCanDeviceType = std::alloc::alloc(layout).cast();
             if vk.is_null() {
-                Err(ZCanError::ParamNotSupported)
+                Err(anyhow::anyhow!(ZCanError::ParamNotSupported))
             }
             else {
                 let ptr = vk as *mut u32;

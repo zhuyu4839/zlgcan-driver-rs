@@ -6,6 +6,7 @@ use can_type_rs::frame::Frame;
 use can_type_rs::identifier::Id;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
 use zlgcan_common::device::Handler;
+use zlgcan_common::error::ZCanError;
 
 use crate::driver::{ZCanDriver, ZDevice};
 
@@ -42,58 +43,46 @@ impl AsyncCanDevice for ZCanExtend {
     }
 
     #[inline]
-    fn register_listener(&mut self, name: String, listener: Box<dyn CanListener<Frame = Self::Frame>>) -> bool {
-        match self.listeners.lock() {
-            Ok(mut v) => match v.insert(name, listener) {
-                Some(_) => true,
-                None => {
-                    log::warn!("ZLGCAN - failed to insert listener!");
-                    false
-                }
-            },
-            Err(e) => {
-                log::warn!("ZLGCAN - mutex error: {e:?} when inserting listener!");
-                false
-            },
-        }
+    fn register_listener(
+        &mut self,
+        name: String,
+        listener: Box<dyn CanListener<Frame = Self::Frame>>
+    ) -> anyhow::Result<()> {
+        self.listeners.lock()
+            .map_err(|e|
+                ZCanError::Other(format!("mutex error: {e:?} when inserting listener")))?
+            .insert(name, listener)
+            .ok_or(ZCanError::Other("failed to insert listener".to_string()))?;
+
+        Ok(())
     }
 
     #[inline]
-    fn unregister_listener(&mut self, name: String) -> bool {
-        match self.listeners.lock() {
-            Ok(mut v) => v.remove(&name).is_some(),
-            Err(e) => {
-                log::warn!("ZLGCAN - mutex error: {e:?} when removing listener!");
-                false
-            },
-        }
+    fn unregister_listener(&mut self, name: String) -> anyhow::Result<bool> {
+        Ok(self.listeners.lock()
+            .map_err(|e|
+                ZCanError::Other(format!("mutex error: {e:?} when inserting listener")))?
+            .remove(&name)
+            .is_some())
     }
 
     #[inline]
-    fn unregister_all(&mut self) -> bool {
-        match self.listeners.lock() {
-            Ok(mut v) => {
-                v.clear();
-                true
-            },
-            Err(e) => {
-                log::warn!("ZLGCAN - mutex error: {e:?} when removing all listeners!");
-                false
-            },
-        }
+    fn unregister_all(&mut self) -> anyhow::Result<()> {
+        Ok(self.listeners.lock()
+            .map_err(|e|
+                ZCanError::Other(format!("mutex error: {e:?} when inserting listener")))?
+            .clear())
     }
 
     #[inline]
-    fn listener_names(&self) -> Vec<String> {
-        match self.listeners.lock() {
-            Ok(v) => v.keys()
-                .into_iter()
-                .map(|f| f.clone()).collect(),
-            Err(e) => {
-                log::warn!("ZLGCAN - mutex error: {e:?} when get name of listeners!");
-                vec![]
-            },
-        }
+    fn listener_names(&self) -> anyhow::Result<Vec<String>> {
+        Ok(self.listeners.lock()
+            .map_err(|e|
+                ZCanError::Other(format!("mutex error: {e:?} when inserting listener")))?
+            .keys()
+            .into_iter()
+            .map(|f| f.clone())
+            .collect())
     }
 
     fn async_transmit(device: Arc<Mutex<Self>>, interval_ms: u64) -> impl Future<Output=()> + Send {
@@ -122,18 +111,23 @@ impl AsyncCanDevice for ZCanExtend {
     fn async_receive(device: Arc<Mutex<Self>>, interval_ms: u64) -> impl Future<Output=()> + Send {
         async move {
             async_util(device, interval_ms, |handler, device| {
+                let dev = &device.device;
                 let can_chs = handler.can_channels().len() as u8;
                 for channel in 0..can_chs {
-                    if let Ok(count) = device.device.get_can_num(channel, ZCanFrameType::CAN) {
-                        if let Ok(messages) = device.device.receive_can(channel, count, None) {
-                            on_messages_util(&device, &messages);
+                    if let Ok(count) = dev.get_can_num(channel, ZCanFrameType::CAN) {
+                        if count > 0 {
+                            if let Ok(messages) = dev.receive_can(channel, count, None) {
+                                on_messages_util(&device, &messages);
+                            }
                         }
                     }
 
-                    if device.device.dev_type.canfd_support() {
-                        if let Ok(count) = device.device.get_can_num(channel, ZCanFrameType::CANFD) {
-                            if let Ok(messages) = device.device.receive_canfd(channel, count, None) {
-                                on_messages_util(&device, &messages);
+                    if dev.dev_type.canfd_support() {
+                        if let Ok(count) = dev.get_can_num(channel, ZCanFrameType::CANFD) {
+                            if count > 0 {
+                                if let Ok(messages) = dev.receive_canfd(channel, count, None) {
+                                    on_messages_util(&device, &messages);
+                                }
                             }
                         }
                     }
@@ -175,7 +169,9 @@ async fn async_util(device: Arc<Mutex<ZCanExtend>>, interval: u64, callback: fn(
 fn on_messages_util(device: &MutexGuard<ZCanExtend>, messages: &Vec<CanMessage>) {
     match device.listeners.lock() {
         Ok(v) => v.values()
-            .for_each(|o| o.on_frame_received(messages)),
+            .for_each(|o| if let Err(e) = o.on_frame_received(messages) {
+                println!("{e:?}");
+            }),
         Err(e) =>
             log::error!("ZLGCAN - mutex error: {e:?} `on_messages`"),
     }
@@ -186,7 +182,9 @@ fn on_transmit_util(device: &MutexGuard<ZCanExtend>, id: Id, size: u32) {
     if size > 0 {
         match device.listeners.lock() {
             Ok(v) => v.values()
-                .for_each(|o| o.on_frame_transmitted(id)),
+                .for_each(|o| if let Err(e) = o.on_frame_transmitted(id) {
+                    println!("{e:?}");
+                }),
             Err(e) =>
                 log::error!("ZLGCAN - mutex error: {e:?} `on_transmit`"),
         }
@@ -206,7 +204,7 @@ mod tests {
     use crate::extends::ZCanExtend;
 
     #[tokio::test]
-    async fn can_trait() -> Result<(), ZCanError> {
+    async fn can_trait() -> anyhow::Result<()> {
         let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
         let mut device = ZCanDriver::new(dev_type as u32, 0, None)?;
         device.open()?;

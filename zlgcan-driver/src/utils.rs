@@ -1,9 +1,8 @@
 use can_type_rs::frame::Frame;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
-use zlgcan_common::error::ZCanError;
 use crate::driver::{ZDevice, ZCanDriver};
 
-pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> Result<u32, ZCanError> {
+pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> anyhow::Result<u32> {
     let channel = msg.channel();
     if msg.is_can_fd() {
         let frames = vec![msg];
@@ -14,7 +13,7 @@ pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> Result<u32, ZCanError
         device.transmit_can(channel, frames)
     }
 }
-pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
+pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> anyhow::Result<Vec<CanMessage>> {
     let count_can = device.get_can_num(channel, ZCanFrameType::CAN)?;
     let mut results: Vec<CanMessage> = Vec::new();
 

@@ -6,7 +6,7 @@ use zlgcan_common::error::ZCanError;
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
 
 #[test]
-fn main() -> Result<(), ZCanError> {
+fn main() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
     let dev_idx = 0;
 
@@ -36,7 +36,7 @@ fn main() -> Result<(), ZCanError> {
     let mut msg = CanMessage::new(
         Id::from_bits(0x7df, false), [0x01, 0x02, 0x03, 0x04, 0x05].as_slice()
     ).ok_or(ZCanError::Other("new message error".to_string()))?;
-    msg.set_is_fd(true);
+    msg.set_can_fd(true);
     let frames = vec![msg];
 
     // Transmit frame
@@ -44,4 +44,6 @@ fn main() -> Result<(), ZCanError> {
     assert_eq!(ret, 1);
 
     driver.close();
+
+    Ok(())
 }

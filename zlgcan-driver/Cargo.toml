@@ -14,6 +14,7 @@ readme = "README.md"
 rand = "0.8.5"
 
 [dependencies]
+anyhow = { workspace = true }
 log = { workspace = true }
 dlopen2 = { workspace = true }
 can-type-rs = { workspace = true }
