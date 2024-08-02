@@ -12,13 +12,12 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dev-dependencies]
 rand = "0.8.5"
+anyhow = "1"
 
 [dependencies]
-anyhow = { workspace = true }
 log = { workspace = true }
 dlopen2 = { workspace = true }
 can-type-rs = { workspace = true }
-isotp = { workspace = true }
 zlgcan_common = { workspace = true }
 
 [dependencies.tokio]

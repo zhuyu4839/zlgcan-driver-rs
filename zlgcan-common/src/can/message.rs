@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::slice;
-use can_type_rs::{Direct, constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::Frame, identifier::Id};
+use can_type_rs::{constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::{Frame, Direct}, identifier::Id};
 use can_type_rs::j1939::J1939Id;
 use crate::utils::system_timestamp;
 
@@ -28,58 +28,57 @@ unsafe impl Sync for CanMessage {}
 impl Frame for CanMessage {
     type Channel = u8;
     #[inline]
-    fn new(id: impl Into<Id>, data: &[u8]) -> anyhow::Result<Self> {
+    fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self> {
         let length = data.len();
-        let is_fd = match length {
-            ..=CAN_FRAME_MAX_SIZE => Ok(false),
-            ..=CANFD_FRAME_MAX_SIZE => Ok(true),
-            _ => Err(anyhow::anyhow!("Invalid data length: {}", length)),
-        }?;
 
-        let id: Id = id.into();
-        Ok(Self {
-            timestamp: 0,
-            arbitration_id: id.as_raw(),
-            is_extended_id: id.is_extended(),
-            is_remote_frame: false,
-            is_error_frame: false,
-            channel: Default::default(),
-            length,
-            data: Box::leak(data.to_vec().into_boxed_slice()).as_ptr(),
-            is_fd,
-            direct: Default::default(),
-            bitrate_switch: false,
-            error_state_indicator: false,
-            tx_mode: 0,
-        })
+        match is_can_fd(length) {
+            Some(is_fd) => {
+                let id: Id = id.into();
+                Some(Self {
+                    timestamp: 0,
+                    arbitration_id: id.as_raw(),
+                    is_extended_id: id.is_extended(),
+                    is_remote_frame: false,
+                    is_error_frame: false,
+                    channel: Default::default(),
+                    length,
+                    data: Box::leak(data.to_vec().into_boxed_slice()).as_ptr(),
+                    is_fd,
+                    direct: Default::default(),
+                    bitrate_switch: false,
+                    error_state_indicator: false,
+                    tx_mode: 0,
+                })
+            },
+            None => None,
+        }
     }
 
     #[inline]
-    fn new_remote(id: impl Into<Id>, len: usize) -> anyhow::Result<Self> {
-        let is_fd = match len {
-            ..=CAN_FRAME_MAX_SIZE => Ok(false),
-            ..=CANFD_FRAME_MAX_SIZE => Ok(true),
-            _ => Err(anyhow::anyhow!("Invalid data length: {}", len)),
-        }?;
-
-        let id = id.into();
-        let mut data = Vec::new();
-        data.resize(len, Default::default());
-        Ok(Self {
-            timestamp: 0,
-            arbitration_id: id.as_raw(),
-            is_extended_id: id.is_extended(),
-            is_remote_frame: true,
-            is_error_frame: false,
-            channel: Default::default(),
-            length: len,
-            data: Box::leak(data.into_boxed_slice()).as_ptr(),
-            is_fd,
-            direct: Default::default(),
-            bitrate_switch: false,
-            error_state_indicator: false,
-            tx_mode: 0,
-        })
+    fn new_remote(id: impl Into<Id>, len: usize) -> Option<Self> {
+        match is_can_fd(len) {
+            Some(is_fd) => {
+                let id = id.into();
+                let mut data = Vec::new();
+                data.resize(len, Default::default());
+                Some(Self {
+                    timestamp: 0,
+                    arbitration_id: id.as_raw(),
+                    is_extended_id: id.is_extended(),
+                    is_remote_frame: true,
+                    is_error_frame: false,
+                    channel: Default::default(),
+                    length: len,
+                    data: Box::leak(data.into_boxed_slice()).as_ptr(),
+                    is_fd,
+                    direct: Default::default(),
+                    bitrate_switch: false,
+                    error_state_indicator: false,
+                    tx_mode: 0,
+                })
+            },
+            None => None,
+        }
     }
 
     #[inline]
@@ -179,7 +178,7 @@ impl Frame for CanMessage {
 
     #[inline]
     fn channel(&self) -> Self::Channel {
-        self.channel + 1
+        self.channel
     }
 
     #[inline]
@@ -194,26 +193,26 @@ impl Frame for CanMessage {
     }
 
     #[inline]
-    fn dlc(&self) -> usize {
+    fn dlc(&self) -> Option<usize> {
         let len = self.length;
         match len {
-            ..=CAN_FRAME_MAX_SIZE => len,
+            ..=CAN_FRAME_MAX_SIZE => Some(len),
             ..=CANFD_FRAME_MAX_SIZE => {
                 if !self.is_fd {
-                    panic!("Invalid data length!");
+                    return None;
                 }
                 match len {
-                    9..=12 => 9,
-                    13..=16 => 10,
-                    17..=20 => 11,
-                    21..=24 => 12,
-                    25..=32 => 13,
-                    33..=48 => 14,
-                    49..=64 => 15,
-                    _ => panic!("Invalid length!"),
+                    9..=12 =>  Some( 9),
+                    13..=16 => Some(10),
+                    17..=20 => Some(11),
+                    21..=24 => Some(12),
+                    25..=32 => Some(13),
+                    33..=48 => Some(14),
+                    49..=64 => Some(15),
+                    _ => None,
                 }
             },
-            _ => panic!("Invalid length!"),
+            _ => None,
         }
     }
 
@@ -260,5 +259,17 @@ impl CanMessage {
 impl Display for CanMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         <dyn Frame<Channel=u8> as Display>::fmt(self, f)
+    }
+}
+
+#[inline]
+fn is_can_fd(len: usize) -> Option<bool> {
+    match len {
+        ..=CAN_FRAME_MAX_SIZE => Some(false),
+        ..=CANFD_FRAME_MAX_SIZE => Some(true),
+        _ => {
+            log::warn!("CanMessage - invalid data length: {}", len);
+            None
+        },
     }
 }

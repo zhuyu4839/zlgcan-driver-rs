@@ -24,13 +24,14 @@ pub struct USBCanEUWhiteList {
 }
 
 pub trait NewZCanFrame {
+    type Error;
     fn new<T>(
         can_id: u32,
         channel: u8,
         data: T,
         info: ZCanHdrInfo,
         timestamp: u64,
-    ) -> anyhow::Result<Self>
+    ) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]>,
             Self: Sized;
@@ -54,7 +55,8 @@ pub struct ZCanFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> anyhow::Result<Self>
+    type Error = ZCanError;
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, _chl, data, len, info| {
@@ -144,7 +146,8 @@ pub struct ZCanFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFrameV2 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> anyhow::Result<Self>
+    type Error = ZCanError;
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
@@ -199,8 +202,9 @@ impl ZCanFrameV3 {
 }
 
 impl NewZCanFrame for ZCanFrameV3 {
+    type Error = ZCanError;
     #[allow(unused_variables)]
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, _: u64) -> anyhow::Result<Self>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, _: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcan_frame_new2(can_id, channel, data, info,  |id, chl, data, len, info| {
@@ -240,7 +244,8 @@ pub struct ZCanFdFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> anyhow::Result<Self>
+    type Error = ZCanError;
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcanfd_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
@@ -276,8 +281,9 @@ impl ZCanFdFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV2 {
+    type Error = ZCanError;
     #[allow(unused_variables)]
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, _: u64) -> anyhow::Result<Self>
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, _: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcanfd_frame_new2(can_id, channel, data, info, |id, chl, data, len, info| {
@@ -309,8 +315,8 @@ fn zcan_frame_new<T, R>(
     channel: u8,
     data: T,
     mut info: ZCanHdrInfo,
-    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> anyhow::Result<R>
-) -> anyhow::Result<R>
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     match can_id {
@@ -324,10 +330,10 @@ fn zcan_frame_new<T, R>(
 
                     callback(can_id, channel, data, len as u8, info)
                 },
-                _ => Err(anyhow::anyhow!(ZCanError::ParamNotSupported)),
+                _ => Err(ZCanError::ParamNotSupported),
             }
         },
-        _ => Err(anyhow::anyhow!(ZCanError::ParamNotSupported)),
+        _ => Err(ZCanError::ParamNotSupported),
     }
 }
 
@@ -336,8 +342,8 @@ fn zcanfd_frame_new<T, R>(
     channel: u8,
     data: T,
     mut info: ZCanHdrInfo,
-    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> anyhow::Result<R>
-) -> anyhow::Result<R>
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     if let 0..=EFF_MASK = can_id {
@@ -350,10 +356,10 @@ fn zcanfd_frame_new<T, R>(
             callback(can_id, channel, data, len as u8, info)
         }
         else {
-            Err(anyhow::anyhow!(ZCanError::ParamNotSupported))
+            Err(ZCanError::ParamNotSupported)
         }
     } else {
-        Err(anyhow::anyhow!(ZCanError::ParamNotSupported))
+        Err(ZCanError::ParamNotSupported)
     }
 }
 
@@ -364,8 +370,8 @@ fn zcan_frame_new2<T, R>(
     channel: u8,
     data: T,
     mut info: ZCanHdrInfo,
-    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> anyhow::Result<R>
-) -> anyhow::Result<R>
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     match can_id {
@@ -389,10 +395,10 @@ fn zcan_frame_new2<T, R>(
                     }
                     callback(can_id, channel, data, len as u8, info)
                 },
-                _ => Err(anyhow::anyhow!(ZCanError::ParamNotSupported)),
+                _ => Err(ZCanError::ParamNotSupported),
             }
         },
-        _ => Err(anyhow::anyhow!(ZCanError::ParamNotSupported)),
+        _ => Err(ZCanError::ParamNotSupported),
     }
 }
 
@@ -401,8 +407,8 @@ fn zcanfd_frame_new2<T, R>(
     channel: u8,
     data: T,
     mut info: ZCanHdrInfo,
-    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> anyhow::Result<R>
-) -> anyhow::Result<R>
+    callback: impl Fn(u32, u8, Vec<u8>, u8, ZCanHdrInfo) -> Result<R, ZCanError>
+) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
     if let 0..=EFF_MASK = can_id {
@@ -424,11 +430,11 @@ fn zcanfd_frame_new2<T, R>(
             }
             callback(can_id, channel, data, len as u8, info)
         } else {
-            Err(anyhow::anyhow!(ZCanError::ParamNotSupported))
+            Err(ZCanError::ParamNotSupported)
         }
     }
     else {
-        Err(anyhow::anyhow!(ZCanError::ParamNotSupported))
+        Err(ZCanError::ParamNotSupported)
     }
 }
 

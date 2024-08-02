@@ -4,6 +4,7 @@ use can_type_rs::frame::Frame;
 use can_type_rs::identifier::Id;
 use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, CanMessage};
 use zlgcan_common::device::ZCanDeviceType;
+use zlgcan_common::error::ZCanError;
 use zlgcan_driver::driver::{ZCanDriver, ZDevice};
 
 #[test]
@@ -36,7 +37,8 @@ fn main() -> anyhow::Result<()> {
     // Create CANFD frame
     let mut msg = CanMessage::new(
         Id::from_bits(0x7df, false), [0x01, 0x02, 0x03, 0x04, 0x05].as_slice()
-    )?;
+    )
+        .ok_or(ZCanError::Other("invalid data length".to_string()))?;
     msg.set_can_fd(true);
     let frames = vec![msg];
 
@@ -48,6 +50,7 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 ```
 
 ### How to test

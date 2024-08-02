@@ -33,7 +33,7 @@ pub struct ZCanDriver {
 }
 
 impl ZDevice for ZCanDriver {
-    fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> anyhow::Result<Self> where Self: Sized {
+    fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError> {
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
         Ok(Self {
             handler: Default::default(),
@@ -56,7 +56,7 @@ impl ZDevice for ZCanDriver {
         self.dev_idx
     }
 
-    fn open(&mut self) -> anyhow::Result<()> {
+    fn open(&mut self) -> Result<(), ZCanError> {
         let mut context = ZDeviceContext::new(self.dev_type, self.dev_idx, None);
         let dev_info: ZDeviceInfo;
         match self.dev_type {
@@ -88,7 +88,7 @@ impl ZDevice for ZCanDriver {
                 self.usbcanfd_800u_api.open(&mut context)?;
                 dev_info = self.usbcanfd_800u_api.read_device_info(&context)?;
             },
-            _ => return Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => return Err(ZCanError::DeviceNotSupported),
         };
         self.handler = Some(Handler::new(context, dev_info));
         Ok(())
@@ -164,10 +164,10 @@ impl ZDevice for ZCanDriver {
         }
     }
 
-    fn device_info(&self) -> anyhow::Result<&ZDeviceInfo> {
+    fn device_info(&self) -> Result<&ZDeviceInfo, ZCanError> {
         match &self.handler {
             Some(v) => Ok(v.device_info()),
-            None => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 
@@ -175,7 +175,7 @@ impl ZDevice for ZCanDriver {
         self.derive.is_some()
     }
 
-    fn init_can_chl(&mut self, cfg: Vec<CanChlCfg>) -> anyhow::Result<()> {
+    fn init_can_chl(&mut self, cfg: Vec<CanChlCfg>) -> Result<(), ZCanError> {
         match &mut self.handler {
             Some(dev_hdl) => {
                 let dev_info = dev_hdl.device_info();
@@ -233,18 +233,18 @@ impl ZDevice for ZCanDriver {
                             self.usbcanfd_800u_api.init_can_chl_ex(self.dev_type, self.dev_idx, idx, cfg)?;
                             self.usbcanfd_800u_api.init_can_chl(&mut context, cfg)?;
                         },
-                        _ => return Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+                        _ => return Err(ZCanError::DeviceNotSupported),
                     }
 
                     dev_hdl.add_can(idx, context);
                 }
                 Ok(())
             },
-            None => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 
-    fn reset_can_chl(&mut self, channel: u8) -> anyhow::Result<()> {
+    fn reset_can_chl(&mut self, channel: u8) -> Result<(), ZCanError> {
         match &mut self.handler {
             Some(dev_hdl) => {
                 match dev_hdl.find_can(channel) {
@@ -268,19 +268,19 @@ impl ZDevice for ZCanDriver {
                             ZCanDeviceType::ZCAN_USBCANFD_800U => {
                                 self.usbcanfd_800u_api.reset_can_chl(context)?;
                             },
-                            _ => return Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+                            _ => return Err(ZCanError::DeviceNotSupported),
                         }
                         dev_hdl.remove_can(channel);
                         Ok(())
                     },
-                    None => Err(anyhow::anyhow!(ZCanError::ChannelNotOpened)),
+                    None => Err(ZCanError::ChannelNotOpened),
                 }
             },
-            None => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 
-    fn read_can_chl_status(&self, channel: u8) -> anyhow::Result<ZCanChlStatus> {
+    fn read_can_chl_status(&self, channel: u8) -> Result<ZCanChlStatus, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
@@ -310,11 +310,11 @@ impl ZDevice for ZCanDriver {
                     self.usbcanfd_800u_api.read_can_chl_status(chl_hdl)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn read_can_chl_error(&self, channel: u8) -> anyhow::Result<ZCanChlError> {
+    fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
@@ -344,11 +344,11 @@ impl ZDevice for ZCanDriver {
                     self.usbcanfd_800u_api.read_can_chl_error(context)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            _ => Err(ZCanError::DeviceNotOpened),
         }
     }
 
-    fn clear_can_buffer(&self, channel: u8) -> anyhow::Result<()> {
+    fn clear_can_buffer(&self, channel: u8) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
@@ -378,11 +378,11 @@ impl ZDevice for ZCanDriver {
                     self.usbcanfd_800u_api.clear_can_buffer(context)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> anyhow::Result<u32> {
+    fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
@@ -412,11 +412,11 @@ impl ZDevice for ZCanDriver {
                     self.usbcanfd_800u_api.get_can_num(context, can_type)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            _ => Err(ZCanError::DeviceNotOpened),
         }
     }
 
-    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> anyhow::Result<Vec<CanMessage>> {
+    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
         let timeout = timeout.unwrap_or(u32::MAX);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
@@ -467,11 +467,11 @@ impl ZDevice for ZCanDriver {
 
                 Vec::try_from_iter(results, self.timestamp(channel)?)
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> anyhow::Result<u32> {
+    fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCAN1
             | ZCanDeviceType::ZCAN_USBCAN2 => {
@@ -506,11 +506,11 @@ impl ZDevice for ZCanDriver {
                     self.usbcanfd_800u_api.transmit_can(context, frames)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> anyhow::Result<Vec<CanMessage>> {
+    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
         let timeout = timeout.unwrap_or(u32::MAX);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_MINI
@@ -533,11 +533,11 @@ impl ZDevice for ZCanDriver {
 
                 Vec::try_from_iter(results, self.timestamp(channel)?)
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> anyhow::Result<u32> {
+    fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 let frames = Vec::try_from_iter(frames, self.timestamp(channel)?)?;
@@ -551,13 +551,13 @@ impl ZDevice for ZCanDriver {
                     self.usbcanfd_800u_api.transmit_canfd(context, frames)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn init_lin_chl(&mut self, cfg: Vec<ZLinChlCfg>) -> anyhow::Result<()> {
+    fn init_lin_chl(&mut self, cfg: Vec<ZLinChlCfg>) -> Result<(), ZCanError> {
         if !self.dev_type.lin_support() {
-            return Err(anyhow::anyhow!(ZCanError::DeviceNotSupported))
+            return Err(ZCanError::DeviceNotSupported)
         }
         match &mut self.handler {
             Some(dev_hdl) => {
@@ -579,7 +579,7 @@ impl ZDevice for ZCanDriver {
 
                             self.usbcanfd_api.init_lin_chl(&mut context, cfg)?;
                         },
-                        _ => return Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+                        _ => return Err(ZCanError::DeviceNotSupported),
                     }
 
                     dev_hdl.add_lin(idx, context);
@@ -587,13 +587,13 @@ impl ZDevice for ZCanDriver {
 
                 Ok(())
             },
-            None => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 
-    fn reset_lin_chl(&mut self, channel: u8) -> anyhow::Result<()> {
+    fn reset_lin_chl(&mut self, channel: u8) -> Result<(), ZCanError> {
         if !self.dev_type.lin_support() {
-            return Err(anyhow::anyhow!(ZCanError::DeviceNotSupported))
+            return Err(ZCanError::DeviceNotSupported)
         }
         match &mut self.handler {
             Some(dev_hdl) => {
@@ -603,39 +603,39 @@ impl ZDevice for ZCanDriver {
                             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                                 self.usbcanfd_api.reset_lin_chl(context)
                             },
-                            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+                            _ => Err(ZCanError::DeviceNotSupported),
                         }
                     },
-                    None => Err(anyhow::anyhow!(ZCanError::ChannelNotOpened)),
+                    None => Err(ZCanError::ChannelNotOpened),
                 }
             },
-            None => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 
-    fn clear_lin_buffer(&self, channel: u8) -> anyhow::Result<()> {
+    fn clear_lin_buffer(&self, channel: u8) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.clear_lin_buffer(context)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn get_lin_num(&self, channel: u8) -> anyhow::Result<u32> {
+    fn get_lin_num(&self, channel: u8) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.get_lin_num(context)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn receive_lin(&self, channel: u8, size: u32, timeout: Option<u32>) -> anyhow::Result<Vec<ZLinFrame>> {
+    fn receive_lin(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZLinFrame>, ZCanError> {
         let timeout = timeout.unwrap_or(u32::MAX);
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
@@ -649,89 +649,89 @@ impl ZDevice for ZCanDriver {
                         })
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> anyhow::Result<u32> {
+    fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> Result<u32, ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.transmit_lin(context, frames)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>) -> anyhow::Result<()> {
+    fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.set_lin_subscribe(context, cfg)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> anyhow::Result<()> {
+    fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.set_lin_publish(context, cfg)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
-    fn wakeup_lin(&self, channel: u8) -> anyhow::Result<()> {
+    fn wakeup_lin(&self, channel: u8) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.wakeup_lin(context)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
     #[allow(deprecated)]
-    fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> anyhow::Result<()> {
+    fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.set_lin_slave_msg(context, msg)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
     #[allow(deprecated)]
-    fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> anyhow::Result<()> {
+    fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> Result<(), ZCanError> {
         match self.dev_type {
             ZCanDeviceType::ZCAN_USBCANFD_200U => {
                 self.lin_handler(channel, |context| {
                     self.usbcanfd_api.clear_lin_slave_msg(context, pids)
                 })
             },
-            _ => Err(anyhow::anyhow!(ZCanError::DeviceNotSupported)),
+            _ => Err(ZCanError::DeviceNotSupported),
         }
     }
 
     #[inline]
-    fn timestamp(&self, channel: u8) -> anyhow::Result<u64> {
+    fn timestamp(&self, channel: u8) -> Result<u64, ZCanError> {
         self.can_handler(channel, |context| Ok(context.timestamp()))
     }
 
-    fn device_handler<C, T>(&self, callback: C) -> anyhow::Result<T>
+    fn device_handler<C, T>(&self, callback: C) -> Result<T, ZCanError>
         where
-            C: FnOnce(&Handler) -> anyhow::Result<T> {
+            C: FnOnce(&Handler) -> Result<T, ZCanError> {
         match &self.handler {
             Some(v) => callback(v),
-            None => Err(anyhow::anyhow!(ZCanError::DeviceNotOpened)),
+            None => Err(ZCanError::DeviceNotOpened),
         }
     }
 }

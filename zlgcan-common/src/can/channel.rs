@@ -26,7 +26,7 @@ impl ZCanChlCfg {
         filter: u8,
         acc_code: Option<u32>,
         acc_mask: Option<u32>
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ZCanError> {
         let mode = ZCanChlMode::try_from(mode)?;
         let filter = ZCanFilterType::try_from(filter)?;
         Ok(Self {
@@ -67,7 +67,7 @@ impl ZCanFdChlCfgV1 {
         acc_code: Option<u32>,
         acc_mask: Option<u32>,
         brp: Option<u32>
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ZCanError> {
         let mode = ZCanChlMode::try_from(mode)?;
         let filter = ZCanFilterType::try_from(filter)?;
         Ok(Self {
@@ -152,7 +152,7 @@ impl ZCanFdChlCfgV2 {
         clock: u32,
         aset: ZCanFdChlCfgSet,
         dset: ZCanFdChlCfgSet
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ZCanError> {
         let can_type = ZCanChlType::try_from(can_type)?;
         let mode = ZCanChlMode::try_from(mode)?;
         let mut mode = mode as u32;
@@ -197,7 +197,7 @@ impl ZCanChlCfgV1 {
     pub fn new(
         can_type: u8,
         cfg: ZCanChlCfgV1Union
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ZCanError> {
         let can_type = ZCanChlType::try_from(can_type)?;
         let can_type = match can_type {
             ZCanChlType::CAN | ZCanChlType::CANFD_ISO => ZCanChlType::CANFD_ISO,

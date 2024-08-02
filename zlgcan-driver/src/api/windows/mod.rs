@@ -396,7 +396,7 @@ impl ZCanApi for Api<'_> {
             log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
         }
         else {
-            log::debug!("ZLGCAN - transmit CAN frame: {}", ret);
+            log::debug!("ZLGCAN - transmit CAN frame: {}", count);
         }
         Ok(count)
     }
@@ -430,7 +430,7 @@ impl ZCanApi for Api<'_> {
             log::warn!("ZLGCAN - transmit CAN-FD frame expect: {}, actual: {}!", len, count);
         }
         else {
-            log::debug!("ZLGCAN - transmit CAN-FD frame: {}", ret);
+            log::debug!("ZLGCAN - transmit CAN-FD frame: {}", count);
         }
         Ok(count)
     }

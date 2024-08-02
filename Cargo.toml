@@ -7,17 +7,13 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-anyhow = "1"
 log = "0.4"
 thiserror = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 lazy_static = "1.4.0"
 dlopen2 = "0.7"
-
-isotp = { path = "../ecu-proto-rs/ecu-isotp" }
-uds = { path = "../ecu-proto-rs/ecu-uds" }
-can-type-rs = { version = "1", path = "../can-type-rs" }
+can-type-rs = "1"
 
 zlgcan_common = { version = "3.0.0-rc0", path = "zlgcan-common" }
 zlgcan_driver = { version = "3.0.0-rc0", path = "zlgcan-driver" }

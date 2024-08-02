@@ -70,7 +70,7 @@ impl CanChlCfgExt {
         }
     }
     #[inline(always)]
-    pub fn filter(&self) -> anyhow::Result<ZCanFilterType> {
+    pub fn filter(&self) -> Result<ZCanFilterType, ZCanError> {
         ZCanFilterType::try_from(self.filter)
     }
     #[inline(always)]
@@ -127,11 +127,11 @@ impl CanChlCfg {
         }
     }
     #[inline(always)]
-    pub fn device_type(&self) -> anyhow::Result<ZCanDeviceType> {
+    pub fn device_type(&self) -> Result<ZCanDeviceType, ZCanError> {
         ZCanDeviceType::try_from(self.dev_type)
     }
     #[inline(always)]
-    pub fn can_type(&self) -> anyhow::Result<ZCanChlType> {
+    pub fn can_type(&self) -> Result<ZCanChlType, ZCanError> {
         ZCanChlType::try_from(self.can_type)
     }
     #[inline(always)]
@@ -161,7 +161,7 @@ impl CanChlCfg {
     }
 }
 
-fn to_chl_cfg(mode: u8, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) -> anyhow::Result<ZCanChlCfg> {
+fn to_chl_cfg(mode: u8, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) -> Result<ZCanChlCfg, ZCanError> {
     match cfg_ctx.bitrate.get(&bitrate.to_string()) {
         Some(v) => {
             let timing0 = v.get(TIMING0)
@@ -172,14 +172,14 @@ fn to_chl_cfg(mode: u8, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) 
                 mode, *timing0, *timing1, ext.filter, ext.acc_code, ext.acc_mask
             )
         },
-        None => Err(anyhow::anyhow!(
-            ZCanError::ConfigurationError(format!("the bitrate: `{}` is not configured", bitrate))
+        None => Err(ZCanError::ConfigurationError(
+            format!("the bitrate: `{}` is not configured", bitrate)
         )),
     }
 }
 
 impl TryFrom<&CanChlCfg> for ZCanChlCfgV1 {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
 
     fn try_from(value: &CanChlCfg) -> Result<Self, Self::Error> {
         let dev_type = value.dev_type;
@@ -231,7 +231,7 @@ impl TryFrom<&CanChlCfg> for ZCanChlCfgV1 {
 
 impl TryFrom<&CanChlCfg> for ZCanChlCfgV2 {
 
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: &CanChlCfg) -> Result<Self, Self::Error> {
         let dev_type = value.dev_type;
         let binding = value.cfg_ctx.upgrade()
@@ -268,7 +268,7 @@ pub struct CanChlCfgFactory(Arc<HashMap<String, BitrateCfg>>);
 
 
 impl CanChlCfgFactory {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Result<Self, ZCanError> {
         let data = read_to_string(BITRATE_CFG_FILENAME)
             .map_err(|e| ZCanError::ConfigurationError(format!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)))?;
         let result = serde_yaml::from_str(&data)
@@ -283,13 +283,13 @@ impl CanChlCfgFactory {
         mode: u8,
         bitrate: u32,
         extra: CanChlCfgExt
-    ) -> anyhow::Result<CanChlCfg> {
+    ) -> Result<CanChlCfg, ZCanError> {
         if self.0.contains_key(&dev_type.to_string()) {
             Ok(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Arc::downgrade(&self.0)))
         }
         else {
-            Err(anyhow::anyhow!(
-                ZCanError::ConfigurationError(format!("device: {:?} is not configured in file!", dev_type))
+            Err(ZCanError::ConfigurationError(
+                format!("device: {:?} is not configured in file!", dev_type)
             ))
         }
     }
@@ -299,7 +299,7 @@ fn get_fd_set(
     value: &CanChlCfg,
     cfg: &BitrateCfg,
     dbitrate: Option<u32>
-) -> anyhow::Result<(ZCanFdChlCfgSet, ZCanFdChlCfgSet)> {
+) -> Result<(ZCanFdChlCfgSet, ZCanFdChlCfgSet), ZCanError> {
     let bitrate = value.bitrate;
     let bitrate_ctx = &cfg.bitrate;
     let dbitrate_ctx = &cfg.data_bitrate;

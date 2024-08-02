@@ -1,8 +1,9 @@
-use can_type_rs::{Direct, constant::{IdentifierFlags, SFF_MASK}, frame::Frame, identifier::Id};
+use can_type_rs::{constant::{IdentifierFlags, SFF_MASK}, frame::{Frame, Direct}, identifier::Id};
 use can_type_rs::constant::EFF_MASK;
 use crate::can::constant::{CANFD_BRS, CANFD_ESI, ZCanFrameType};
 use crate::can::frame::NewZCanFrame;
 use crate::{TryFrom, TryFromIterator};
+use crate::error::ZCanError;
 use crate::utils::{fix_device_time, fix_system_time};
 use super::{
     channel::{ZCanChlErrorV1, ZCanChlErrorV2},
@@ -11,7 +12,11 @@ use super::{
     message::CanMessage
 };
 
-fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool, timestamp: u64) -> anyhow::Result<T> {
+fn frame_new<T: NewZCanFrame<Error = ZCanError>>(
+    msg: CanMessage,
+    canfd: bool,
+    timestamp: u64
+) -> Result<T, ZCanError> {
     let mut info: ZCanHdrInfo = Default::default();
 
     if canfd {
@@ -52,14 +57,14 @@ fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool, timestamp: u64) -> a
 }
 
 impl TryFrom<CanMessage, u64> for ZCanFrameV1 {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: CanMessage, timestamp: u64) -> Result<Self, Self::Error> {
         frame_new::<Self>(value, false, timestamp)
     }
 }
 
 impl TryFrom<ZCanFrameV1, u64> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanFrameV1, timestamp: u64) -> Result<Self, Self::Error> {
         let id = if value.ext_flag > 0 {
             Id::Extended(value.can_id)
@@ -69,11 +74,13 @@ impl TryFrom<ZCanFrameV1, u64> for CanMessage {
         };
         let mut message = if value.rem_flag > 0 {
             CanMessage::new_remote(id, value.len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }
         else {
             let mut data = value.data.to_vec();
             data.resize(value.len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -85,7 +92,7 @@ impl TryFrom<ZCanFrameV1, u64> for CanMessage {
 }
 
 impl TryFromIterator<CanMessage, u64> for Vec<ZCanFrameV1> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <ZCanFrameV1 as TryFrom<CanMessage, u64>>::try_from(v, timestamp))
@@ -94,7 +101,7 @@ impl TryFromIterator<CanMessage, u64> for Vec<ZCanFrameV1> {
 }
 
 impl TryFromIterator<ZCanFrameV1, u64> for Vec<CanMessage> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFrameV1>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <CanMessage as TryFrom<ZCanFrameV1, u64>>::try_from(v, timestamp))
@@ -103,14 +110,14 @@ impl TryFromIterator<ZCanFrameV1, u64> for Vec<CanMessage> {
 }
 
 impl TryFrom<CanMessage, u64> for ZCanFrameV2 {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: CanMessage, timestamp: u64) -> Result<Self, Self::Error> {
         frame_new::<Self>(value, false, timestamp)
     }
 }
 
 impl TryFrom<ZCanFrameV2, u64> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanFrameV2, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let info = hdr.info;
@@ -123,11 +130,13 @@ impl TryFrom<ZCanFrameV2, u64> for CanMessage {
         };
         let mut message = if info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0 {
             CanMessage::new_remote(id, hdr.len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }
         else {
             let mut data = value.data.to_vec();
             data.resize(hdr.len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -140,7 +149,7 @@ impl TryFrom<ZCanFrameV2, u64> for CanMessage {
 }
 
 impl TryFromIterator<CanMessage, u64> for Vec<ZCanFrameV2> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <ZCanFrameV2 as TryFrom<CanMessage, u64>>::try_from(v, timestamp))
@@ -149,7 +158,7 @@ impl TryFromIterator<CanMessage, u64> for Vec<ZCanFrameV2> {
 }
 
 impl TryFromIterator<ZCanFrameV2, u64> for Vec<CanMessage> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFrameV2>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <CanMessage as TryFrom<ZCanFrameV2, u64>>::try_from(v, timestamp))
@@ -158,14 +167,14 @@ impl TryFromIterator<ZCanFrameV2, u64> for Vec<CanMessage> {
 }
 
 impl TryFrom<CanMessage, u64> for ZCanFrameV3 {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: CanMessage, timestamp: u64) -> Result<Self, Self::Error> {
         frame_new::<Self>(value, false, timestamp)
     }
 }
 
 impl TryFrom<ZCanFrameV3, u64> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanFrameV3, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let can_id = hdr.can_id;
@@ -178,11 +187,13 @@ impl TryFrom<ZCanFrameV3, u64> for CanMessage {
         };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.can_len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }
         else {
             let mut data = value.data.to_vec();
             data.resize(hdr.can_len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -195,7 +206,7 @@ impl TryFrom<ZCanFrameV3, u64> for CanMessage {
 }
 
 impl TryFromIterator<CanMessage, u64> for Vec<ZCanFrameV3> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <ZCanFrameV3 as TryFrom<CanMessage, u64>>::try_from(v, timestamp))
@@ -204,7 +215,7 @@ impl TryFromIterator<CanMessage, u64> for Vec<ZCanFrameV3> {
 }
 
 impl TryFromIterator<ZCanFrameV3, u64> for Vec<CanMessage> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFrameV3>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <CanMessage as TryFrom<ZCanFrameV3, u64>>::try_from(v, timestamp))
@@ -214,14 +225,14 @@ impl TryFromIterator<ZCanFrameV3, u64> for Vec<CanMessage> {
 
 
 impl TryFrom<CanMessage, u64> for ZCanFdFrameV1 {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: CanMessage, timestamp: u64) -> Result<Self, Self::Error> {
         frame_new::<Self>(value, true, timestamp)
     }
 }
 
 impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanFdFrameV1, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let info = hdr.info;
@@ -235,11 +246,13 @@ impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
         };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }
         else {
             let mut data = value.data.data.to_vec();
             data.resize(hdr.len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -255,7 +268,7 @@ impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
 }
 
 impl TryFromIterator<CanMessage, u64> for Vec<ZCanFdFrameV1> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <ZCanFdFrameV1 as TryFrom<CanMessage, u64>>::try_from(v, timestamp))
@@ -264,7 +277,7 @@ impl TryFromIterator<CanMessage, u64> for Vec<ZCanFdFrameV1> {
 }
 
 impl TryFromIterator<ZCanFdFrameV1, u64> for Vec<CanMessage> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFdFrameV1>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <CanMessage as TryFrom<ZCanFdFrameV1, u64>>::try_from(v, timestamp))
@@ -273,14 +286,14 @@ impl TryFromIterator<ZCanFdFrameV1, u64> for Vec<CanMessage> {
 }
 
 impl TryFrom<CanMessage, u64> for ZCanFdFrameV2 {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: CanMessage, timestamp: u64) -> Result<Self, Self::Error> {
         frame_new::<Self>(value, true, timestamp)
     }
 }
 
 impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanFdFrameV2, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let can_id = hdr.can_id;
@@ -294,11 +307,13 @@ impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
         };
         let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
             CanMessage::new_remote(id, hdr.can_len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }
         else {
             let mut data = value.data.data.to_vec();
             data.resize(hdr.can_len as usize, Default::default());
             CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
 
         message.set_direct(Direct::Receive)
@@ -314,7 +329,7 @@ impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
 }
 
 impl TryFromIterator<CanMessage, u64> for Vec<ZCanFdFrameV2> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=CanMessage>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <ZCanFdFrameV2 as TryFrom<CanMessage, u64>>::try_from(v, timestamp))
@@ -323,7 +338,7 @@ impl TryFromIterator<CanMessage, u64> for Vec<ZCanFdFrameV2> {
 }
 
 impl TryFromIterator<ZCanFdFrameV2, u64> for Vec<CanMessage> {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from_iter<T: IntoIterator<Item=ZCanFdFrameV2>>(iter: T, timestamp: u64) -> Result<Self, Self::Error> {
         iter.into_iter()
             .map(|v| <CanMessage as TryFrom<ZCanFdFrameV2, u64>>::try_from(v, timestamp))
@@ -332,7 +347,7 @@ impl TryFromIterator<ZCanFdFrameV2, u64> for Vec<CanMessage> {
 }
 
 impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanChlErrorV1, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let info = hdr.info;
@@ -345,7 +360,8 @@ impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
         };
         let mut data = value.data.to_vec();
         data.resize(hdr.len as usize, Default::default());
-        let mut message = CanMessage::new(id, data.as_slice())?;
+        let mut message = CanMessage::new(id, data.as_slice())
+            .ok_or(ZCanError::Other("invalid data length".to_string()))?;
 
         message.set_direct(Direct::Receive)
             .set_timestamp(Some(fix_system_time(hdr.timestamp as u64, timestamp)))
@@ -358,7 +374,7 @@ impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
 
 #[allow(unused_variables)]
 impl TryFrom<ZCanChlErrorV2, ()> for CanMessage {
-    type Error = anyhow::Error;
+    type Error = ZCanError;
     fn try_from(value: ZCanChlErrorV2, _: ()) -> Result<Self, Self::Error> {
         todo!()
     }
