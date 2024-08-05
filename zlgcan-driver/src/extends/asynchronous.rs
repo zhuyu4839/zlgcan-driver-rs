@@ -148,7 +148,7 @@ async fn async_util(device: Arc<Mutex<ZCanAsync>>, interval: u64, stopper: Arc<M
         }
 
         if let Ok(stopper) = stopper.lock() {
-            if let Ok(()) = stopper.recv() {
+            if let Ok(()) = stopper.try_recv() {
                 break
             }
         }
@@ -158,54 +158,51 @@ async fn async_util(device: Arc<Mutex<ZCanAsync>>, interval: u64, stopper: Arc<M
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use can_type_rs::device::AsyncCanDevice;
-    use can_type_rs::frame::Frame;
-    use can_type_rs::identifier::Id;
-    use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, CanMessage, ZCanChlMode, ZCanChlType};
-    use zlgcan_common::device::{ZCanDeviceType, ZCanError};
+    use can_type_rs::isotp::Address;
+    use can_type_rs::isotp::client::asynchronous::CanIsoTp;
+    use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType};
+    use zlgcan_common::device::ZCanDeviceType;
     use crate::driver::{ZCanDriver, ZDevice};
-    use super::ZCanAsync;
+    use crate::extends::ZCanAsync;
 
     #[tokio::test]
-    async fn can_trait() -> anyhow::Result<()> {
+    async fn test_device() -> anyhow::Result<()> {
         let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
         let mut device = ZCanDriver::new(dev_type as u32, 0, None)?;
         device.open()?;
 
         let factory = CanChlCfgFactory::new()?;
-        let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000,
-                                              CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None))?;
-        let ch2_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CANFD_ISO as u8, ZCanChlMode::Normal as u8, 500_000,
-                                              CanChlCfgExt::new(None, Some(1_000_000), None, None, None, None))?;
+        let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000,
+                                              CanChlCfgExt::default())?;
+        let ch2_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000,
+                                              CanChlCfgExt::default())?;
         let cfg = vec![ch1_cfg, ch2_cfg];
         device.init_can_chl(cfg)?;
 
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
         let mut device = ZCanAsync::from(device);
+
+        let mut client = CanIsoTp::new(device.clone());
+        client.add_channel(0, Address {
+            tx_id: 0x7E4,
+            rx_id: 0x7EC,
+            fid: 0x7DF,
+        }, None)?;
+        device.register_listener("UdsClient".to_string(), Box::new(client.clone()));
+
         device.async_start(10);
 
-        let tmp_send = device.sender();
+        client.write(0, true, vec![0x10, 0x01]).await?;
 
-        let data = vec![0x02, 0x10, 0x01];
-        let message = CanMessage::new(
-            Id::from_bits(0x7DF, false),
-            data.as_slice()
-        )
-            .ok_or(ZCanError::Other("invalid data length".to_string()))?;
-        tmp_send.send(message).unwrap();
+        // println!("Press Ctrl+C to stop...");
+        // if let Err(e) = tokio::signal::ctrl_c().await {
+        //     eprintln!("Failed to listen for Ctrl+C: {}", e);
+        //     return Ok(());
+        // }
 
-        let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
-        let mut message = CanMessage::new(
-            Id::from_bits(0x7DF, false),
-            data.as_slice()
-        )
-            .ok_or(ZCanError::Other("invalid data length".to_string()))?;
-        message.set_can_fd(true);
-        message.set_bitrate_switch(true);
-        tmp_send.send(message).unwrap();
-
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        device.close().await;
+        client.close().await;
 
         Ok(())
     }

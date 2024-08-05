@@ -26,7 +26,7 @@ pub(crate) fn register_listener<Frame, Channel>(
             true
         },
         Err(e) => {
-            log::warn!("mutex error: {:?} when inserting listener", e);
+            log::warn!("ZLGCAN - mutex error: {:?} when inserting listener", e);
             false
         },
     }
@@ -42,7 +42,7 @@ pub(crate) fn unregister_listener(
             v.remove(&name).is_some()
         },
         Err(e) => {
-            log::warn!("mutex error: {:?} when removing listener", e);
+            log::warn!("ZLGCAN - mutex error: {:?} when removing listener", e);
             false
         },
     }
@@ -58,7 +58,7 @@ pub(crate) fn unregister_all(
             true
         },
         Err(e) => {
-            log::warn!("mutex error: {:?} when removing all listeners", e);
+            log::warn!("ZLGCAN - mutex error: {:?} when removing all listeners", e);
             false
         },
     }
@@ -76,7 +76,7 @@ pub(crate) fn listener_names(
                 .collect()
         },
         Err(e) => {
-            log::warn!("mutex error: {:?} when removing all listeners", e);
+            log::warn!("ZLGCAN - mutex error: {:?} when removing all listeners", e);
             vec![]
         },
     }

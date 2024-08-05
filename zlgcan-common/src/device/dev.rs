@@ -294,11 +294,10 @@ impl<'a> CmdPath<'a> {
 #[cfg(test)]
 mod tests {
     use crate::device::DeriveInfo;
-    use crate::error::ZCanError;
     use super::ZDeviceInfo;
 
     #[test]
-    fn device_info_new() -> Result<(), ZCanError> {
+    fn device_info_new() -> anyhow::Result<()> {
         let derive = DeriveInfo {
             canfd: false,
             channels: 2,
