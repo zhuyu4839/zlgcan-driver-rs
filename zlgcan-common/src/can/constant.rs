@@ -10,18 +10,18 @@ pub const SJW: &str = "sjw";         // Synchronization Jump Width
 pub const SMP: &str = "smp";         // Sampling specifies
 pub const BRP: &str = "brp";         // BaudRate Pre-scale
 
-pub const CAN_EFF_FLAG: u32 = 0x80000000; /* EFF/SFF is set in the MSB */
-pub const CAN_RTR_FLAG: u32 = 0x40000000; /* remote transmission request */
-pub const CAN_ERR_FLAG: u32 = 0x20000000; /* error message frame */
-// pub(crate) const CAN_SFF_MASK: u32 = 0x000007FF; /* standard frame format (SFF) */
-pub const CAN_ID_FLAG: u32 = 0x1FFFFFFF; /* id */
-pub const CAN_EFF_MASK: u32 = 0x1FFF800;
+// pub const CAN_EFF_FLAG: u32 = 0x80000000; /* EFF/SFF is set in the MSB */
+// pub const CAN_RTR_FLAG: u32 = 0x40000000; /* remote transmission request */
+// pub const CAN_ERR_FLAG: u32 = 0x20000000; /* error message frame */
+// pub const CAN_SFF_MASK: u32 = 0x000007FF; /* standard frame format (SFF) */
+// pub const CAN_ID_FLAG: u32 = 0x1FFFFFFF; /* id */
+// pub const CAN_EFF_MASK: u32 = 0x1FFF800;
 pub const CANFD_BRS: u8 = 0x01; /* bit rate switch (second bitrate for payload data) */
 pub const CANFD_ESI: u8 = 0x02; /* error state indicator of the transmitting node */
 
-pub const CAN_FRAME_LENGTH: usize = 8;
+// pub const CAN_FRAME_LENGTH: usize = 8;
 pub const CANERR_FRAME_LENGTH: usize = 8;
-pub const CANFD_FRAME_LENGTH: usize = 64;
+// pub const CANFD_FRAME_LENGTH: usize = 64;
 pub(crate) const TIME_FLAG_VALID: u8 = 1;
 
 /// Then CAN frame type used in crate.

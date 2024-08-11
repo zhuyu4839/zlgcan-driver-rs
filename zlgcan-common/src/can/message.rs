@@ -1,11 +1,11 @@
-use std::fmt::Write;
+use std::fmt::{Display, Formatter};
 use std::slice;
-use crate::error::ZCanError;
-use crate::utils::system_timestamp;
-use super::constant::{CAN_EFF_MASK, CAN_FRAME_LENGTH, CAN_ID_FLAG, CANFD_FRAME_LENGTH};
+use can_type_rs::{constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::{Frame, Direct}, identifier::Id};
+use can_type_rs::j1939::J1939Id;
+use crate::utils::{system_timestamp, data_resize};
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct CanMessage {
     timestamp: u64,
     arbitration_id: u32,
@@ -13,18 +13,218 @@ pub struct CanMessage {
     is_remote_frame: bool,
     is_error_frame: bool,
     channel: u8,
-    len: u8,
+    length: usize,
     data: *const u8,
     is_fd: bool,
-    is_rx: bool,
+    direct: Direct,
     bitrate_switch: bool,
     error_state_indicator: bool,
     tx_mode: u8,
 }
 
+unsafe impl Send for CanMessage {}
+unsafe impl Sync for CanMessage {}
+
+impl Frame for CanMessage {
+    type Channel = u8;
+    #[inline]
+    fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self> {
+        let length = data.len();
+
+        match is_can_fd(length) {
+            Some(is_fd) => {
+                let id: Id = id.into();
+                Some(Self {
+                    timestamp: 0,
+                    arbitration_id: id.as_raw(),
+                    is_extended_id: id.is_extended(),
+                    is_remote_frame: false,
+                    is_error_frame: false,
+                    channel: Default::default(),
+                    length,
+                    data: Box::leak(data.to_vec().into_boxed_slice()).as_ptr(),
+                    is_fd,
+                    direct: Default::default(),
+                    bitrate_switch: false,
+                    error_state_indicator: false,
+                    tx_mode: 0,
+                })
+            },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn new_remote(id: impl Into<Id>, len: usize) -> Option<Self> {
+        match is_can_fd(len) {
+            Some(is_fd) => {
+                let id = id.into();
+                let mut data = Vec::new();
+                data_resize(&mut data, len);
+                Some(Self {
+                    timestamp: 0,
+                    arbitration_id: id.as_raw(),
+                    is_extended_id: id.is_extended(),
+                    is_remote_frame: true,
+                    is_error_frame: false,
+                    channel: Default::default(),
+                    length: len,
+                    data: Box::leak(data.into_boxed_slice()).as_ptr(),
+                    is_fd,
+                    direct: Default::default(),
+                    bitrate_switch: false,
+                    error_state_indicator: false,
+                    tx_mode: 0,
+                })
+            },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn timestamp(&self) -> u64 {
+        self.timestamp
+    }
+
+    #[inline]
+    fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self where Self: Sized {
+        self.timestamp = value.unwrap_or_else(system_timestamp);
+        self
+    }
+
+    #[inline]
+    fn id(&self, j1939: bool) -> Id {
+        if self.is_extended_id && j1939 {
+            Id::J1939(J1939Id::from_bits(self.arbitration_id))
+        }
+        else {
+            Id::from_bits(self.arbitration_id, self.is_extended_id)
+        }
+    }
+
+    #[inline]
+    fn is_can_fd(&self) -> bool {
+        self.is_fd
+    }
+
+    #[inline]
+    fn set_can_fd(&mut self, value: bool) -> &mut Self where Self: Sized {
+        if !value {
+            match self.length {
+                9.. => {
+                    log::warn!("resize a fd-frame to: {}", CAN_FRAME_MAX_SIZE);
+                    self.length = CAN_FRAME_MAX_SIZE;
+                },
+                _ => {},
+            }
+        }
+        self.is_fd = value;
+        self
+    }
+
+    #[inline]
+    fn is_remote(&self) -> bool {
+        self.is_remote_frame
+    }
+
+    #[inline]
+    fn is_extended(&self) -> bool {
+        self.is_extended_id
+    }
+
+    #[inline]
+    fn direct(&self) -> Direct {
+        self.direct.clone()
+    }
+
+    #[inline]
+    fn set_direct(&mut self, direct: Direct) -> &mut Self where Self: Sized {
+        self.direct = direct;
+        self
+    }
+
+    #[inline]
+    fn is_bitrate_switch(&self) -> bool {
+        self.bitrate_switch
+    }
+
+    #[inline]
+    fn set_bitrate_switch(&mut self, value: bool) -> &mut Self where Self: Sized {
+        self.is_error_frame = value;
+        self
+    }
+
+    #[inline]
+    fn is_error_frame(&self) -> bool {
+        self.is_error_frame
+    }
+
+    #[inline]
+    fn set_error_frame(&mut self, value: bool) -> &mut Self where Self: Sized {
+        self.is_error_frame = value;
+        self
+    }
+
+    #[inline]
+    fn is_esi(&self) -> bool {
+        self.error_state_indicator
+    }
+
+    #[inline]
+    fn set_esi(&mut self, value: bool) -> &mut Self where Self: Sized {
+        self.error_state_indicator = value;
+        self
+    }
+
+    #[inline]
+    fn channel(&self) -> Self::Channel {
+        self.channel
+    }
+
+    #[inline]
+    fn set_channel(&mut self, value: Self::Channel) -> &mut Self where Self: Sized {
+        self.channel = value;
+        self
+    }
+
+    #[inline]
+    fn data(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.data, self.length) }
+    }
+
+    #[inline]
+    fn dlc(&self) -> Option<usize> {
+        let len = self.length;
+        match len {
+            ..=CAN_FRAME_MAX_SIZE => Some(len),
+            ..=CANFD_FRAME_MAX_SIZE => {
+                if !self.is_fd {
+                    return None;
+                }
+                match len {
+                    9..=12 =>  Some(12),
+                    13..=16 => Some(16),
+                    17..=20 => Some(20),
+                    21..=24 => Some(24),
+                    25..=32 => Some(32),
+                    33..=48 => Some(48),
+                    49..=64 => Some(64),
+                    _ => None,
+                }
+            },
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn length(&self) -> usize {
+        self.length
+    }
+}
+
 impl PartialEq for CanMessage {
     fn eq(&self, other: &Self) -> bool {
-        if self.len != other.len {
+        if self.length != other.length {
             return false;
         }
 
@@ -32,10 +232,10 @@ impl PartialEq for CanMessage {
             other.is_remote_frame && (self.arbitration_id == other.arbitration_id)
         }
         else {
-            let len = self.len as usize;
+            let len = self.length;
 
-            let data = unsafe { slice::from_raw_parts(self.data, self.len as usize) };
-            let other_data = unsafe { slice::from_raw_parts(other.data, other.len as usize) };
+            let data = unsafe { slice::from_raw_parts(self.data, self.length) };
+            let other_data = unsafe { slice::from_raw_parts(other.data, other.length) };
 
             (self.arbitration_id == other.arbitration_id) &&
                 (self.is_extended_id == other.is_extended_id) &&
@@ -46,183 +246,7 @@ impl PartialEq for CanMessage {
     }
 }
 
-impl std::fmt::Display for CanMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let data_str = if self.is_remote_frame {
-            " ".to_owned()
-        } else {
-            self.data().iter()
-                .fold(String::new(), |mut out, &b| {
-                    let _ = write!(out, "{b:02x} ");
-                    out
-                })
-        };
-
-        if self.is_fd {
-            let mut flags = 1 << 12;
-            write!(f, "{:.3} CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
-                self.timestamp as f64 / 1000.,
-                self.channel + 1,
-                if self.is_rx { "Rx" } else { "Tx" },
-                format!("{: >8x}", self.arbitration_id),
-                if self.bitrate_switch {
-                    flags |= 1 << 13;
-                    1
-                } else { 0 },
-                if self.error_state_indicator {
-                    flags |= 1 << 14;
-                    1
-                } else { 0 },
-                format!("{: >2}", self.dlc().unwrap()),
-                format!("{: >2}", self.len),
-                data_str,
-                format!("{: >8}", 0),       // message_duration
-                format!("{: <4}", 0),       // message_length
-                format!("{: >8x}", flags),
-                format!("{: >8}", 0),       // crc
-                format!("{: >8}", 0),       // bit_timing_conf_arb
-                format!("{: >8}", 0),       // bit_timing_conf_data
-                format!("{: >8}", 0),       // bit_timing_conf_ext_arb
-                format!("{: >8}", 0),       // bit_timing_conf_ext_data
-            )
-        }
-        else {
-            write!(f, "{:.3} {} {}{: <4} {} {} {} {}",
-                self.timestamp as f64 / 1000.,
-                self.channel + 1,
-                format!("{: >8x}", self.arbitration_id),
-                if self.is_extended_id { "x" } else { "" },
-                if self.is_rx { "Rx" } else { "Tx" },
-                if self.is_remote_frame { "r" } else { "d" },
-                format!("{: >2}", self.len),
-                data_str,
-            )
-        }
-    }
-}
-
 impl CanMessage {
-    pub fn new<T>(
-        arbitration_id: u32,
-        channel: Option<u8>,
-        data: T,
-        is_fd: bool,
-        is_error_frame: bool,
-        is_extended_id: Option<bool>
-    ) -> Result<Self, ZCanError>
-        where
-            T: AsRef<[u8]>  {
-        match arbitration_id {
-            0..=CAN_ID_FLAG => {
-                let data = Vec::from(data.as_ref());
-                let len = data.len();
-
-                if (is_fd && len > CANFD_FRAME_LENGTH) ||
-                    (!is_fd && len > CAN_FRAME_LENGTH) {
-                    Err(ZCanError::ParamNotSupported)
-                }
-                else {
-                    Ok(Self {
-                        timestamp: 0,
-                        arbitration_id,
-                        is_extended_id: is_extended_id.unwrap_or_default() | (arbitration_id & CAN_EFF_MASK > 0),
-                        is_remote_frame: false,
-                        is_error_frame,
-                        channel: channel.unwrap_or(0),
-                        len: len as u8,
-                        data: Box::leak(data.into_boxed_slice()).as_ptr(),
-                        is_fd,
-                        is_rx: true,
-                        bitrate_switch: false,
-                        error_state_indicator: false,
-                        tx_mode: Default::default(),
-                    })
-                }
-            },
-            _ => Err(ZCanError::ParamNotSupported),
-        }
-    }
-    #[inline(always)]
-    pub const fn timestamp(&self) -> u64 { self.timestamp }
-    #[inline(always)]
-    pub fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self {
-        self.timestamp = value.unwrap_or_else(system_timestamp);
-        self
-    }
-    #[inline(always)]
-    pub const fn arbitration_id(&self) -> u32 { self.arbitration_id  }
-    #[inline(always)]
-    pub fn set_arbitration_id(&mut self, value: u32) -> &mut Self {
-        self.arbitration_id = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn is_extended_id(&self) -> bool { self.is_extended_id  }
-    #[inline(always)]
-    pub fn set_is_extended_id(&mut self, value: bool) -> &mut Self {
-        match self.arbitration_id & 0xFFFF800 {
-            0..=0x7FF => self.is_extended_id = value,
-            _ => self.is_extended_id = true,
-        }
-        self
-    }
-    #[inline(always)]
-    pub const fn is_remote_frame(&self) -> bool { self.is_remote_frame  }
-    #[inline(always)]
-    pub fn set_is_remote_frame(&mut self, value: bool) -> &mut Self {
-        self.is_remote_frame = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn is_error_frame(&self) -> bool { self.is_error_frame  }
-    #[inline(always)]
-    pub fn set_is_error_frame(&mut self, value: bool) -> &mut Self {
-        self.is_remote_frame = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn channel(&self) -> u8 { self.channel  }
-    #[inline(always)]
-    pub fn set_channel(&mut self, value: u8) -> &mut Self {
-        self.channel = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn length(&self) -> u8 { self.len  }
-    #[inline(always)]
-    pub(crate) fn set_length(&mut self, len: u8) {
-        self.len = len;
-    }
-    #[inline(always)]
-    pub fn data(&self) -> &[u8] { unsafe { slice::from_raw_parts(self.data, self.len as usize) }  }
-    #[inline(always)]
-    pub const fn is_fd(&self) -> bool { self.is_fd  }
-    #[inline(always)]
-    pub fn set_is_fd(&mut self, value: bool) -> &mut Self {
-        self.is_fd = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn is_rx(&self) -> bool { self.is_rx  }
-    #[inline(always)]
-    pub fn set_is_rx(&mut self, value: bool) -> &mut Self {
-        self.is_rx = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn bitrate_switch(&self) -> bool { self.bitrate_switch  }
-    #[inline(always)]
-    pub fn set_bitrate_switch(&mut self, value: bool) -> &mut Self {
-        self.bitrate_switch = value;
-        self
-    }
-    #[inline(always)]
-    pub const fn error_state_indicator(&self) -> bool { self.error_state_indicator  }
-    #[inline(always)]
-    pub fn set_error_state_indicator(&mut self, value: bool) -> &mut Self {
-        self.error_state_indicator = value;
-        self
-    }
     #[inline(always)]
     pub const fn tx_mode(&self) -> u8 { self.tx_mode }
     #[inline(always)]
@@ -230,27 +254,22 @@ impl CanMessage {
         self.tx_mode = if tx_mode > 3 { Default::default() } else { tx_mode };
         self
     }
+}
 
-    pub const fn dlc(&self) -> Option<u8> {
-        if self.is_fd {
-            match self.len as usize {
-                0..=CAN_FRAME_LENGTH => Some(self.len),
-                9..=12 => Some(9),
-                13..=16 => Some(10),
-                17..=20 => Some(11),
-                21..=24 => Some(12),
-                25..=32 => Some(13),
-                33..=48 => Some(14),
-                49..=64 => Some(15),
-                _ => None,
-            }
-        }
-        else {
-            match self.len as usize {
-                0..=CAN_FRAME_LENGTH => Some(self.len),
-                _ => None,
-            }
-        }
+impl Display for CanMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        <dyn Frame<Channel=u8> as Display>::fmt(self, f)
     }
 }
 
+#[inline]
+fn is_can_fd(len: usize) -> Option<bool> {
+    match len {
+        ..=CAN_FRAME_MAX_SIZE => Some(false),
+        ..=CANFD_FRAME_MAX_SIZE => Some(true),
+        _ => {
+            log::warn!("CanMessage - invalid data length: {}", len);
+            None
+        },
+    }
+}

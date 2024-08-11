@@ -1,7 +1,7 @@
 use std::ffi::{c_char, c_int, c_uchar, c_ushort};
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct ZCloudServerInfo {
     pub http_url: *const c_char,
     pub http_port: u16,

@@ -1,8 +1,10 @@
-use crate::can::constant::{CAN_EFF_FLAG, CAN_ERR_FLAG, CAN_ID_FLAG, CAN_RTR_FLAG, CANFD_BRS, CANFD_ESI, ZCanFrameType};
+use can_type_rs::{constant::{IdentifierFlags, SFF_MASK}, frame::{Frame, Direct}, identifier::Id};
+use can_type_rs::constant::EFF_MASK;
+use crate::can::constant::{CANFD_BRS, CANFD_ESI, ZCanFrameType};
 use crate::can::frame::NewZCanFrame;
-use crate::error::ZCanError;
 use crate::{TryFrom, TryFromIterator};
-use crate::utils::{fix_device_time, fix_system_time};
+use crate::error::ZCanError;
+use crate::utils::{fix_device_time, fix_system_time, data_resize};
 use super::{
     channel::{ZCanChlErrorV1, ZCanChlErrorV2},
     constant::ZCanHdrInfoField,
@@ -10,16 +12,20 @@ use super::{
     message::CanMessage
 };
 
-fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool, timestamp: u64) -> Result<T, ZCanError> {
+fn frame_new<T: NewZCanFrame<Error = ZCanError>>(
+    msg: CanMessage,
+    canfd: bool,
+    timestamp: u64
+) -> Result<T, ZCanError> {
     let mut info: ZCanHdrInfo = Default::default();
 
     if canfd {
         info.set_field(ZCanHdrInfoField::TxMode, msg.tx_mode());
         info.set_field(ZCanHdrInfoField::FrameType, ZCanFrameType::CANFD as u8);
-        if msg.bitrate_switch() {
+        if msg.is_bitrate_switch() {
             info.set_field(ZCanHdrInfoField::IsBitrateSwitch, 1);
         }
-        if msg.error_state_indicator() {
+        if msg.is_esi() {
             info.set_field(ZCanHdrInfoField::IsErrorStateIndicator, 1);
         }
     }
@@ -28,17 +34,26 @@ fn frame_new<T: NewZCanFrame>(msg: CanMessage, canfd: bool, timestamp: u64) -> R
         info.set_field(ZCanHdrInfoField::FrameType, ZCanFrameType::CAN as u8);
     }
 
-    if msg.is_extended_id() {
+    if msg.is_extended() {
         info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
     }
-    if msg.is_remote_frame() {
+    if msg.is_remote() {
         info.set_field(ZCanHdrInfoField::IsRemoteFrame, 1);
     }
     if msg.is_error_frame() {
         info.set_field(ZCanHdrInfoField::IsErrorFrame, 1);
     }
 
-    T::new(msg.arbitration_id(), msg.channel(), msg.data(), info, fix_device_time(timestamp))
+    T::new(match msg.id(false) {
+        Id::Standard(v) => v as u32,
+        Id::Extended(v) => v,
+        Id::J1939(v) => v.into_bits(),
+    },
+           msg.channel(),
+           msg.data(),
+           info,
+           fix_device_time(timestamp)
+    )
 }
 
 impl TryFrom<CanMessage, u64> for ZCanFrameV1 {
@@ -51,17 +66,27 @@ impl TryFrom<CanMessage, u64> for ZCanFrameV1 {
 impl TryFrom<ZCanFrameV1, u64> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanFrameV1, timestamp: u64) -> Result<Self, Self::Error> {
-        let mut message = CanMessage::new(
-            value.can_id,
-            None,
-            value.data,
-            false,
-            false,
-            Some(value.ext_flag > 0)
-        )?;
-        message.set_length(value.len);
-        message.set_timestamp(Some(fix_system_time(value.timestamp as u64, timestamp)));
-        message.set_is_remote_frame(value.rem_flag > 0);
+        let id = if value.ext_flag > 0 {
+            Id::Extended(value.can_id)
+        }
+        else {
+            Id::Standard(value.can_id as u16)
+        };
+        let mut message = if value.rem_flag > 0 {
+            CanMessage::new_remote(id, value.len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }
+        else {
+            let mut data = value.data.to_vec();
+            data_resize(&mut data, value.len as usize);
+            CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }?;
+
+        message.set_direct(Direct::Receive)
+            .set_timestamp(Some(fix_system_time(value.timestamp as u64, timestamp)))
+            .set_channel(value.channel);
+
         Ok(message)
     }
 }
@@ -96,13 +121,29 @@ impl TryFrom<ZCanFrameV2, u64> for CanMessage {
     fn try_from(value: ZCanFrameV2, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let info = hdr.info;
-        let mut message = CanMessage::new(
-            hdr.can_id, Some(hdr.channel), value.data, false, false, Some(info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
-        )?;
-        message.set_length(hdr.len);
-        message.set_timestamp(Some(fix_system_time(value.hdr.timestamp as u64, timestamp)));
-        message.set_is_remote_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0)
-            .set_is_error_frame(info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0);
+
+        let id = if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
+            Id::Extended(hdr.can_id)
+        }
+        else {
+            Id::Standard(hdr.can_id as u16)
+        };
+        let mut message = if info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0 {
+            CanMessage::new_remote(id, hdr.len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }
+        else {
+            let mut data = value.data.to_vec();
+            data_resize(&mut data, hdr.len as usize);
+            CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }?;
+
+        message.set_direct(Direct::Receive)
+            .set_timestamp(Some(fix_system_time(value.hdr.timestamp as u64, timestamp)))
+            .set_channel(hdr.channel)
+            .set_error_frame(info.get_field(ZCanHdrInfoField::IsErrorFrame) > 0);
+
         Ok(message)
     }
 }
@@ -136,15 +177,30 @@ impl TryFrom<ZCanFrameV3, u64> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanFrameV3, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
-
         let can_id = hdr.can_id;
-        let mut message = CanMessage::new(
-            can_id & CAN_ID_FLAG, Some(hdr.__res0), value.data, false, false, Some((can_id & CAN_EFF_FLAG) > 0)
-        )?;
-        message.set_length(hdr.can_len);
-        message.set_timestamp(Some(fix_system_time(value.ts_or_mode as u64, timestamp)));
-        message.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-            .set_is_error_frame(can_id & CAN_ERR_FLAG > 0);
+
+        let id = if (can_id & IdentifierFlags::EXTENDED.bits()) > 0 {
+            Id::Extended(hdr.can_id)
+        }
+        else {
+            Id::Standard(hdr.can_id as u16)
+        };
+        let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
+            CanMessage::new_remote(id, hdr.can_len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }
+        else {
+            let mut data = value.data.to_vec();
+            data_resize(&mut data, hdr.can_len as usize);
+            CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }?;
+
+        message.set_direct(Direct::Receive)
+            .set_timestamp(Some(fix_system_time(value.ts_or_mode as u64, timestamp)))
+            .set_channel(hdr.__res0)
+            .set_error_frame((can_id & IdentifierFlags::ERROR.bits()) > 0);
+
         Ok(message)
     }
 }
@@ -180,17 +236,33 @@ impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
     fn try_from(value: ZCanFdFrameV1, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
         let info = hdr.info;
-
         let can_id = hdr.can_id;
-        let mut message = CanMessage::new(
-            can_id, Some(hdr.channel), value.data.data, true, false, Some( info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0)
-        )?;
-        message.set_length(hdr.len);
-        message.set_timestamp(Some(fix_system_time(value.hdr.timestamp as u64, timestamp)));
-        message.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-            .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
+
+        let id = if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
+            Id::Extended(can_id)
+        }
+        else {
+            Id::Standard(can_id as u16)
+        };
+        let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
+            CanMessage::new_remote(id, hdr.len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }
+        else {
+            let mut data = value.data.data.to_vec();
+            data_resize(&mut data, hdr.len as usize);
+            CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }?;
+
+        message.set_direct(Direct::Receive)
+            .set_can_fd(true)
+            .set_timestamp(Some(fix_system_time(hdr.timestamp as u64, timestamp)))
+            .set_channel(hdr.channel)
+            .set_error_frame((can_id & IdentifierFlags::ERROR.bits()) > 0)
             .set_bitrate_switch(info.get_field(ZCanHdrInfoField::IsBitrateSwitch) > 0)
-            .set_error_state_indicator(info.get_field(ZCanHdrInfoField::IsErrorStateIndicator) > 0);
+            .set_esi(info.get_field(ZCanHdrInfoField::IsErrorStateIndicator) > 0);
+
         Ok(message)
     }
 }
@@ -224,18 +296,34 @@ impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanFdFrameV2, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
-
         let can_id = hdr.can_id;
-        let mut message = CanMessage::new(
-            can_id & CAN_ID_FLAG, Some(hdr.__res0), value.data.data, true, false, Some((can_id & CAN_EFF_FLAG) > 0)
-        )?;
-        message.set_length(hdr.can_len);
-        message.set_timestamp(Some(fix_system_time(value.ts_or_mode as u64, timestamp)));
         let flag = hdr.flag;
-        message.set_is_remote_frame(can_id & CAN_RTR_FLAG > 0)
-            .set_is_error_frame(can_id & CAN_ERR_FLAG > 0)
+
+        let id = if (can_id & IdentifierFlags::EXTENDED.bits()) > 0 {
+            Id::Extended(can_id & EFF_MASK)
+        }
+        else {
+            Id::Standard((can_id & SFF_MASK) as u16)
+        };
+        let mut message = if can_id & IdentifierFlags::REMOTE.bits() > 0 {
+            CanMessage::new_remote(id, hdr.can_len as usize)
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }
+        else {
+            let mut data = value.data.data.to_vec();
+            data_resize(&mut data, hdr.can_len as usize);
+            CanMessage::new(id, data.as_slice())
+                .ok_or(ZCanError::Other("invalid data length".to_string()))
+        }?;
+
+        message.set_direct(Direct::Receive)
+            .set_can_fd(true)
+            .set_timestamp(Some(fix_system_time(value.ts_or_mode as u64, timestamp)))
+            .set_channel(hdr.__res0)
+            .set_error_frame(can_id & IdentifierFlags::ERROR.bits() > 0)
             .set_bitrate_switch(flag & CANFD_BRS > 0)
-            .set_error_state_indicator(flag & CANFD_ESI > 0);
+            .set_esi(flag & CANFD_ESI > 0);
+
         Ok(message)
     }
 }
@@ -262,10 +350,24 @@ impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
     type Error = ZCanError;
     fn try_from(value: ZCanChlErrorV1, timestamp: u64) -> Result<Self, Self::Error> {
         let hdr = value.hdr;
-        let mut message = CanMessage::new(
-            hdr.can_id, Some(hdr.channel), value.data, false, true, None
-        )?;
-        message.set_timestamp(Some(fix_system_time(value.hdr.timestamp as u64, timestamp)));
+        let info = hdr.info;
+
+        let id = if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
+            Id::Extended(hdr.can_id)
+        }
+        else {
+            Id::Standard(hdr.can_id  as u16)
+        };
+        let mut data = value.data.to_vec();
+        data_resize(&mut data, hdr.len as usize);
+        let mut message = CanMessage::new(id, data.as_slice())
+            .ok_or(ZCanError::Other("invalid data length".to_string()))?;
+
+        message.set_direct(Direct::Receive)
+            .set_timestamp(Some(fix_system_time(hdr.timestamp as u64, timestamp)))
+            .set_channel(hdr.channel)
+            .set_error_frame(true);
+
         Ok(message)
     }
 }

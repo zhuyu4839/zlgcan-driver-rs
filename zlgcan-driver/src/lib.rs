@@ -1,6 +1,8 @@
 pub(crate) mod api;
 pub mod utils;
 pub mod driver;
+#[cfg(feature = "tokio")]
+pub mod extends;
 
 #[allow(dead_code)]
 pub(crate) mod constant {

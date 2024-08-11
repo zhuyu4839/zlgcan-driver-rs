@@ -44,14 +44,14 @@ pub struct LinEventData {
 
 #[allow(non_snake_case)]
 #[repr(C)]
-pub union ZLinFrameData {
+pub union ZLinFrameDataUnion {
     data: ZLinData,
     err: LinErrData,
     event: LinEventData,
     raw: [c_uchar; 46usize],
 }
 
-impl ZLinFrameData {
+impl ZLinFrameDataUnion {
     pub fn from_data(data: ZLinData) -> Self {
         Self { data }
     }
@@ -73,14 +73,14 @@ impl ZLinFrameData {
 pub struct ZLinFrame {
     pub chl: c_uchar,
     pub data_type: c_uchar,
-    pub data: ZLinFrameData,
+    pub data: ZLinFrameDataUnion,
 }
 
 impl ZLinFrame {
     pub fn new(
         chl: u8,
         data_type: ZLinDataType,
-        data: ZLinFrameData
+        data: ZLinFrameDataUnion
     ) -> Self {
         Self { chl, data_type: data_type as u8, data }
     }

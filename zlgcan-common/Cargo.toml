@@ -1,9 +1,9 @@
 [package]
 name = "zlgcan_common"
-version = "2.0.0-rc2"
+version = "3.0.0-rc0"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
-license-file = "../LICENCE-GPL-V3"
+license = "GPL-3.0"
 description = "A ZLGCAN driver with rust."
 homepage = "https://github.com/zhuyu4839/zlgcan-driver-rs"
 repository = "https://github.com/zhuyu4839/zlgcan-driver-rs"
@@ -15,3 +15,7 @@ log = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
+can-type-rs = { workspace = true }
+
+[dev-dependencies]
+anyhow = "1"

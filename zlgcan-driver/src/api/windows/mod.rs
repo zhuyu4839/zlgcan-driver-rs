@@ -10,7 +10,7 @@ use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::constant::{STATUS_OFFLINE, STATUS_ONLINE, INTERNAL_RESISTANCE, PROTOCOL, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, BAUD_RATE, CLOCK};
 
 #[allow(non_snake_case)]
-#[derive(Debug, SymBorApi)]
+#[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct Api<'a> {
     /// DEVICE_HANDLE FUNC_CALL ZCAN_OpenDevice(UINT device_type, UINT device_index, UINT reserved);
     ZCAN_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_index: c_uint, reserved: c_uint) -> c_uint>,
@@ -361,6 +361,9 @@ impl ZCanApi for Api<'_> {
         if ret < size {
             log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }
+        else {
+            log::debug!("ZLGCAN - receive CAN frame: {}", ret);
+        }
         Ok(frames)
     }
 
@@ -392,6 +395,9 @@ impl ZCanApi for Api<'_> {
         if count < len {
             log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
         }
+        else {
+            log::debug!("ZLGCAN - transmit CAN frame: {}", count);
+        }
         Ok(count)
     }
 
@@ -421,7 +427,10 @@ impl ZCanApi for Api<'_> {
             count += ret;
         });
         if count < len {
-            log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
+            log::warn!("ZLGCAN - transmit CAN-FD frame expect: {}, actual: {}!", len, count);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit CAN-FD frame: {}", count);
         }
         Ok(count)
     }
@@ -464,6 +473,9 @@ impl ZLinApi for Api<'_> {
         if ret < size {
             log::warn!("ZLGCAN - receive LIN frame expect: {}, actual: {}!", size, ret);
         }
+        else {
+            log::debug!("ZLGCAN - receive LIN frame: {}", ret);
+        }
         Ok(frames)
     }
     fn transmit_lin(&self, context: &ZChannelContext, frames: Vec<ZLinFrame>) -> Result<u32, ZCanError> {
@@ -471,6 +483,9 @@ impl ZLinApi for Api<'_> {
         let ret = unsafe { (self.ZCAN_TransmitLIN)(context.channel_handler()?, frames.as_ptr(), len) };
         if ret < len {
             log::warn!("ZLGCAN - transmit LIN frame expect: {}, actual: {}!", len, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit LIN frame: {}", ret);
         }
         Ok(ret)
     }
@@ -557,7 +572,10 @@ impl ZCloudApi for Api<'_> {
 
         let ret = unsafe { (self.ZCLOUD_ReceiveGPS)(context.device_handler()?, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+            log::warn!("ZLGCAN - receive GPS frame expect: {}, actual: {}!", size, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - receive GPS frame: {}", ret);
         }
         Ok(frames)
     }

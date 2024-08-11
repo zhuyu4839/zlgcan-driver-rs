@@ -266,6 +266,8 @@ pub extern "C" fn zlgcan_close(
 mod tests {
     use std::ffi::CStr;
     use std::time::Duration;
+    use can_type_rs::frame::Frame;
+    use can_type_rs::identifier::Id;
     use zlgcan_common::can::{CanMessage, ZCanTxMode};
     use zlgcan_common::device::ZCanDeviceType;
     use super::{ZCanChlCfgApi, zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_close, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};
@@ -340,7 +342,10 @@ mod tests {
 
         for _ in 0..1 {
             let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
-            let mut send = CanMessage::new(0x7DF, Some(0), data, false, false, None).unwrap();
+            let mut send = CanMessage::new(
+                Id::from_bits(0x7DF, false),
+                data.as_slice()
+            ).unwrap();
             send.set_tx_mode(ZCanTxMode::SelfReception as u8);
             let mut error = std::ptr::null();
             assert!(zlgcan_send(device, send, &mut error));
@@ -355,11 +360,9 @@ mod tests {
         assert!(!recv.is_null());
         let slice = unsafe { std::slice::from_raw_parts(recv, count as usize) };
         let recv = slice.to_vec();
-        println!("{:?}", recv);
         for msg in recv {
-            println!("channel: {} length: {} ({:?})", msg.channel(), msg.length(), msg.data())
+            println!("{}", msg);
         }
-        println!("received: {}", count);
 
         let mut error = std::ptr::null();
         let mut recv = std::ptr::null();
@@ -367,11 +370,9 @@ mod tests {
         assert!(!recv.is_null());
         let slice = unsafe { std::slice::from_raw_parts(recv, count as usize) };
         let recv = slice.to_vec();
-        println!("{:?}", recv);
         for msg in recv {
-            println!("channel: {} length: {} ({:?})", msg.channel(), msg.length(), msg.data())
+            println!("{}", msg);
         }
-        println!("received: {}", count);
 
         zlgcan_close(device);
     }

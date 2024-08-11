@@ -1,13 +1,12 @@
 use std::ffi::c_void;
 use dlopen2::symbor::{Symbol, SymBorApi};
-use log::{debug, warn};
 use zlgcan_common::can::{CanChlCfg, ZCanChlCfgV2, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanFrameType, ZCanFrameV1};
 use zlgcan_common::device::{CmdPath, ZChannelContext, ZDeviceContext, ZDeviceInfo};
 use zlgcan_common::error::ZCanError;
 use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 
 #[allow(non_snake_case)]
-#[derive(Debug, SymBorApi)]
+#[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct USBCANApi<'a> {
     /// EXTERN_C DWORD VCI_OpenDevice(DWORD DeviceType,DWORD DeviceInd,DWORD Reserved);
     VCI_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, reserved: u32) -> u32>,
@@ -159,7 +158,7 @@ impl ZCanApi for USBCANApi<'_> {
             ZCanFrameType::ALL => return Err(ZCanError::MethodNotSupported),
         }
         let ret = unsafe { (self.VCI_GetReceiveNum)(dev_type as u32, dev_idx, _channel) };
-        debug!("ZLGCAN - get receive {} number: {}.", can_type, ret);
+        log::debug!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         Ok(ret)
     }
 
@@ -170,7 +169,10 @@ impl ZCanApi for USBCANApi<'_> {
 
         let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - receive CAN frame: {}", ret);
         }
         Ok(frames)
     }
@@ -180,7 +182,10 @@ impl ZCanApi for USBCANApi<'_> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.VCI_Transmit)(dev_type as u32, dev_idx, channel as u32, frames.as_ptr(), len) };
         if ret < len {
-            warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+            log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        }
+        else {
+            log::debug!("ZLGCAN - transmit CAN frame: {}", ret);
         }
         Ok(ret)
     }
@@ -192,19 +197,21 @@ impl ZCloudApi for USBCANApi<'_> {}
 #[cfg(test)]
 mod tests {
     use dlopen2::symbor::{Library, SymBorApi};
+    use can_type_rs::frame::Frame;
+    use can_type_rs::identifier::Id;
     use zlgcan_common::TryFrom;
     use zlgcan_common::can::{
         ZCanChlMode, ZCanChlType,
         ZCanFrameV1,
         CanMessage, CanChlCfgFactory
     };
-    use zlgcan_common::device::{ZCanDeviceType, ZChannelContext, ZDeviceContext};
+    use zlgcan_common::device::{ZCanDeviceType, ZCanError, ZChannelContext, ZDeviceContext};
     use zlgcan_common::utils::system_timestamp;
     use super::USBCANApi;
     use crate::api::{ZCanApi, ZDeviceApi};
 
     #[test]
-    fn test_init_channel() {
+    fn test_init_channel() -> anyhow::Result<()> {
         let dev_type = ZCanDeviceType::ZCAN_USBCAN1;
         let dev_idx = 0;
         let channel = 0;
@@ -214,12 +221,12 @@ mod tests {
 
         let api = unsafe { USBCANApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
 
-        let factory = CanChlCfgFactory::new().unwrap();
-        let cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000, Default::default()).unwrap();
+        let factory = CanChlCfgFactory::new()?;
+        let cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000, Default::default())?;
         let mut context = ZDeviceContext::new(dev_type, dev_idx, None);
-        api.open(&mut context).unwrap();
+        api.open(&mut context)?;
 
-        let dev_info = api.read_device_info(&context).unwrap();
+        let dev_info = api.read_device_info(&context)?;
         println!("{:?}", dev_info);
         println!("{}", dev_info.id());
         println!("{}", dev_info.sn());
@@ -231,20 +238,30 @@ mod tests {
         assert!(!dev_info.canfd());
 
         let mut context = ZChannelContext::new(context, channel, None);
-        api.init_can_chl(&mut context, &cfg).unwrap();
-        let frame = CanMessage::new(0x7E0, Some(0), [0x01, 0x02, 0x03], false, false, None).unwrap();
-        let frame1 = CanMessage::new(0x1888FF00, Some(0), [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], false, false, None).unwrap();
+        api.init_can_chl(&mut context, &cfg)?;
+        let frame = CanMessage::new(
+            Id::from_bits(0x7E0, false),
+            [0x01, 0x02, 0x03].as_slice()
+        )
+            .ok_or(ZCanError::Other("invalid data length".to_string()))?;
+        let frame1 = CanMessage::new(
+            Id::from_bits(0x1888FF00, true),
+            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice()
+        )
+            .ok_or(ZCanError::Other("invalid data length".to_string()))?;
         let timestamp = system_timestamp();
         let frames = vec![
-            <ZCanFrameV1 as TryFrom<CanMessage, u64>>::try_from(frame, timestamp).unwrap(),
-            <ZCanFrameV1 as TryFrom<CanMessage, u64>>::try_from(frame1, timestamp).unwrap()
+            <ZCanFrameV1 as TryFrom<CanMessage, u64>>::try_from(frame, timestamp)?,
+            <ZCanFrameV1 as TryFrom<CanMessage, u64>>::try_from(frame1, timestamp)?
         ];
-        let ret = api.transmit_can(&context, frames).unwrap();
+        let ret = api.transmit_can(&context, frames)?;
         assert_eq!(ret, 2);
 
-        api.reset_can_chl(&context).unwrap();
+        api.reset_can_chl(&context)?;
 
-        api.close(context.device_context()).unwrap();
+        api.close(context.device_context())?;
+
+        Ok(())
     }
 }
 

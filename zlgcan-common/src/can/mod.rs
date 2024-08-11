@@ -2,7 +2,7 @@ mod channel;
 mod constant;
 mod frame;
 mod message;
-mod utils;
+mod util;
 
 pub use channel::*;
 pub use constant::*;
@@ -172,7 +172,9 @@ fn to_chl_cfg(mode: u8, bitrate: u32, cfg_ctx: &BitrateCfg, ext: &CanChlCfgExt) 
                 mode, *timing0, *timing1, ext.filter, ext.acc_code, ext.acc_mask
             )
         },
-        None => Err(ZCanError::ConfigurationError(format!("the bitrate: `{}` is not configured", bitrate))),
+        None => Err(ZCanError::ConfigurationError(
+            format!("the bitrate: `{}` is not configured", bitrate)
+        )),
     }
 }
 
@@ -261,6 +263,7 @@ impl TryFrom<&CanChlCfg> for ZCanChlCfgV2 {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone)]
 pub struct CanChlCfgFactory(Arc<HashMap<String, BitrateCfg>>);
 
 
@@ -285,7 +288,9 @@ impl CanChlCfgFactory {
             Ok(CanChlCfg::new(dev_type, can_type, mode, bitrate, extra, Arc::downgrade(&self.0)))
         }
         else {
-            Err(ZCanError::ConfigurationError(format!("device: {:?} is not configured in file!", dev_type)))
+            Err(ZCanError::ConfigurationError(
+                format!("device: {:?} is not configured in file!", dev_type)
+            ))
         }
     }
 }

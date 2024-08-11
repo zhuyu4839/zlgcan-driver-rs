@@ -1,9 +1,12 @@
 use std::ffi::{c_uchar, c_uint, c_ushort};
+use can_type_rs::constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE, EFF_MASK, IdentifierFlags, SFF_MASK};
 use crate::can::TIME_FLAG_VALID;
 use crate::error::ZCanError;
-use super::constant::{CAN_ID_FLAG, CAN_FRAME_LENGTH, CANFD_FRAME_LENGTH, ZCanHdrInfoField, CAN_EFF_MASK, CAN_EFF_FLAG, CAN_RTR_FLAG, CAN_ERR_FLAG, CANFD_BRS, CANFD_ESI};
+use crate::utils::data_resize;
+use super::constant::{ZCanHdrInfoField, CANFD_BRS, CANFD_ESI};
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct USBCanEUAutoTransFrame {
     pub interval: u32,
     pub can_id: u32,
@@ -14,6 +17,7 @@ pub struct USBCanEUAutoTransFrame {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct USBCanEUWhiteList {
     pub is_extend: bool,
     pub start: u32,
@@ -21,13 +25,14 @@ pub struct USBCanEUWhiteList {
 }
 
 pub trait NewZCanFrame {
+    type Error;
     fn new<T>(
         can_id: u32,
         channel: u8,
         data: T,
         info: ZCanHdrInfo,
         timestamp: u64,
-    ) -> Result<Self, ZCanError>
+    ) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]>,
             Self: Sized;
@@ -44,13 +49,15 @@ pub struct ZCanFrameV1 {
     pub(crate) rem_flag: c_uchar,      //是否是远程帧
     pub(crate) ext_flag: c_uchar,      //是否是扩展帧
     pub(crate) len: c_uchar,
-    pub(crate) data: [c_uchar; CAN_FRAME_LENGTH],
+    pub(crate) data: [c_uchar; CAN_FRAME_MAX_SIZE],
+    pub(crate) channel: c_uchar,
     #[allow(dead_code)]
-    pub(crate) reserved: [c_uchar; 3],
+    pub(crate) reserved: [c_uchar; 2],
 }
 
 impl NewZCanFrame for ZCanFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
+    type Error = ZCanError;
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, _chl, data, len, info| {
@@ -63,6 +70,7 @@ impl NewZCanFrame for ZCanFrameV1 {
                 ext_flag: info.get_field(ZCanHdrInfoField::IsExtendFrame),
                 len,
                 data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
+                channel,
                 reserved: Default::default(),
             })
         })
@@ -135,11 +143,12 @@ pub struct ZCanHeaderV1 {
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ZCanFrameV2 {
     pub(crate) hdr: ZCanHeaderV1,
-    pub(crate) data: [c_uchar; CAN_FRAME_LENGTH],
+    pub(crate) data: [c_uchar; CAN_FRAME_MAX_SIZE],
 }
 
 impl NewZCanFrame for ZCanFrameV2 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
+    type Error = ZCanError;
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
@@ -182,7 +191,7 @@ impl ZCanHeaderV2 {
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ZCanFrameV3 {
     pub(crate) hdr: ZCanHeaderV2,
-    pub(crate) data: [c_uchar; CAN_FRAME_LENGTH],
+    pub(crate) data: [c_uchar; CAN_FRAME_MAX_SIZE],
     pub(crate) ts_or_mode: c_uint,       // timestamp when received
 }
 
@@ -194,8 +203,9 @@ impl ZCanFrameV3 {
 }
 
 impl NewZCanFrame for ZCanFrameV3 {
-    #[allow(unused_variables)]  // TODO timestamp
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
+    type Error = ZCanError;
+    #[allow(unused_variables)]
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, _: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcan_frame_new2(can_id, channel, data, info,  |id, chl, data, len, info| {
@@ -217,12 +227,12 @@ impl NewZCanFrame for ZCanFrameV3 {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct CanFdData {
-    pub(crate) data: [c_uchar; CANFD_FRAME_LENGTH],
+    pub(crate) data: [c_uchar; CANFD_FRAME_MAX_SIZE],
 }
 
 impl Default for CanFdData {
     fn default() -> Self {
-        Self { data: [Default::default(); CANFD_FRAME_LENGTH] }
+        Self { data: [Default::default(); CANFD_FRAME_MAX_SIZE] }
     }
 }
 
@@ -235,7 +245,8 @@ pub struct ZCanFdFrameV1 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV1 {
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
+    type Error = ZCanError;
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcanfd_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
@@ -271,8 +282,9 @@ impl ZCanFdFrameV2 {
 }
 
 impl NewZCanFrame for ZCanFdFrameV2 {
-    #[allow(unused_variables)]  // TODO timestamp
-    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, timestamp: u64) -> Result<Self, ZCanError>
+    type Error = ZCanError;
+    #[allow(unused_variables)]
+    fn new<T>(can_id: u32, channel: u8, data: T, info: ZCanHdrInfo, _: u64) -> Result<Self, Self::Error>
         where
             T: AsRef<[u8]> {
         zcanfd_frame_new2(can_id, channel, data, info, |id, chl, data, len, info| {
@@ -309,15 +321,14 @@ fn zcan_frame_new<T, R>(
     where
         T: AsRef<[u8]> {
     match can_id {
-        0..=CAN_ID_FLAG => {
+        0..=EFF_MASK => {
             let mut data = Vec::from(data.as_ref());
             let len = data.len();
-            data.resize(CAN_FRAME_LENGTH, 0);
-            if (can_id & CAN_EFF_MASK) > 0 {
-                info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
-            }
             match len {
-                0..=CAN_FRAME_LENGTH => {
+                0..=CAN_FRAME_MAX_SIZE => {
+                    set_extended(&mut info, can_id);
+                    data_resize(&mut data, CAN_FRAME_MAX_SIZE);
+
                     callback(can_id, channel, data, len as u8, info)
                 },
                 _ => Err(ZCanError::ParamNotSupported),
@@ -336,14 +347,13 @@ fn zcanfd_frame_new<T, R>(
 ) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
-    if let 0..=CAN_ID_FLAG = can_id {
+    if let 0..=EFF_MASK = can_id {
         let mut data = Vec::from(data.as_ref());
         let len = data.len();
-        data.resize(CANFD_FRAME_LENGTH, 0);
-        if (can_id & CAN_EFF_MASK) > 0 {
-            info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
-        }
-        if let 0..=CANFD_FRAME_LENGTH = len {
+        if let ..=CANFD_FRAME_MAX_SIZE = len {
+            set_extended(&mut info, can_id);
+            data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
+
             callback(can_id, channel, data, len as u8, info)
         }
         else {
@@ -366,24 +376,23 @@ fn zcan_frame_new2<T, R>(
     where
         T: AsRef<[u8]> {
     match can_id {
-        0..=CAN_ID_FLAG => {
+        0..=EFF_MASK => {
             let mut data = Vec::from(data.as_ref());
             let len = data.len();
-            data.resize(CAN_FRAME_LENGTH, 0);
-            if (can_id & CAN_EFF_MASK) > 0 {
-                info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
-            }
             match len {
-                0..=CAN_FRAME_LENGTH => {
+                0..=CANFD_FRAME_MAX_SIZE => {
+                    data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
+                    set_extended(&mut info, can_id);
+
                     let mut can_id = can_id;
                     if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
-                        can_id |= CAN_EFF_FLAG;
+                        can_id |= IdentifierFlags::EXTENDED.bits();
                     }
                     if info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0 {
-                        can_id |= CAN_RTR_FLAG;
+                        can_id |= IdentifierFlags::REMOTE.bits();
                     }
                     if info.get_field(ZCanHdrInfoField::IsErrorFrame) > 0 {
-                        can_id |= CAN_ERR_FLAG;
+                        can_id |= IdentifierFlags::ERROR.bits();
                     }
                     callback(can_id, channel, data, len as u8, info)
                 },
@@ -403,23 +412,22 @@ fn zcanfd_frame_new2<T, R>(
 ) -> Result<R, ZCanError>
     where
         T: AsRef<[u8]> {
-    if let 0..=CAN_ID_FLAG = can_id {
+    if let 0..=EFF_MASK = can_id {
         let mut data = Vec::from(data.as_ref());
         let len = data.len();
-        data.resize(CANFD_FRAME_LENGTH, 0);
-        if (can_id & CAN_EFF_MASK) > 0 {
-            info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
-        }
-        if let 0..=CANFD_FRAME_LENGTH = len {
+        if let ..=CANFD_FRAME_MAX_SIZE = len {
+            data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
+            set_extended(&mut info, can_id);
+
             let mut can_id = can_id;
             if info.get_field(ZCanHdrInfoField::IsExtendFrame) > 0 {
-                can_id |= CAN_EFF_FLAG;
+                can_id |= IdentifierFlags::EXTENDED.bits();
             }
             if info.get_field(ZCanHdrInfoField::IsRemoteFrame) > 0 {
-                can_id |= CAN_RTR_FLAG;
+                can_id |= IdentifierFlags::REMOTE.bits();
             }
             if info.get_field(ZCanHdrInfoField::IsErrorFrame) > 0 {
-                can_id |= CAN_ERR_FLAG;
+                can_id |= IdentifierFlags::ERROR.bits();
             }
             callback(can_id, channel, data, len as u8, info)
         } else {
@@ -428,6 +436,13 @@ fn zcanfd_frame_new2<T, R>(
     }
     else {
         Err(ZCanError::ParamNotSupported)
+    }
+}
+
+#[inline]
+fn set_extended(info: &mut ZCanHdrInfo, can_id: u32) {
+    if (can_id & !SFF_MASK) > 0 {
+        info.set_field(ZCanHdrInfoField::IsExtendFrame, 1);
     }
 }
 

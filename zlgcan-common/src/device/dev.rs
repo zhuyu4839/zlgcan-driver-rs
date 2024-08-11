@@ -6,7 +6,7 @@ use crate::error::ZCanError;
 use crate::utils::system_timestamp;
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct ZDeviceInfo {
     hwv: c_ushort,          //**< hardware version */
     fwv: c_ushort,          //**< firmware version */
@@ -122,7 +122,7 @@ impl Display for ZDeviceInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct ZDeviceContext {
     pub(crate) dev_type: ZCanDeviceType,
     pub(crate) dev_idx: u32,
@@ -152,7 +152,7 @@ impl ZDeviceContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct ZChannelContext {
     device: ZDeviceContext,
     channel: u8,
@@ -200,7 +200,7 @@ impl ZChannelContext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[repr(C)]
 pub struct Handler {
     device: ZDeviceContext,
@@ -297,12 +297,12 @@ mod tests {
     use super::ZDeviceInfo;
 
     #[test]
-    fn device_info_new() {
+    fn device_info_new() -> anyhow::Result<()> {
         let derive = DeriveInfo {
             canfd: false,
             channels: 2,
         };
-        let device_info = ZDeviceInfo::try_from(&derive).unwrap();
+        let device_info = ZDeviceInfo::try_from(&derive)?;
         assert_eq!(device_info.chn, 2);
         assert_eq!(device_info.id(), "Derive USBCAN device");
 
@@ -310,9 +310,11 @@ mod tests {
             canfd: true,
             channels: 2,
         };
-        let device_info = ZDeviceInfo::try_from(&derive).unwrap();
+        let device_info = ZDeviceInfo::try_from(&derive)?;
         assert_eq!(device_info.chn, 2);
         assert_eq!(device_info.id(), "Derive USBCANFD device");
+
+        Ok(())
     }
 
     #[test]

@@ -125,4 +125,3 @@ pub trait ZDevice {
         })
     }
 }
-
