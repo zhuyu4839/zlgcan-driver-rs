@@ -2,7 +2,7 @@ mod channel;
 mod constant;
 mod frame;
 mod message;
-mod utils;
+mod util;
 
 pub use channel::*;
 pub use constant::*;

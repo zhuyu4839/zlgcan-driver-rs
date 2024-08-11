@@ -2,6 +2,7 @@ use std::ffi::{c_uchar, c_uint, c_ushort};
 use can_type_rs::constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE, EFF_MASK, IdentifierFlags, SFF_MASK};
 use crate::can::TIME_FLAG_VALID;
 use crate::error::ZCanError;
+use crate::utils::data_resize;
 use super::constant::{ZCanHdrInfoField, CANFD_BRS, CANFD_ESI};
 
 #[repr(C)]
@@ -326,7 +327,7 @@ fn zcan_frame_new<T, R>(
             match len {
                 0..=CAN_FRAME_MAX_SIZE => {
                     set_extended(&mut info, can_id);
-                    data.resize(CAN_FRAME_MAX_SIZE, Default::default());
+                    data_resize(&mut data, CAN_FRAME_MAX_SIZE);
 
                     callback(can_id, channel, data, len as u8, info)
                 },
@@ -351,7 +352,7 @@ fn zcanfd_frame_new<T, R>(
         let len = data.len();
         if let ..=CANFD_FRAME_MAX_SIZE = len {
             set_extended(&mut info, can_id);
-            data.resize(CANFD_FRAME_MAX_SIZE, Default::default());
+            data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
 
             callback(can_id, channel, data, len as u8, info)
         }
@@ -380,7 +381,7 @@ fn zcan_frame_new2<T, R>(
             let len = data.len();
             match len {
                 0..=CANFD_FRAME_MAX_SIZE => {
-                    data.resize(CANFD_FRAME_MAX_SIZE, Default::default());
+                    data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
                     set_extended(&mut info, can_id);
 
                     let mut can_id = can_id;
@@ -415,7 +416,7 @@ fn zcanfd_frame_new2<T, R>(
         let mut data = Vec::from(data.as_ref());
         let len = data.len();
         if let ..=CANFD_FRAME_MAX_SIZE = len {
-            data.resize(CANFD_FRAME_MAX_SIZE, Default::default());
+            data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
             set_extended(&mut info, can_id);
 
             let mut can_id = can_id;

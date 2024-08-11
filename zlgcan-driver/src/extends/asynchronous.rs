@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{Arc, mpsc::{channel, Receiver, Sender}, Mutex, MutexGuard};
+use std::sync::{Arc, mpsc::{channel, Receiver, Sender}, Mutex, MutexGuard, Weak};
 use std::time::Duration;
-use can_type_rs::device::{AsyncCanDevice, CanListener};
+use can_type_rs::identifier::Id;
+use isotp_rs::device::{AsyncDevice, Listener};
 use zlgcan_common::can::CanMessage;
 use zlgcan_common::device::Handler;
 use tokio::{spawn, time::sleep, task::JoinHandle};
@@ -15,11 +16,11 @@ pub struct ZCanAsync {
     device: ZCanDriver,
     sender: Sender<CanMessage>,
     receiver: Arc<Mutex<Receiver<CanMessage>>>,
-    listeners: Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
     stop_tx: Sender<()>,
     stop_rx: Arc<Mutex<Receiver<()>>>,
-    send_task: Arc<Mutex<Option<JoinHandle<()>>>>,
-    receive_task: Arc<Mutex<Option<JoinHandle<()>>>>,
+    send_task: Weak<JoinHandle<()>>,
+    receive_task: Weak<JoinHandle<()>>,
 }
 
 impl From<ZCanDriver> for ZCanAsync {
@@ -28,9 +29,10 @@ impl From<ZCanDriver> for ZCanAsync {
     }
 }
 
-impl AsyncCanDevice for ZCanAsync {
+impl AsyncDevice for ZCanAsync {
     type Channel = u8;
-    type Frame = CanMessage;
+    type Tx = Id;
+    type Rx = CanMessage;
     type Device = ZCanDriver;
     fn new(device: Self::Device) -> Self {
         let (tx, rx) = channel();
@@ -42,13 +44,13 @@ impl AsyncCanDevice for ZCanAsync {
             listeners: Arc::new(Mutex::new(HashMap::new())),
             stop_tx,
             stop_rx: Arc::new(Mutex::new(stop_rx)),
-            send_task: Arc::new(Mutex::new(None)),
-            receive_task: Arc::new(Mutex::new(None)),
+            send_task: Default::default(),
+            receive_task: Default::default(),
         }
     }
 
     #[inline]
-    fn sender(&self) -> Sender<Self::Frame> {
+    fn sender(&self) -> Sender<Self::Rx> {
         self.sender.clone()
     }
 
@@ -56,9 +58,9 @@ impl AsyncCanDevice for ZCanAsync {
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn CanListener<Frame = Self::Frame, Channel = Self::Channel>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Rx>>,
     ) -> bool {
-        register_listener::<Self::Frame, Self::Channel>(&self.listeners, name, listener)
+        register_listener(&self.listeners, name, listener)
     }
 
     #[inline]
@@ -96,12 +98,12 @@ impl AsyncCanDevice for ZCanAsync {
     fn async_start(&mut self, interval_ms: u64) {
         let tx_task = spawn(Self::async_transmit(Arc::new(Mutex::new(self.clone())), interval_ms, Arc::clone(&self.stop_rx)));
         let rx_task = spawn(Self::async_receive(Arc::new(Mutex::new(self.clone())), interval_ms, Arc::clone(&self.stop_rx)));
-        if let Ok(mut task) = self.send_task.lock() {
-            task.replace(tx_task);
-        }
-        if let Ok(mut task) = self.receive_task.lock() {
-            task.replace(rx_task);
-        }
+
+        let tx_task = Arc::new(tx_task);
+        let rx_task = Arc::new(rx_task);
+
+        self.send_task = Arc::downgrade(&tx_task);
+        self.receive_task = Arc::downgrade(&rx_task);
     }
 
     #[inline]
@@ -113,19 +115,15 @@ impl AsyncCanDevice for ZCanAsync {
                 log::warn!("ZLGCAN - error: {} when sending stop signal", e);
             }
 
-            if let Ok(mut task) = self.send_task.lock() {
-                if let Some(task) = task.take() {
-                    if !task.is_finished() {
-                        task.abort();
-                    }
+            if let Some(task) = self.send_task.upgrade() {
+                if !task.is_finished() {
+                    task.abort()
                 }
             }
 
-            if let Ok(mut task) = self.receive_task.lock() {
-                if let Some(task) = task.take() {
-                    if !task.is_finished() {
-                        task.abort();
-                    }
+            if let Some(task) = self.receive_task.upgrade() {
+                if !task.is_finished() {
+                    task.abort()
                 }
             }
 
@@ -135,7 +133,11 @@ impl AsyncCanDevice for ZCanAsync {
 }
 
 #[inline]
-async fn async_util(device: Arc<Mutex<ZCanAsync>>, interval: u64, stopper: Arc<Mutex<Receiver<()>>>, callback: fn(Handler, MutexGuard<ZCanAsync>)) {
+async fn async_util(device: Arc<Mutex<ZCanAsync>>,
+                    interval: u64,
+                    stopper: Arc<Mutex<Receiver<()>>>,
+                    callback: fn(Handler, MutexGuard<ZCanAsync>)
+) {
     loop {
         if let Ok(device) = device.lock() {
             if let Some(handler) = device.device.handler.clone() {
@@ -158,9 +160,9 @@ async fn async_util(device: Arc<Mutex<ZCanAsync>>, interval: u64, stopper: Arc<M
 
 #[cfg(test)]
 mod tests {
-    use can_type_rs::device::AsyncCanDevice;
+    use isotp_rs::device::AsyncDevice;
     use can_type_rs::isotp::Address;
-    use can_type_rs::isotp::client::asynchronous::CanIsoTp;
+    use can_type_rs::isotp::{AsyncCanIsoTp, CanIsoTp};
     use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType};
     use zlgcan_common::device::ZCanDeviceType;
     use crate::driver::{ZCanDriver, ZDevice};
@@ -184,17 +186,18 @@ mod tests {
 
         let mut device = ZCanAsync::from(device);
 
-        let mut client = CanIsoTp::new(device.clone());
-        client.add_channel(0, Address {
+        let mut isotp = AsyncCanIsoTp::new(0, Address {
             tx_id: 0x7E4,
             rx_id: 0x7EC,
             fid: 0x7DF,
-        }, None)?;
-        device.register_listener("UdsClient".to_string(), Box::new(client.clone()));
+        });
+        device.register_listener("UdsClient".to_string(), isotp.get_frame_listener());
 
         device.async_start(10);
 
-        client.write(0, true, vec![0x10, 0x01]).await?;
+        isotp.write(device.sender(), true, vec![0x10, 0x01]).await?;
+
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
         // println!("Press Ctrl+C to stop...");
         // if let Err(e) = tokio::signal::ctrl_c().await {
@@ -202,7 +205,7 @@ mod tests {
         //     return Ok(());
         // }
 
-        client.close().await;
+        device.close().await;
 
         Ok(())
     }

@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::slice;
 use can_type_rs::{constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::{Frame, Direct}, identifier::Id};
 use can_type_rs::j1939::J1939Id;
-use crate::utils::system_timestamp;
+use crate::utils::{system_timestamp, data_resize};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -60,7 +60,7 @@ impl Frame for CanMessage {
             Some(is_fd) => {
                 let id = id.into();
                 let mut data = Vec::new();
-                data.resize(len, Default::default());
+                data_resize(&mut data, len);
                 Some(Self {
                     timestamp: 0,
                     arbitration_id: id.as_raw(),
@@ -202,13 +202,13 @@ impl Frame for CanMessage {
                     return None;
                 }
                 match len {
-                    9..=12 =>  Some( 9),
-                    13..=16 => Some(10),
-                    17..=20 => Some(11),
-                    21..=24 => Some(12),
-                    25..=32 => Some(13),
-                    33..=48 => Some(14),
-                    49..=64 => Some(15),
+                    9..=12 =>  Some(12),
+                    13..=16 => Some(16),
+                    17..=20 => Some(20),
+                    21..=24 => Some(24),
+                    25..=32 => Some(32),
+                    33..=48 => Some(48),
+                    49..=64 => Some(64),
                     _ => None,
                 }
             },

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread::{sleep, spawn};
+use std::sync::{Arc, mpsc::{channel, Receiver, Sender}, Mutex, MutexGuard, Weak};
+use std::thread::{sleep, spawn, JoinHandle};
 use std::time::Duration;
-use can_type_rs::device::{CanListener, SyncCanDevice};
+use can_type_rs::identifier::Id;
+use isotp_rs::device::{Listener, SyncDevice};
 use zlgcan_common::can::CanMessage;
 use zlgcan_common::device::Handler;
 use crate::driver::{ZCanDriver, ZDevice};
@@ -14,11 +14,11 @@ pub struct ZCanSync {
     device: ZCanDriver,
     sender: Sender<CanMessage>,
     receiver: Arc<Mutex<Receiver<CanMessage>>>,
-    listeners: Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
     stop_tx: Sender<()>,
     stop_rx: Arc<Mutex<Receiver<()>>>,
-    send_task: Arc<Mutex<Option<std::thread::JoinHandle<()>>>>,
-    receive_task: Arc<Mutex<Option<std::thread::JoinHandle<()>>>>,
+    send_task: Weak<JoinHandle<()>>,
+    receive_task: Weak<JoinHandle<()>>,
     interval: Option<u64>,
 }
 
@@ -28,9 +28,10 @@ impl From<ZCanDriver> for ZCanSync {
     }
 }
 
-impl SyncCanDevice for ZCanSync {
+impl SyncDevice for ZCanSync {
     type Channel = u8;
-    type Frame = CanMessage;
+    type Tx = Id;
+    type Rx = CanMessage;
     type Device = ZCanDriver;
 
     fn new(device: Self::Device) -> Self {
@@ -43,14 +44,14 @@ impl SyncCanDevice for ZCanSync {
             listeners: Arc::new(Mutex::new(HashMap::new())),
             stop_tx,
             stop_rx: Arc::new(Mutex::new(stop_rx)),
-            send_task: Arc::new(Mutex::new(None)),
-            receive_task: Arc::new(Mutex::new(None)),
+            send_task: Default::default(),
+            receive_task: Default::default(),
             interval: Default::default(),
         }
     }
 
     #[inline]
-    fn sender(&self) -> Sender<Self::Frame> {
+    fn sender(&self) -> Sender<Self::Rx> {
         self.sender.clone()
     }
 
@@ -58,9 +59,9 @@ impl SyncCanDevice for ZCanSync {
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn CanListener<Frame = Self::Frame, Channel = Self::Channel>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Rx>>,
     ) -> bool {
-        register_listener::<Self::Frame, Self::Channel>(&self.listeners, name, listener)
+        register_listener(&self.listeners, name, listener)
     }
 
     #[inline]
@@ -109,12 +110,8 @@ impl SyncCanDevice for ZCanSync {
             }
         });
 
-        if let Ok(mut task) = self.send_task.lock() {
-            task.replace(tx_task);
-        }
-        if let Ok(mut task) = self.receive_task.lock() {
-            task.replace(rx_task);
-        }
+        self.send_task = Arc::downgrade(&Arc::new(tx_task));
+        self.receive_task = Arc::downgrade(&Arc::new(rx_task));
     }
 
     fn close(&mut self) {
@@ -126,19 +123,15 @@ impl SyncCanDevice for ZCanSync {
 
         sleep(Duration::from_millis(2 * self.interval.unwrap_or(50)));
 
-        if let Ok(mut task) = self.send_task.lock() {
-            if let Some(task) = task.take() {
-                if !task.is_finished() {
-                    log::warn!("ZLGCAN - send task is running after stop signal");
-                }
+        if let Some(task) = self.send_task.upgrade() {
+            if !task.is_finished() {
+                log::warn!("ZLGCAN - send task is running after stop signal");
             }
         }
 
-        if let Ok(mut task) = self.receive_task.lock() {
-            if let Some(task) = task.take() {
-                if !task.is_finished() {
-                    log::warn!("ZLGCAN - receive task is running after stop signal");
-                }
+        if let Some(task) = self.receive_task.upgrade() {
+            if !task.is_finished() {
+                log::warn!("ZLGCAN - receive task is running after stop signal");
             }
         }
 
@@ -147,7 +140,11 @@ impl SyncCanDevice for ZCanSync {
 }
 
 #[inline]
-fn sync_util(device: MutexGuard<ZCanSync>, interval: u64, stopper: Arc<Mutex<Receiver<()>>>, callback: fn(Handler, &MutexGuard<ZCanSync>)) {
+fn sync_util(device: MutexGuard<ZCanSync>,
+             interval: u64,
+             stopper: Arc<Mutex<Receiver<()>>>,
+             callback: fn(Handler, &MutexGuard<ZCanSync>)
+) {
     loop {
         if let Some(handler) = device.device.handler.clone() {
             callback(handler, &device);
@@ -169,9 +166,9 @@ fn sync_util(device: MutexGuard<ZCanSync>, interval: u64, stopper: Arc<Mutex<Rec
 
 #[cfg(test)]
 mod tests {
-    use can_type_rs::device::SyncCanDevice;
+    use isotp_rs::device::SyncDevice;
     use can_type_rs::isotp::Address;
-    use can_type_rs::isotp::client::synchronous::CanIsoTp;
+    use can_type_rs::isotp::{CanIsoTp, SyncCanIsoTp};
     use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType};
     use zlgcan_common::device::ZCanDeviceType;
     use crate::driver::{ZCanDriver, ZDevice};
@@ -195,17 +192,18 @@ mod tests {
 
         let mut device = ZCanSync::from(device);
 
-        let mut client = CanIsoTp::new(device.clone());
-        client.add_channel(0, Address {
+        let mut isotp = SyncCanIsoTp::new(0, Address {
             tx_id: 0x7E4,
             rx_id: 0x7EC,
             fid: 0x7DF,
-        }, None)?;
-        device.register_listener("UdsClient".to_string(), Box::new(client.clone()));
+        });
+        device.register_listener("UdsClient".to_string(), isotp.get_frame_listener());
 
         device.sync_start(10);
 
-        client.write(0, true, vec![0x10, 0x01])?;
+        isotp.write(device.sender(), true, vec![0x10, 0x01])?;
+
+        std::thread::sleep(std::time::Duration::from_millis(500));
 
         // println!("Press Ctrl+C to stop...");
         // if let Err(e) = tokio::signal::ctrl_c().await {
@@ -213,7 +211,7 @@ mod tests {
         //     return Ok(());
         // }
 
-        client.close();
+        device.close();
 
         Ok(())
     }

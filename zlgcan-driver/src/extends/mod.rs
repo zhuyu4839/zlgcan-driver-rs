@@ -7,7 +7,7 @@ pub use synchronous::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Receiver;
-use can_type_rs::device::CanListener;
+use isotp_rs::device::Listener;
 use can_type_rs::frame::Frame;
 use can_type_rs::identifier::Id;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
@@ -15,10 +15,10 @@ use zlgcan_common::device::Handler;
 use crate::driver::{ZCanDriver, ZDevice};
 
 #[inline]
-pub(crate) fn register_listener<Frame, Channel>(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = Frame, Channel = Channel>>>>>,
+pub(crate) fn register_listener(
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
     name: String,
-    listener: Box<dyn CanListener<Frame = Frame, Channel = Channel>>,
+    listener: Box<dyn Listener<u8, Id, CanMessage>>,
 ) -> bool {
     match listeners.lock() {
         Ok(mut v) => {
@@ -34,7 +34,7 @@ pub(crate) fn register_listener<Frame, Channel>(
 
 #[inline]
 pub(crate) fn unregister_listener(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
     name: String,
 ) -> bool {
     match listeners.lock() {
@@ -50,7 +50,7 @@ pub(crate) fn unregister_listener(
 
 #[inline]
 pub(crate) fn unregister_all(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
 ) -> bool {
     match listeners.lock() {
         Ok(mut v) => {
@@ -66,7 +66,7 @@ pub(crate) fn unregister_all(
 
 #[inline]
 pub(crate) fn listener_names(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
 ) -> Vec<String> {
     match listeners.lock() {
         Ok(v) => {
@@ -84,14 +84,14 @@ pub(crate) fn listener_names(
 
 #[inline]
 fn on_messages_util(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
     messages: &Vec<CanMessage>,
     channel: u8
 ) {
     match listeners.lock() {
         Ok(mut v) => v.values_mut()
             .for_each(|o| {
-                o.on_frame_received(messages, channel);
+                o.on_frame_received(channel, messages);
             }),
         Err(e) =>
             log::error!("ZLGCAN - mutex error: {e:?} `on_messages`"),
@@ -100,7 +100,7 @@ fn on_messages_util(
 
 #[inline]
 fn on_transmit_util(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
     id: Id,
     size: u32,
     channel: u8
@@ -109,7 +109,7 @@ fn on_transmit_util(
         match listeners.lock() {
             Ok(mut v) => v.values_mut()
                 .for_each(|o| {
-                    o.on_frame_transmitted(id, channel);
+                    o.on_frame_transmitted(channel, id);
                 }),
             Err(e) =>
                 log::error!("ZLGCAN - mutex error: {e:?} `on_transmit`"),
@@ -121,7 +121,7 @@ fn on_transmit_util(
 pub(crate) fn transmit_callback(
     receiver: &Arc<Mutex<Receiver<CanMessage>>>,
     device: &ZCanDriver,
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
 ) {
     if let Ok(receiver) = receiver.lock() {
         if let Ok(msg) = receiver.try_recv() {
@@ -147,7 +147,7 @@ pub(crate) fn transmit_callback(
 pub(crate) fn receive_callback(
     device: &ZCanDriver,
     handler: Handler,
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn CanListener<Frame = CanMessage, Channel = u8>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
 ) {
     let can_chs = handler.can_channels().len() as u8;
     for channel in 0..can_chs {

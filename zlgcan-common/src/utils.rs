@@ -1,5 +1,6 @@
 use std::ffi::{c_char, CStr};
 use std::time::{SystemTime, UNIX_EPOCH};
+use can_type_rs::constant::DEFAULT_PADDING;
 use crate::error::ZCanError;
 
 #[inline]
@@ -35,5 +36,10 @@ pub fn fix_system_time(frame_timestamp: u64, fix_timestamp: u64) -> u64 {
 #[inline]
 pub fn fix_device_time(fix_timestamp: u64) -> u64 {
     system_timestamp() - fix_timestamp
+}
+
+#[inline]
+pub(crate) fn data_resize(data: &mut Vec<u8>, size: usize) {
+    data.resize(size, DEFAULT_PADDING);
 }
 
