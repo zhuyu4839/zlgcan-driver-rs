@@ -4,7 +4,7 @@ use crate::can::constant::{CANFD_BRS, CANFD_ESI, ZCanFrameType};
 use crate::can::frame::NewZCanFrame;
 use crate::{TryFrom, TryFromIterator};
 use crate::error::ZCanError;
-use crate::utils::{fix_device_time, fix_system_time};
+use crate::utils::{fix_device_time, fix_system_time, data_resize};
 use super::{
     channel::{ZCanChlErrorV1, ZCanChlErrorV2},
     constant::ZCanHdrInfoField,
@@ -78,7 +78,7 @@ impl TryFrom<ZCanFrameV1, u64> for CanMessage {
         }
         else {
             let mut data = value.data.to_vec();
-            data.resize(value.len as usize, Default::default());
+            data_resize(&mut data, value.len as usize);
             CanMessage::new(id, data.as_slice())
                 .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
@@ -134,7 +134,7 @@ impl TryFrom<ZCanFrameV2, u64> for CanMessage {
         }
         else {
             let mut data = value.data.to_vec();
-            data.resize(hdr.len as usize, Default::default());
+            data_resize(&mut data, hdr.len as usize);
             CanMessage::new(id, data.as_slice())
                 .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
@@ -191,7 +191,7 @@ impl TryFrom<ZCanFrameV3, u64> for CanMessage {
         }
         else {
             let mut data = value.data.to_vec();
-            data.resize(hdr.can_len as usize, Default::default());
+            data_resize(&mut data, hdr.can_len as usize);
             CanMessage::new(id, data.as_slice())
                 .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
@@ -250,7 +250,7 @@ impl TryFrom<ZCanFdFrameV1, u64> for CanMessage {
         }
         else {
             let mut data = value.data.data.to_vec();
-            data.resize(hdr.len as usize, Default::default());
+            data_resize(&mut data, hdr.len as usize);
             CanMessage::new(id, data.as_slice())
                 .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
@@ -311,7 +311,7 @@ impl TryFrom<ZCanFdFrameV2, u64> for CanMessage {
         }
         else {
             let mut data = value.data.data.to_vec();
-            data.resize(hdr.can_len as usize, Default::default());
+            data_resize(&mut data, hdr.can_len as usize);
             CanMessage::new(id, data.as_slice())
                 .ok_or(ZCanError::Other("invalid data length".to_string()))
         }?;
@@ -359,7 +359,7 @@ impl TryFrom<ZCanChlErrorV1, u64> for CanMessage {
             Id::Standard(hdr.can_id  as u16)
         };
         let mut data = value.data.to_vec();
-        data.resize(hdr.len as usize, Default::default());
+        data_resize(&mut data, hdr.len as usize);
         let mut message = CanMessage::new(id, data.as_slice())
             .ok_or(ZCanError::Other("invalid data length".to_string()))?;
 
