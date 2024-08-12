@@ -10,9 +10,9 @@ use crate::api::windows::Api;
 use crate::driver::ZDevice;
 
 #[cfg(target_arch = "x86")]
-const LIB_PATH: &str = "library/windows/x86/zlgcan.dll";
+const LIB_PATH: &str = "library/windows/x86/";
 #[cfg(target_arch = "x86_64")]
-const LIB_PATH: &str = "library/windows/x86_64/zlgcan.dll";
+const LIB_PATH: &str = "library/windows/x86_64/";
 
 #[derive(Clone)]
 pub struct ZCanDriver {
@@ -25,8 +25,16 @@ pub struct ZCanDriver {
 
 impl ZDevice for ZCanDriver {
     fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError> where Self: Sized {
+        let libpath = match dotenvy::from_filename("zcan.env") {
+            Ok(_) => match std::env::var("ZCAN_LIBRARY") {
+                Ok(v) => format!("{}/{}", v, LIB_PATH),
+                Err(_) => LIB_PATH.into(),
+            },
+            Err(_) => LIB_PATH.into(),
+        };
         let api =  Arc::new(unsafe {
-            Container::load(LIB_PATH).map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))
+            Container::load(format!("{}zlgcan.dll", libpath))
+                .map_err(|_| ZCanError::LibraryLoadFailed(libpath))
         }?);
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
         Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive })

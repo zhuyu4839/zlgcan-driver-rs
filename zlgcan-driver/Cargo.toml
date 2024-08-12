@@ -17,6 +17,7 @@ anyhow = "1"
 [dependencies]
 log = { workspace = true }
 dlopen2 = { workspace = true }
+dotenvy = { workspace = true }
 isotp-rs = { workspace = true }
 can-type-rs = { workspace = true }
 zlgcan_common = { workspace = true }

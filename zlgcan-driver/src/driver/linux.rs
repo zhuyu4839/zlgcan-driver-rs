@@ -11,13 +11,10 @@ use crate::api::linux::usbcanfd_800u::USBCANFD800UApi;
 use crate::api::{ZCanApi, ZDeviceApi, ZLinApi};
 use crate::driver::ZDevice;
 
-// lazy_static!(
-//     static ref usbcan_api: Arc<Container<USBCANApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan.so") }.expect(LOAD_LIB_FAILED));
-//     static ref usbcan_4e_api: Arc<Container<USBCANEApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-4e.so") }.expect(LOAD_LIB_FAILED));
-//     static ref usbcan_8e_api: Arc<Container<USBCANEApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-8e.so") }.expect(LOAD_LIB_FAILED));
-//     static ref usbcanfd_api: Arc<Container<USBCANFDApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd.so") }.expect(LOAD_LIB_FAILED));
-//     static ref usbcanfd_800u_api: Arc<Container<USBCANFD800UApi<'static>>> = Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd800u.so") }.expect(LOAD_LIB_FAILED));
-// );
+#[cfg(target_arch = "x86")]
+const LIB_PATH: &str = "library/linux/x86/";
+#[cfg(target_arch = "x86_64")]
+const LIB_PATH: &str = "library/linux/x86_64/";
 
 #[derive(Clone)]
 pub struct ZCanDriver {
@@ -35,13 +32,25 @@ pub struct ZCanDriver {
 impl ZDevice for ZCanDriver {
     fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, ZCanError> {
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
+        let libpath = match dotenvy::from_filename("zcan.env") {
+            Ok(_) => match std::env::var("ZCAN_LIBRARY") {
+                Ok(v) => format!("{}/{}", v, LIB_PATH),
+                Err(_) => LIB_PATH.into(),
+            },
+            Err(_) => LIB_PATH.into(),
+        };
         Ok(Self {
             handler: Default::default(),
-            usbcan_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
-            usbcan_4e_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-4e.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
-            usbcan_8e_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcan-8e.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
-            usbcanfd_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
-            usbcanfd_800u_api: Arc::new(unsafe { Container::load("library/linux/x86_64/libusbcanfd800u.so") }.map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcan_api: Arc::new(unsafe { Container::load(format!("{}libusbcan.so", libpath)) }
+                .map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcan_4e_api: Arc::new(unsafe { Container::load(format!("{}libusbcan-4e.so", libpath)) }
+                .map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcan_8e_api: Arc::new(unsafe { Container::load(format!("{}libusbcan-8e.so", libpath)) }
+                .map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcanfd_api: Arc::new(unsafe { Container::load(format!("{}libusbcanfd.so", libpath)) }
+                .map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
+            usbcanfd_800u_api: Arc::new(unsafe { Container::load(format!("{}libusbcanfd800u.so", libpath)) }
+                .map_err(|e| ZCanError::LibraryLoadFailed(e.to_string()))?),
             dev_type,
             dev_idx,
             derive,
