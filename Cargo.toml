@@ -15,7 +15,7 @@ lazy_static = "1.4.0"
 dlopen2 = "0.7"
 dotenvy = "0.15"
 isotp-rs = "0.1.4"
-can-type-rs = { path = "../can-type-rs" }
+can-type-rs = { version = "1.0.6" }
 
 zlgcan_common = { version = "3.0.0-rc0", path = "zlgcan-common" }
 zlgcan_driver = { version = "3.0.0-rc0", path = "zlgcan-driver" }
