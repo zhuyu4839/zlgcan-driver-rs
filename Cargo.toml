@@ -17,5 +17,5 @@ dotenvy = "0.15"
 isotp-rs = "0.1.4"
 can-type-rs = { version = "1.0.6" }
 
-zlgcan_common = { version = "3.0.0-rc0", path = "zlgcan-common" }
-zlgcan_driver = { version = "3.0.0-rc0", path = "zlgcan-driver" }
+zlgcan_common = { path = "zlgcan-common" }
+zlgcan_driver = { path = "zlgcan-driver" }

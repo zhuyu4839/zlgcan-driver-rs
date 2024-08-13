@@ -204,7 +204,7 @@ pub extern "C" fn zlgcan_clear_can_buffer(
 #[no_mangle]
 pub extern "C" fn zlgcan_send(
     device: *const c_void,
-    msg: CanMessage,
+    msg: *const CanMessage,
     mut error: &mut *const c_char
 ) -> bool {
     match convert(device as *const ZCanDriver, error) {
@@ -348,7 +348,7 @@ mod tests {
             ).unwrap();
             send.set_tx_mode(ZCanTxMode::SelfReception as u8);
             let mut error = std::ptr::null();
-            assert!(zlgcan_send(device, send, &mut error));
+            assert!(zlgcan_send(device, &send, &mut error));
         }
 
         std::thread::sleep(Duration::from_millis(200));

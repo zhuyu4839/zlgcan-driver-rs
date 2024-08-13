@@ -132,7 +132,7 @@ impl ZLinPublishEx {
                 Ok(Self {
                     ID: pid,
                     dataLen: len as u8,
-                    data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
+                    data: data.try_into().map_err(|_| ZCanError::MessageConvertFailed)?,
                     chkSumMode: cs_mode as c_uchar,
                     reserved: Default::default(),
                 })
