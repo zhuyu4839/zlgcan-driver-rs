@@ -3,7 +3,6 @@ pub use asynchronous::*;
 mod synchronous;
 pub use synchronous::*;
 
-
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Receiver;
@@ -14,11 +13,13 @@ use zlgcan_common::can::{CanMessage, ZCanFrameType};
 use zlgcan_common::device::Handler;
 use crate::driver::{ZCanDriver, ZDevice};
 
+type ListenerType = Box<dyn Listener<u8, Id, CanMessage>>;
+
 #[inline]
 pub(crate) fn register_listener(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
     name: String,
-    listener: Box<dyn Listener<u8, Id, CanMessage>>,
+    listener: ListenerType,
 ) -> bool {
     match listeners.lock() {
         Ok(mut v) => {
@@ -34,7 +35,7 @@ pub(crate) fn register_listener(
 
 #[inline]
 pub(crate) fn unregister_listener(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
     name: String,
 ) -> bool {
     match listeners.lock() {
@@ -50,7 +51,7 @@ pub(crate) fn unregister_listener(
 
 #[inline]
 pub(crate) fn unregister_all(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
 ) -> bool {
     match listeners.lock() {
         Ok(mut v) => {
@@ -66,7 +67,7 @@ pub(crate) fn unregister_all(
 
 #[inline]
 pub(crate) fn listener_names(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
 ) -> Vec<String> {
     match listeners.lock() {
         Ok(v) => {
@@ -84,7 +85,7 @@ pub(crate) fn listener_names(
 
 #[inline]
 fn on_messages_util(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
     messages: &Vec<CanMessage>,
     channel: u8
 ) {
@@ -100,7 +101,7 @@ fn on_messages_util(
 
 #[inline]
 fn on_transmit_util(
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
     id: Id,
     size: u32,
     channel: u8
@@ -121,7 +122,7 @@ fn on_transmit_util(
 pub(crate) fn transmit_callback(
     receiver: &Arc<Mutex<Receiver<CanMessage>>>,
     device: &ZCanDriver,
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
 ) {
     if let Ok(receiver) = receiver.lock() {
         if let Ok(msg) = receiver.try_recv() {
@@ -147,7 +148,7 @@ pub(crate) fn transmit_callback(
 pub(crate) fn receive_callback(
     device: &ZCanDriver,
     handler: Handler,
-    listeners: &Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
 ) {
     let can_chs = handler.can_channels().len() as u8;
     for channel in 0..can_chs {

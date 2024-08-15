@@ -19,4 +19,4 @@ dotenvy = { workspace = true }
 can-type-rs = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1"
+anyhow = { workspace = true }

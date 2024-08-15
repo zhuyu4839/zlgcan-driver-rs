@@ -6,15 +6,16 @@ use can_type_rs::identifier::Id;
 use isotp_rs::device::{Listener, SyncDevice};
 use zlgcan_common::can::CanMessage;
 use zlgcan_common::device::Handler;
+
 use crate::driver::{ZCanDriver, ZDevice};
-use crate::extends::{listener_names, receive_callback, register_listener, transmit_callback, unregister_all, unregister_listener};
+use crate::extends::{listener_names, ListenerType, receive_callback, register_listener, transmit_callback, unregister_all, unregister_listener};
 
 #[derive(Clone)]
 pub struct ZCanSync {
     device: ZCanDriver,
     sender: Sender<CanMessage>,
     receiver: Arc<Mutex<Receiver<CanMessage>>>,
-    listeners: Arc<Mutex<HashMap<String, Box<dyn Listener<u8, Id, CanMessage>>>>>,
+    listeners: Arc<Mutex<HashMap<String, ListenerType>>>,
     stop_tx: Sender<()>,
     stop_rx: Arc<Mutex<Receiver<()>>>,
     send_task: Weak<JoinHandle<()>>,
@@ -164,55 +165,3 @@ fn sync_util(device: MutexGuard<ZCanSync>,
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use isotp_rs::device::SyncDevice;
-    use can_type_rs::isotp::Address;
-    use can_type_rs::isotp::{CanIsoTp, SyncCanIsoTp};
-    use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType};
-    use zlgcan_common::device::ZCanDeviceType;
-    use crate::driver::{ZCanDriver, ZDevice};
-    use crate::extends::ZCanSync;
-
-    #[test]
-    fn test_device() -> anyhow::Result<()> {
-        let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
-        let mut device = ZCanDriver::new(dev_type as u32, 0, None)?;
-        device.open()?;
-
-        let factory = CanChlCfgFactory::new()?;
-        let ch1_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000,
-                                              CanChlCfgExt::default())?;
-        let ch2_cfg = factory.new_can_chl_cfg(dev_type as u32, ZCanChlType::CAN as u8, ZCanChlMode::Normal as u8, 500_000,
-                                              CanChlCfgExt::default())?;
-        let cfg = vec![ch1_cfg, ch2_cfg];
-        device.init_can_chl(cfg)?;
-
-        std::thread::sleep(std::time::Duration::from_millis(100));
-
-        let mut device = ZCanSync::from(device);
-
-        let mut isotp = SyncCanIsoTp::new(0, Address {
-            tx_id: 0x7E4,
-            rx_id: 0x7EC,
-            fid: 0x7DF,
-        });
-        device.register_listener("UdsClient".to_string(), isotp.get_frame_listener());
-
-        device.sync_start(10);
-
-        isotp.write(device.sender(), true, vec![0x10, 0x01])?;
-
-        std::thread::sleep(std::time::Duration::from_millis(500));
-
-        // println!("Press Ctrl+C to stop...");
-        // if let Err(e) = tokio::signal::ctrl_c().await {
-        //     eprintln!("Failed to listen for Ctrl+C: {}", e);
-        //     return Ok(());
-        // }
-
-        device.close();
-
-        Ok(())
-    }
-}
