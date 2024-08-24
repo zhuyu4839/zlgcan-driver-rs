@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_common"
-version = "3.0.0-rc0"
+version = "3.0.0-rc1"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license = "GPL-3.0"
@@ -15,7 +15,8 @@ log = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
-can-type-rs = { workspace = true }
+dotenvy = { workspace = true }
+isotp-rs = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1"
+anyhow = { workspace = true }

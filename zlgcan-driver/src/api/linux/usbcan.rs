@@ -197,8 +197,7 @@ impl ZCloudApi for USBCANApi<'_> {}
 #[cfg(test)]
 mod tests {
     use dlopen2::symbor::{Library, SymBorApi};
-    use can_type_rs::frame::Frame;
-    use can_type_rs::identifier::Id;
+    use isotp_rs::can::{frame::Frame, identifier::Id};
     use zlgcan_common::TryFrom;
     use zlgcan_common::can::{
         ZCanChlMode, ZCanChlType,

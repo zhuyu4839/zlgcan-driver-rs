@@ -1,4 +1,5 @@
 use std::ffi::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, CString};
+use std::pin::Pin;
 use dlopen2::symbor::{Symbol, SymBorApi};
 use zlgcan_common::can::{CanChlCfg, ZCanChlError, ZCanChlErrorV2, ZCanChlStatus, ZCanChlType, ZCanFdFrameV2, ZCanFrameV3, ZCanFrameType, ZCanChlCfgV1};
 use zlgcan_common::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
@@ -355,14 +356,21 @@ impl ZCanApi for Api<'_> {
 
     fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32, resize: impl Fn(&mut Vec<Self::Frame>, usize)) -> Result<Vec<Self::Frame>, ZCanError> {
         let mut frames = Vec::new();
-        resize(&mut frames, size as usize);
 
-        let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
-        if ret < size {
-            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+        let mut count = 0;
+        for _ in 0..size {
+            let mut frame: ZCanFrameV3 = Default::default();
+            let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, &mut frame, 1, timeout) };
+            if ret == 1 {
+                count += 1;
+                frames.push(frame);
+            }
+        }
+        if count < size {
+            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, count);
         }
         else {
-            log::debug!("ZLGCAN - receive CAN frame: {}", ret);
+            log::debug!("ZLGCAN - receive CAN frame: {}", count);
         }
         Ok(frames)
     }
@@ -404,11 +412,21 @@ impl ZCanApi for Api<'_> {
     fn receive_canfd(&self, context: &ZChannelContext, size: u32, timeout: u32, resize: fn(&mut Vec<Self::FdFrame>, usize)) -> Result<Vec<Self::FdFrame>, ZCanError> {
         let mut frames = Vec::new();
         // frames.resize_with(size as usize, Default::default);
-        resize(&mut frames, size as usize);
 
-        let ret = unsafe { (self.ZCAN_ReceiveFD)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
-        if ret < size {
-            log::warn!("ZLGCAN - receive CANFD frame expect: {}, actual: {}!", size, ret);
+        let mut count = 0;
+        for _ in 0..size {
+            let mut frame: ZCanFdFrameV2 = Default::default();
+            let ret = unsafe { (self.ZCAN_ReceiveFD)(context.channel_handler()?, &mut frame, 1, timeout) };
+            if ret != 1 {
+                count += 1;
+                frames.push(frame);
+            }
+        }
+        if count < size {
+            log::warn!("ZLGCAN - receive CANFD frame expect: {}, actual: {}!", size, count);
+        }
+        else {
+            log::debug!("ZLGCAN - receive CANFD frame: {}", count);
         }
         Ok(frames)
     }

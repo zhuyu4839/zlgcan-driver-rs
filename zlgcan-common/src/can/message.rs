@@ -1,11 +1,9 @@
 use std::fmt::{Display, Formatter};
-use std::slice;
-use can_type_rs::{constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::{Frame, Direct}, identifier::Id};
-use can_type_rs::j1939::J1939Id;
+use isotp_rs::can::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE, frame::{Frame, Direct}, identifier::Id};
 use crate::utils::{system_timestamp, data_resize};
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct CanMessage {
     timestamp: u64,
     arbitration_id: u32,
@@ -14,7 +12,7 @@ pub struct CanMessage {
     is_error_frame: bool,
     channel: u8,
     length: usize,
-    data: *const u8,
+    data: Vec<u8>,
     is_fd: bool,
     direct: Direct,
     bitrate_switch: bool,
@@ -42,7 +40,7 @@ impl Frame for CanMessage {
                     is_error_frame: false,
                     channel: Default::default(),
                     length,
-                    data: Box::leak(data.to_vec().into_boxed_slice()).as_ptr(),
+                    data: data.to_vec(),
                     is_fd,
                     direct: Default::default(),
                     bitrate_switch: false,
@@ -69,7 +67,7 @@ impl Frame for CanMessage {
                     is_error_frame: false,
                     channel: Default::default(),
                     length: len,
-                    data: Box::leak(data.into_boxed_slice()).as_ptr(),
+                    data,
                     is_fd,
                     direct: Default::default(),
                     bitrate_switch: false,
@@ -93,13 +91,8 @@ impl Frame for CanMessage {
     }
 
     #[inline]
-    fn id(&self, j1939: bool) -> Id {
-        if self.is_extended_id && j1939 {
-            Id::J1939(J1939Id::from_bits(self.arbitration_id))
-        }
-        else {
-            Id::from_bits(self.arbitration_id, self.is_extended_id)
-        }
+    fn id(&self) -> Id {
+        Id::from_bits(self.arbitration_id, self.is_extended_id)
     }
 
     #[inline]
@@ -189,7 +182,7 @@ impl Frame for CanMessage {
 
     #[inline]
     fn data(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.data, self.length) }
+        self.data.as_slice()
     }
 
     #[inline]
@@ -232,16 +225,11 @@ impl PartialEq for CanMessage {
             other.is_remote_frame && (self.arbitration_id == other.arbitration_id)
         }
         else {
-            let len = self.length;
-
-            let data = unsafe { slice::from_raw_parts(self.data, self.length) };
-            let other_data = unsafe { slice::from_raw_parts(other.data, other.length) };
-
             (self.arbitration_id == other.arbitration_id) &&
                 (self.is_extended_id == other.is_extended_id) &&
                 (self.is_error_frame == other.is_error_frame) &&
                 (self.error_state_indicator == other.error_state_indicator) &&
-                (data[..len] == other_data[..len])
+                (self.data == other.data)
         }
     }
 }

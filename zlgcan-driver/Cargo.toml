@@ -1,6 +1,6 @@
 [package]
 name = "zlgcan_driver"
-version = "3.0.0-rc0"
+version = "3.0.0-rc2"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license = "GPL-3.0"
@@ -11,24 +11,28 @@ readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dev-dependencies]
-rand = "0.8.5"
-anyhow = "1"
+anyhow = { workspace = true }
+hex-literal = { workspace = true }
+rand = { workspace = true }
 
 [dependencies]
 log = { workspace = true }
 dlopen2 = { workspace = true }
+dotenvy = { workspace = true }
 isotp-rs = { workspace = true }
-can-type-rs = { workspace = true }
 zlgcan_common = { workspace = true }
 
 [dependencies.tokio]
 version = "1"
-optional = true
 features = ["rt-multi-thread", "macros", "time"]
+#optional = true
 
-[features]
-default = ["async", ]
-async = ["tokio", "isotp-rs/async", "can-type-rs/async"]
+#[dependencies.isotp-rs]
+#version = "0.1.8-alph0"
+#optional = true
+#
+#[features]
+#isotp = ["isotp-rs"]
 
 #[lib]
 #crate-type = ["cdylib"]

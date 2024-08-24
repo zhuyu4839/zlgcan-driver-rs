@@ -1,10 +1,17 @@
-use can_type_rs::frame::Frame;
+use isotp_rs::can::frame::Frame;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
 use zlgcan_common::device::ZCanError;
 use crate::driver::{ZDevice, ZCanDriver};
 
-pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> Result<u32, ZCanError> {
+pub fn unify_send(device: &ZCanDriver, msg: *const CanMessage) -> Result<u32, ZCanError> {
+    let msg = unsafe {
+        if msg.is_null() {
+            return Err(ZCanError::MessageConvertFailed);
+        }
+        std::ptr::read(msg)
+    };
     let channel = msg.channel();
+
     if msg.is_can_fd() {
         let frames = vec![msg];
         device.transmit_canfd(channel, frames)
@@ -14,6 +21,7 @@ pub fn unify_send(device: &ZCanDriver, msg: CanMessage) -> Result<u32, ZCanError
         device.transmit_can(channel, frames)
     }
 }
+
 pub fn unify_recv(device: &ZCanDriver, channel: u8, timeout: Option<u32>) -> Result<Vec<CanMessage>, ZCanError> {
     let count_can = device.get_can_num(channel, ZCanFrameType::CAN)?;
     let mut results: Vec<CanMessage> = Vec::new();

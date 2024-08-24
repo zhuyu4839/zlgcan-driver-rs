@@ -269,8 +269,12 @@ pub struct CanChlCfgFactory(Arc<HashMap<String, BitrateCfg>>);
 
 impl CanChlCfgFactory {
     pub fn new() -> Result<Self, ZCanError> {
-        let data = read_to_string(BITRATE_CFG_FILENAME)
-            .map_err(|e| ZCanError::ConfigurationError(format!("Unable to read `{}`: {:?}", BITRATE_CFG_FILENAME, e)))?;
+        let libpath = match dotenvy::from_filename("zcan.env") {
+            Ok(_) => std::env::var("ZCAN_BITRATE").unwrap_or_else(|_| BITRATE_CFG_FILENAME.into()),
+            Err(_) => BITRATE_CFG_FILENAME.into(),
+        };
+        let data = read_to_string(libpath.clone())
+            .map_err(|e| ZCanError::ConfigurationError(format!("Unable to read `{}`: {:?}", libpath, e)))?;
         let result = serde_yaml::from_str(&data)
             .map_err(|e| ZCanError::ConfigurationError(format!("Error parsing YAML: {:?}", e)))?;
         Ok(Self(Arc::new(result)))

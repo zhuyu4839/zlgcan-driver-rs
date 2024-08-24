@@ -1,5 +1,5 @@
 use std::ffi::{c_uchar, c_uint, c_ushort};
-use can_type_rs::constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE, EFF_MASK, IdentifierFlags, SFF_MASK};
+use isotp_rs::can::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE, EFF_MASK, IdentifierFlags, SFF_MASK};
 use crate::can::TIME_FLAG_VALID;
 use crate::error::ZCanError;
 use crate::utils::data_resize;
@@ -61,6 +61,7 @@ impl NewZCanFrame for ZCanFrameV1 {
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, _chl, data, len, info| {
+            let data: [c_uchar; CAN_FRAME_MAX_SIZE] = data.try_into().map_err(|_| ZCanError::MessageConvertFailed)?;
             Ok(Self {
                 can_id: id,
                 timestamp: timestamp as u32,
@@ -69,7 +70,7 @@ impl NewZCanFrame for ZCanFrameV1 {
                 rem_flag: info.get_field(ZCanHdrInfoField::IsRemoteFrame),
                 ext_flag: info.get_field(ZCanHdrInfoField::IsExtendFrame),
                 len,
-                data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
+                data,
                 channel,
                 reserved: Default::default(),
             })
@@ -152,6 +153,7 @@ impl NewZCanFrame for ZCanFrameV2 {
         where
             T: AsRef<[u8]> {
         zcan_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
+            let data: [c_uchar; CAN_FRAME_MAX_SIZE] = data.try_into().map_err(|_| ZCanError::MessageConvertFailed)?;
             Ok(Self {
                 hdr: ZCanHeaderV1 {
                     timestamp: timestamp as u32,
@@ -161,7 +163,7 @@ impl NewZCanFrame for ZCanFrameV2 {
                     channel: chl,
                     len,
                 },
-                data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
+                data,
             })
         })
     }
@@ -209,6 +211,7 @@ impl NewZCanFrame for ZCanFrameV3 {
         where
             T: AsRef<[u8]> {
         zcan_frame_new2(can_id, channel, data, info,  |id, chl, data, len, info| {
+            let data: [c_uchar; CAN_FRAME_MAX_SIZE] = data.try_into().map_err(|_| ZCanError::MessageConvertFailed)?;
             Ok(Self {
                 hdr: ZCanHeaderV2 {
                     can_id: id,
@@ -217,7 +220,7 @@ impl NewZCanFrame for ZCanFrameV3 {
                     __res0: chl,
                     __res1: Default::default(),
                 },
-                data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)?,
+                data,
                 ts_or_mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
             })
         })
@@ -250,6 +253,7 @@ impl NewZCanFrame for ZCanFdFrameV1 {
         where
             T: AsRef<[u8]> {
         zcanfd_frame_new(can_id, channel, data, info, |id, chl, data, len, info| {
+            let data: [c_uchar; CANFD_FRAME_MAX_SIZE] = data.try_into().map_err(|_| ZCanError::MessageConvertFailed)?;
             Ok(Self {
                 hdr: ZCanHeaderV1 {
                     timestamp: timestamp as u32,
@@ -259,7 +263,7 @@ impl NewZCanFrame for ZCanFdFrameV1 {
                     channel: chl,
                     len,
                 },
-                data: CanFdData {data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)? },
+                data: CanFdData { data },
             })
         })
     }
@@ -295,6 +299,7 @@ impl NewZCanFrame for ZCanFdFrameV2 {
             if info.get_field(ZCanHdrInfoField::IsErrorStateIndicator) > 0 {
                 flag |= CANFD_ESI;
             }
+            let data: [c_uchar; CANFD_FRAME_MAX_SIZE] = data.try_into().map_err(|_| ZCanError::MessageConvertFailed)?;
 
             Ok(Self {
                 hdr: ZCanHeaderV2 {
@@ -304,7 +309,7 @@ impl NewZCanFrame for ZCanFdFrameV2 {
                     __res0: chl,
                     __res1: Default::default(),
                 },
-                data: CanFdData { data: data.try_into().map_err(|_| ZCanError::ParamNotSupported)? },
+                data: CanFdData { data },
                 ts_or_mode: info.get_field(ZCanHdrInfoField::TxMode) as u32,
             })
         })
@@ -380,8 +385,8 @@ fn zcan_frame_new2<T, R>(
             let mut data = Vec::from(data.as_ref());
             let len = data.len();
             match len {
-                0..=CANFD_FRAME_MAX_SIZE => {
-                    data_resize(&mut data, CANFD_FRAME_MAX_SIZE);
+                0..=CAN_FRAME_MAX_SIZE => {
+                    data_resize(&mut data, CAN_FRAME_MAX_SIZE);
                     set_extended(&mut info, can_id);
 
                     let mut can_id = can_id;
