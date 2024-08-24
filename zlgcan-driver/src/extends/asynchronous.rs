@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, mpsc::{channel, Receiver, Sender}, Mutex, MutexGuard, Weak};
 use std::time::Duration;
-use can_type_rs::identifier::Id;
 use isotp_rs::device::{AsyncDevice, Listener};
 use zlgcan_common::can::CanMessage;
 use zlgcan_common::device::Handler;
@@ -30,10 +29,10 @@ impl From<ZCanDriver> for ZCanAsync {
 }
 
 impl AsyncDevice for ZCanAsync {
-    type Channel = u8;
-    type Tx = Id;
-    type Rx = CanMessage;
     type Device = ZCanDriver;
+    type Channel = u8;
+    type Id = u32;
+    type Frame = CanMessage;
 
     fn new(device: Self::Device) -> Self {
         let (tx, rx) = channel();
@@ -51,7 +50,7 @@ impl AsyncDevice for ZCanAsync {
     }
 
     #[inline]
-    fn sender(&self) -> Sender<Self::Rx> {
+    fn sender(&self) -> Sender<Self::Frame> {
         self.sender.clone()
     }
 
@@ -59,7 +58,7 @@ impl AsyncDevice for ZCanAsync {
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Rx>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Id, Self::Frame>>,
     ) -> bool {
         register_listener(&self.listeners, name, listener)
     }
@@ -79,26 +78,26 @@ impl AsyncDevice for ZCanAsync {
         listener_names(&self.listeners)
     }
 
-    fn async_transmit(device: Arc<Mutex<Self>>, interval_ms: u64, stopper: Arc<Mutex<Receiver<()>>>) -> impl Future<Output=()> + Send {
+    fn async_transmit(device: Arc<Mutex<Self>>, interval_us: u64, stopper: Arc<Mutex<Receiver<()>>>) -> impl Future<Output=()> + Send {
         async move {
-            async_util(device, interval_ms, stopper, |_, device| {
+            async_util(device, interval_us, stopper, |_, device| {
                 transmit_callback(&device.receiver, &device.device, &device.listeners)
             }).await;
         }
     }
 
-    fn async_receive(device: Arc<Mutex<Self>>, interval_ms: u64, stopper: Arc<Mutex<Receiver<()>>>) -> impl Future<Output=()> + Send {
+    fn async_receive(device: Arc<Mutex<Self>>, interval_us: u64, stopper: Arc<Mutex<Receiver<()>>>) -> impl Future<Output=()> + Send {
         async move {
-            async_util(device, interval_ms, stopper, |handler, device| {
+            async_util(device, interval_us, stopper, |handler, device| {
                 receive_callback(&device.device, handler, &device.listeners)
             }).await;
         }
     }
 
     #[inline]
-    fn async_start(&mut self, interval_ms: u64) {
-        let tx_task = spawn(Self::async_transmit(Arc::new(Mutex::new(self.clone())), interval_ms, Arc::clone(&self.stop_rx)));
-        let rx_task = spawn(Self::async_receive(Arc::new(Mutex::new(self.clone())), interval_ms, Arc::clone(&self.stop_rx)));
+    fn async_start(&mut self, interval_us: u64) {
+        let tx_task = spawn(Self::async_transmit(Arc::new(Mutex::new(self.clone())), interval_us, Arc::clone(&self.stop_rx)));
+        let rx_task = spawn(Self::async_receive(Arc::new(Mutex::new(self.clone())), interval_us, Arc::clone(&self.stop_rx)));
 
         let tx_task = Arc::new(tx_task);
         let rx_task = Arc::new(rx_task);
@@ -155,6 +154,6 @@ async fn async_util(device: Arc<Mutex<ZCanAsync>>,
                 break
             }
         }
-        sleep(Duration::from_millis(interval)).await;
+        sleep(Duration::from_micros(interval)).await;
     }
 }

@@ -20,17 +20,19 @@ log = { workspace = true }
 dlopen2 = { workspace = true }
 dotenvy = { workspace = true }
 isotp-rs = { workspace = true }
-can-type-rs = { workspace = true }
 zlgcan_common = { workspace = true }
 
 [dependencies.tokio]
 version = "1"
-optional = true
 features = ["rt-multi-thread", "macros", "time"]
+#optional = true
 
-[features]
-default = ["async", ]
-async = ["tokio", "isotp-rs/async", "can-type-rs/async"]
+#[dependencies.isotp-rs]
+#version = "0.1.8-alph0"
+#optional = true
+#
+#[features]
+#isotp = ["isotp-rs"]
 
 #[lib]
 #crate-type = ["cdylib"]

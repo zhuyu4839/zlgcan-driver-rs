@@ -1,5 +1,4 @@
-use can_type_rs::{constant::{IdentifierFlags, SFF_MASK}, frame::{Frame, Direct}, identifier::Id};
-use can_type_rs::constant::EFF_MASK;
+use isotp_rs::can::{IdentifierFlags, SFF_MASK, EFF_MASK, frame::{Frame, Direct}, identifier::Id};
 use crate::can::constant::{CANFD_BRS, CANFD_ESI, ZCanFrameType};
 use crate::can::frame::NewZCanFrame;
 use crate::{TryFrom, TryFromIterator};
@@ -44,11 +43,7 @@ fn frame_new<T: NewZCanFrame<Error = ZCanError>>(
         info.set_field(ZCanHdrInfoField::IsErrorFrame, 1);
     }
 
-    T::new(match msg.id(false) {
-        Id::Standard(v) => v as u32,
-        Id::Extended(v) => v,
-        Id::J1939(v) => v.into_bits(),
-    },
+    T::new(msg.id().into(),
            msg.channel(),
            msg.data(),
            info,

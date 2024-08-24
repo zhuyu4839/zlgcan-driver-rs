@@ -1,5 +1,4 @@
-use can_type_rs::frame::Frame;
-use can_type_rs::identifier::Id;
+use isotp_rs::can::{frame::Frame, identifier::Id};
 use zlgcan_common::can::{CanChlCfgExt, CanChlCfgFactory, ZCanChlMode, ZCanChlType, CanMessage};
 use zlgcan_common::device::ZCanDeviceType;
 use zlgcan_common::error::ZCanError;

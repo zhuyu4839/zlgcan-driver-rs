@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
-use can_type_rs::{constant::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE}, frame::{Frame, Direct}, identifier::Id};
-use can_type_rs::j1939::J1939Id;
+use isotp_rs::can::{CAN_FRAME_MAX_SIZE, CANFD_FRAME_MAX_SIZE, frame::{Frame, Direct}, identifier::Id};
 use crate::utils::{system_timestamp, data_resize};
 
 #[repr(C)]
@@ -92,13 +91,8 @@ impl Frame for CanMessage {
     }
 
     #[inline]
-    fn id(&self, j1939: bool) -> Id {
-        if self.is_extended_id && j1939 {
-            Id::J1939(J1939Id::from_bits(self.arbitration_id))
-        }
-        else {
-            Id::from_bits(self.arbitration_id, self.is_extended_id)
-        }
+    fn id(&self) -> Id {
+        Id::from_bits(self.arbitration_id, self.is_extended_id)
     }
 
     #[inline]

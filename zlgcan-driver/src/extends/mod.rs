@@ -1,19 +1,19 @@
 mod asynchronous;
 pub use asynchronous::*;
+
 mod synchronous;
 pub use synchronous::*;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Receiver;
+use isotp_rs::can::frame::Frame;
 use isotp_rs::device::Listener;
-use can_type_rs::frame::Frame;
-use can_type_rs::identifier::Id;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
 use zlgcan_common::device::Handler;
 use crate::driver::{ZCanDriver, ZDevice};
 
-type ListenerType = Box<dyn Listener<u8, Id, CanMessage>>;
+type ListenerType = Box<dyn Listener<u8, u32, CanMessage>>;
 
 #[inline]
 pub(crate) fn register_listener(
@@ -100,9 +100,25 @@ fn on_messages_util(
 }
 
 #[inline]
-fn on_transmit_util(
+fn on_transmitting_util(
     listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
-    id: Id,
+    channel: u8,
+    frame: &CanMessage
+) {
+    match listeners.lock() {
+        Ok(mut v) => v.values_mut()
+            .for_each(|o| {
+                o.on_frame_transmitting(channel, frame);
+            }),
+        Err(e) =>
+            log::error!("ZLGCAN - mutex error: {e:?} `on_transmit`"),
+    }
+}
+
+#[inline]
+fn on_transmitted_util(
+    listeners: &Arc<Mutex<HashMap<String, ListenerType>>>,
+    id: u32,
     size: u32,
     channel: u8
 ) {
@@ -129,15 +145,16 @@ pub(crate) fn transmit_callback(
             log::debug!("ZLGCAN - transmit: {}", msg);
             let channel = msg.channel();
             let fd = msg.is_can_fd();
-            let id = msg.id(false);
+            let id = msg.id();
+            on_transmitting_util(listeners, channel, &msg);
             if fd {
                 if let Ok(v) = device.transmit_canfd(channel, vec![msg, ]) {
-                    on_transmit_util(listeners, id, v, channel);
+                    on_transmitted_util(listeners, id.into_bits(), v, channel);
                 }
             }
             else {
                 if let Ok(v) = device.transmit_can(channel, vec![msg, ]) {
-                    on_transmit_util(listeners, id, v, channel);
+                    on_transmitted_util(listeners, id.into_bits(), v, channel);
                 }
             }
         }

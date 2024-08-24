@@ -1,7 +1,7 @@
 pub(crate) mod api;
 pub mod utils;
 pub mod driver;
-#[cfg(feature = "tokio")]
+// #[cfg(feature = "isotp-rs")]
 pub mod extends;
 
 #[allow(dead_code)]

@@ -1,4 +1,4 @@
-use can_type_rs::frame::Frame;
+use isotp_rs::can::frame::Frame;
 use zlgcan_common::can::{CanMessage, ZCanFrameType};
 use zlgcan_common::device::ZCanError;
 use crate::driver::{ZDevice, ZCanDriver};

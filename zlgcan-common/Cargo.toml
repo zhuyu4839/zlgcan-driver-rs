@@ -16,7 +16,7 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 dotenvy = { workspace = true }
-can-type-rs = { workspace = true }
+isotp-rs = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

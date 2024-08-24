@@ -266,8 +266,7 @@ pub extern "C" fn zlgcan_close(
 mod tests {
     use std::ffi::CStr;
     use std::time::Duration;
-    use can_type_rs::frame::Frame;
-    use can_type_rs::identifier::Id;
+    use isotp_rs::can::{frame::Frame, identifier::Id};
     use zlgcan_common::can::{CanMessage, ZCanTxMode};
     use zlgcan_common::device::ZCanDeviceType;
     use super::{ZCanChlCfgApi, zlgcan_cfg_factory_can, zlgcan_chl_cfg_can, zlgcan_close, zlgcan_device_info, zlgcan_init_can, zlgcan_open, zlgcan_recv, zlgcan_send};

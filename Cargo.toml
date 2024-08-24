@@ -14,8 +14,7 @@ serde_yaml = "0.9"
 lazy_static = "1.4.0"
 dlopen2 = "0.7"
 dotenvy = "0.15"
-isotp-rs = { path = "../isotp-rs" }
-can-type-rs = { path = "../can-type-rs" }
+isotp-rs = { version = "0.1.8-alph0", features = ["default", "tokio"] }
 
 zlgcan_common = { path = "zlgcan-common" }
 zlgcan_driver = { path = "zlgcan-driver" }

@@ -1,6 +1,6 @@
 use std::ffi::{c_char, CStr};
 use std::time::{SystemTime, UNIX_EPOCH};
-use can_type_rs::constant::DEFAULT_PADDING;
+use isotp_rs::can::DEFAULT_PADDING;
 use crate::error::ZCanError;
 
 #[inline]
