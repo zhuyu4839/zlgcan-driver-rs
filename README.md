@@ -1,3 +1,5 @@
+# This project is move to part of [ecu-proto-rs](https://github.com/zhuyu4839/ecu-proto-rs)
+
 ## ZLGCAN driver for rust
 * Build release for Linux x86_64
   ```shell
